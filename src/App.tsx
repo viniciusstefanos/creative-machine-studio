@@ -12,9 +12,13 @@ import NewClient from "./pages/NewClient.tsx";
 import ClientDetail from "./pages/ClientDetail.tsx";
 import NewActivation from "./pages/NewActivation.tsx";
 import ActivationHub from "./pages/ActivationHub.tsx";
+import CopyDetail from "./pages/CopyDetail.tsx";
+import Notifications from "./pages/Notifications.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
+
+const P = ({ children }: { children: React.ReactNode }) => <ProtectedRoute>{children}</ProtectedRoute>;
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -25,13 +29,21 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
-            <Route path="/clients/new" element={<ProtectedRoute><NewClient /></ProtectedRoute>} />
-            <Route path="/clients/:id" element={<ProtectedRoute><ClientDetail /></ProtectedRoute>} />
-            <Route path="/clients/:id/activations/new" element={<ProtectedRoute><NewActivation /></ProtectedRoute>} />
-            <Route path="/activations/:id" element={<ProtectedRoute><ActivationHub /></ProtectedRoute>} />
-            <Route path="/activations/:id/*" element={<ProtectedRoute><ActivationHub /></ProtectedRoute>} />
+            <Route path="/" element={<P><Index /></P>} />
+            <Route path="/clients" element={<P><Clients /></P>} />
+            <Route path="/clients/new" element={<P><NewClient /></P>} />
+            <Route path="/clients/:id" element={<P><ClientDetail /></P>} />
+            <Route path="/clients/:id/activations/new" element={<P><NewActivation /></P>} />
+            <Route path="/activations/:id" element={<P><ActivationHub /></P>} />
+            <Route path="/activations/:id/brief" element={<P><ActivationHub /></P>} />
+            <Route path="/activations/:id/copies" element={<P><ActivationHub /></P>} />
+            <Route path="/activations/:id/copies/:copyId" element={<P><CopyDetail /></P>} />
+            <Route path="/activations/:id/assets" element={<P><ActivationHub /></P>} />
+            <Route path="/activations/:id/ad-campaigns" element={<P><ActivationHub /></P>} />
+            <Route path="/activations/:id/utm" element={<P><ActivationHub /></P>} />
+            <Route path="/activations/:id/schedule" element={<P><ActivationHub /></P>} />
+            <Route path="/activations/:id/analytics" element={<P><ActivationHub /></P>} />
+            <Route path="/notifications" element={<P><Notifications /></P>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

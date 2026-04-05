@@ -2,8 +2,14 @@ import { useEffect, useState } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { SectionLabel } from "@/components/ui/SectionLabel";
 import { supabase } from "@/integrations/supabase/client";
+import { BriefTab } from "@/components/activation/BriefTab";
+import { CopiesTab } from "@/components/activation/CopiesTab";
+import { AssetsTab } from "@/components/activation/AssetsTab";
+import { UtmTab } from "@/components/activation/UtmTab";
+import { ScheduleTab } from "@/components/activation/ScheduleTab";
+import { AnalyticsTab } from "@/components/activation/AnalyticsTab";
+import { CampaignsTab } from "@/components/activation/CampaignsTab";
 
 const tabs = [
   { key: "brief", label: "Brief", path: "brief" },
@@ -38,8 +44,8 @@ const ActivationHub = () => {
       }
 
       const [copiesRes, assetsRes] = await Promise.all([
-        supabase.from("copies").select("status", { count: "exact" }).eq("activation_id", id).eq("status", "review"),
-        supabase.from("assets").select("status", { count: "exact" }).eq("activation_id", id).eq("status", "review"),
+        supabase.from("copies").select("status", { count: "exact" }).eq("activation_id", id!).eq("status", "review"),
+        supabase.from("assets").select("status", { count: "exact" }).eq("activation_id", id!).eq("status", "review"),
       ]);
 
       setCounts({
@@ -51,8 +57,11 @@ const ActivationHub = () => {
     fetchData();
   }, [id]);
 
-  const currentTab = location.pathname.split("/").pop() || "";
+  // Determine active tab from URL
+  const pathParts = location.pathname.split("/");
+  const tabSegment = pathParts[3] || "brief";
   const isHubRoot = location.pathname === `/activations/${id}`;
+  const activeTab = isHubRoot ? "brief" : tabSegment;
 
   if (loading) {
     return (
@@ -69,6 +78,19 @@ const ActivationHub = () => {
       </AppLayout>
     );
   }
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "brief": return <BriefTab activationId={id!} />;
+      case "copies": return <CopiesTab activationId={id!} />;
+      case "assets": return <AssetsTab activationId={id!} />;
+      case "ad-campaigns": return <CampaignsTab activationId={id!} />;
+      case "utm": return <UtmTab activationId={id!} landingPageUrl={activation.landing_page_url} />;
+      case "schedule": return <ScheduleTab activationId={id!} />;
+      case "analytics": return <AnalyticsTab activationId={id!} />;
+      default: return <BriefTab activationId={id!} />;
+    }
+  };
 
   return (
     <AppLayout
@@ -103,10 +125,7 @@ const ActivationHub = () => {
           {activation.budget && (
             <span
               className="text-xs"
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                color: "var(--text-muted)",
-              }}
+              style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}
             >
               R$ {Number(activation.budget).toLocaleString("pt-BR")}
             </span>
@@ -120,11 +139,8 @@ const ActivationHub = () => {
         style={{ borderBottom: "1px solid var(--border-subtle)" }}
       >
         {tabs.map((tab) => {
-          const isActive = isHubRoot
-            ? tab.key === "brief"
-            : currentTab === tab.path;
-          const count =
-            tab.key === "copies" ? counts.copies : tab.key === "assets" ? counts.assets : 0;
+          const isActive = activeTab === tab.key || activeTab === tab.path;
+          const count = tab.key === "copies" ? counts.copies : tab.key === "assets" ? counts.assets : 0;
 
           return (
             <Link
@@ -155,19 +171,8 @@ const ActivationHub = () => {
         })}
       </div>
 
-      {/* Tab Content Placeholder */}
-      <div
-        className="p-8 rounded-lg text-center"
-        style={{
-          background: "var(--bg-surface1)",
-          border: "1px solid var(--border-default)",
-          borderRadius: 8,
-        }}
-      >
-        <p className="text-sm" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>
-          Selecione uma aba acima para navegar
-        </p>
-      </div>
+      {/* Tab Content */}
+      {renderTabContent()}
     </AppLayout>
   );
 };
