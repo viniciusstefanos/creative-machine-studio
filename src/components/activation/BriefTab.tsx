@@ -225,14 +225,27 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
         />
       </div>
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="px-6 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50"
-        style={{ background: "hsl(var(--accent))", color: "hsl(var(--text-inverse))", fontFamily: "'DM Sans'", borderRadius: 6 }}
+      <div
+        className="flex justify-end gap-2 mt-6 pt-5"
+        style={{ borderTop: "1px solid hsl(var(--border-subtle))" }}
       >
-        {saving ? "Salvando..." : brief ? "Atualizar brief" : "Salvar brief"}
-      </button>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-4 py-2 text-xs font-medium rounded-md disabled:opacity-40"
+          style={{
+            background: "hsl(var(--accent))",
+            color: "hsl(var(--text-inverse))",
+            fontFamily: "'DM Sans', sans-serif",
+            borderRadius: 6,
+            border: "1px solid hsl(var(--accent))",
+            transition: "all 0.15s ease",
+            letterSpacing: "0.2px",
+          }}
+        >
+          {saving ? "Salvando..." : brief ? "Atualizar brief" : "Salvar brief"}
+        </button>
+      </div>
     </div>
   );
 };
