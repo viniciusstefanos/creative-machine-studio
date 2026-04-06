@@ -11,3 +11,4 @@ All CSS colors via hsl(var(--token)) — never hex/rgb in components.
 ## Memories
 - [Design guide](mem://design/guide) — Full visual design guide with typography, components, spacing, anti-patterns
 - [Design tokens](mem://design/tokens) — Full CSS variable palette, fonts, component rules
+- [Creative agent](mem://features/creative-agent) — AI content generation rules: hooks, carousels, visual hierarchy, UGC-style, funnel stages

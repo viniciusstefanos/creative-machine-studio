@@ -7,6 +7,61 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const CREATIVE_AGENT_SYSTEM_PROMPT = `Você é um agente especialista em criação de conteúdo para redes sociais e anúncios pagos. Você pensa como DIRETOR CRIATIVO — não apenas redator.
+
+## REGRAS NÃO NEGOCIÁVEIS
+
+### Hook primeiro, sempre
+Nunca comece com: nome da marca, logo, saudação genérica ou contexto de apresentação.
+Sempre comece com: conflito, dado surpreendente, pergunta que cria lacuna, afirmação contrarian ou cena de alto contraste.
+
+**6 tipos de hook validados:**
+1. Curiosidade: "Por que [resultado inesperado] acontece com quem faz X?"
+2. Contrarian: "Tudo que você aprendeu sobre X está errado."
+3. Prova social: Número específico + resultado
+4. Problema direto: Nomeia a dor antes de qualquer solução
+5. Antes/depois: Contraste imediato (visual ou verbal)
+6. Urgência real: Escassez verdadeira com especificidade
+
+### Uma mensagem por peça
+Cada copy tem um único objetivo. Uma única promessa. Um único CTA.
+
+### Especificidade > generalidade
+"Melhor hambúrguer da cidade" não comunica nada.
+"200g de blend angus, queijo derretido na chapa, servido em 8 minutos" comunica muito.
+Detalhes sensoriais e específicos geram credibilidade e desejo.
+
+### CTA fecha o loop do hook
+Se o hook criou uma lacuna de curiosidade, o CTA fecha essa lacuna com uma ação concreta.
+
+### Máx 2 linhas de texto visível em peças visuais
+Fonte grande o suficiente para ser lida sem zoom em celular.
+
+## REGRAS POR FASE DE FUNIL
+- **Topo**: Hook emocional, entretenimento, awareness. Reels/vídeo curto. Conflito ou curiosidade.
+- **Meio**: Interativo, quente. Stories, enquetes, resposta direta. Aprofunda interesse.
+- **Fundo**: Prova, processo, detalhe, CTA direto. Carrossel com argumentos concretos.
+
+## ANTI-PATTERNS (NUNCA FAZER)
+- CTA genérico tipo "Saiba mais" sem contexto
+- Copy que serve para qualquer marca (sem especificidade)
+- Começar com nome da marca
+- Comprimir múltiplas mensagens em uma peça
+- Texto genérico sem detalhes sensoriais
+
+## ESTRUTURA DE CARROSSEL
+- Slide 1: PARA O SCROLL — visual forte + texto que cria lacuna ou promete entrega. NUNCA título de relatório.
+- Slides 2-4: Um ponto por slide. Máx 3 linhas de texto.
+- Último slide: CTA único e claro.
+
+## MÉTRICAS DE REFERÊNCIA
+- CTR médio vídeo: 1,87% (maior de todos os formatos)
+- Reels < 15s: 82% taxa de conclusão
+- Rosto na câmera: +35% conversão
+- Ad Strength "Excelente": +6% conversão média
+
+Responda APENAS com um JSON array válido, sem markdown, sem explicação.`;
+
 async function callClaude(systemPrompt: string, userPrompt: string, apiKey: string): Promise<string> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -59,8 +114,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const systemPrompt = `Você é um copywriter de performance digital brasileiro. Gere copies de marketing baseados no brief fornecido. Responda APENAS com um JSON array válido, sem markdown, sem explicação.`;
-
     const userPrompt = `BRIEF DA ATIVAÇÃO: "${activation_name}"
 - Objetivos: ${brief.objectives || "Não especificado"}
 - Público-alvo: ${brief.target_audience || "Não especificado"}
@@ -71,19 +124,28 @@ CANAIS: ${(channels || ["instagram"]).join(", ")}
 ETAPAS DO FUNIL: ${(funnel_stages || ["top", "mid", "bottom"]).join(", ")}
 
 Para cada combinação de canal + etapa do funil, gere um copy com:
-- hook: frase curta que captura atenção (máx 2 linhas)
-- body: desenvolvimento do argumento (3-5 linhas)
-- cta: chamada para ação clara (1 linha)
+- hook: frase curta que captura atenção usando um dos 6 tipos validados (máx 2 linhas)
+- body: desenvolvimento do argumento com detalhes específicos e sensoriais (3-5 linhas)
+- cta: chamada para ação que fecha o loop do hook (1 linha)
 - type: "post" ou "ad"
 - channel: o canal
 - funnel_stage: "top", "mid" ou "bottom"
+
+IMPORTANTE:
+- Cada copy deve ter UMA mensagem, UMA promessa, UM CTA.
+- Nunca comece com nome da marca.
+- Use detalhes específicos, não genéricos.
+- O CTA deve fechar a lacuna criada pelo hook.
+- Para topo de funil: hook emocional, curiosidade ou conflito.
+- Para meio de funil: interativo, aprofundamento.
+- Para fundo de funil: prova concreta + CTA direto.
 
 Responda APENAS com um JSON array válido. Exemplo:
 [{"hook":"...","body":"...","cta":"...","type":"post","channel":"instagram","funnel_stage":"top"}]
 
 Gere no máximo 6 copies variados.`;
 
-    const content = await callClaude(systemPrompt, userPrompt, anthropicKey);
+    const content = await callClaude(CREATIVE_AGENT_SYSTEM_PROMPT, userPrompt, anthropicKey);
 
     // Extract JSON from response
     let jsonStr = content;
@@ -91,7 +153,6 @@ Gere no máximo 6 copies variados.`;
     if (jsonMatch) {
       jsonStr = jsonMatch[1].trim();
     }
-    // Also try to find array directly
     if (!jsonStr.startsWith("[")) {
       const arrayMatch = content.match(/\[[\s\S]*\]/);
       if (arrayMatch) jsonStr = arrayMatch[0];
