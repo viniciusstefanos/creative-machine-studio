@@ -19,6 +19,37 @@ export default {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        /* Hierarchical surfaces */
+        surface: {
+          base: "hsl(var(--bg-base))",
+          1: "hsl(var(--bg-surface1))",
+          2: "hsl(var(--bg-surface2))",
+          3: "hsl(var(--bg-surface3))",
+          4: "hsl(var(--bg-surface4))",
+        },
+        /* Hierarchical text */
+        txt: {
+          primary: "hsl(var(--text-primary))",
+          secondary: "hsl(var(--text-secondary))",
+          muted: "hsl(var(--text-muted))",
+          ghost: "hsl(var(--text-ghost))",
+          inverse: "hsl(var(--text-inverse))",
+        },
+        /* Hierarchical borders */
+        line: {
+          subtle: "hsl(var(--border-subtle))",
+          DEFAULT: "hsl(var(--border-default))",
+          strong: "hsl(var(--border-strong))",
+          accent: "hsl(var(--border-accent))",
+        },
+        /* Accent palette */
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          dim: "hsl(var(--accent-dim))",
+          glow: "hsl(var(--accent-glow))",
+          surface: "hsl(var(--accent-surface))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -35,10 +66,6 @@ export default {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
         },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
-        },
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
@@ -47,6 +74,8 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        warning: "hsl(var(--warning))",
+        info: "hsl(var(--info))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
