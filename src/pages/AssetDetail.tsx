@@ -42,9 +42,6 @@ const AssetDetail = () => {
         const cpRes = await supabase.from("copies").select("hook, channel, type").eq("id", data.copy_id).single();
         if (cpRes.data) setCopy(cpRes.data);
       }
-
-      const results = await Promise.all(promises);
-      if (results[0]?.data) {
         setActivation(results[0].data);
         setClientName((results[0].data as any).clients?.name || "");
       }
