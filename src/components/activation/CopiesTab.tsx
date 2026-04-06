@@ -8,9 +8,10 @@ import { toast } from "@/hooks/use-toast";
 
 interface CopiesTabProps {
   activationId: string;
+  briefDone?: boolean;
 }
 
-export const CopiesTab = ({ activationId }: CopiesTabProps) => {
+export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
   const [copies, setCopies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -204,9 +205,19 @@ export const CopiesTab = ({ activationId }: CopiesTabProps) => {
         <div className="p-8 rounded-lg text-center" style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
           <FileText size={32} className="mx-auto mb-3" style={{ color: "var(--text-muted)" }} />
           <p className="text-sm mb-1" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>Nenhum copy ainda</p>
-          <p className="text-xs" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>
-            Crie manualmente ou gere com IA a partir do brief
-          </p>
+          {briefDone === false ? (
+            <Link
+              to={`/activations/${activationId}/brief`}
+              className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 text-xs font-medium rounded-md transition-all"
+              style={{ background: "var(--accent)", color: "var(--text-inverse)", borderRadius: 6 }}
+            >
+              ← Preencher brief primeiro
+            </Link>
+          ) : (
+            <p className="text-xs" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>
+              Clique em "Gerar com IA" para criar copies a partir do brief
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-3">

@@ -8,9 +8,10 @@ import { Image, Plus } from "lucide-react";
 
 interface AssetsTabProps {
   activationId: string;
+  copiesApproved?: number;
 }
 
-export const AssetsTab = ({ activationId }: AssetsTabProps) => {
+export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,9 +41,26 @@ export const AssetsTab = ({ activationId }: AssetsTabProps) => {
         </Link>
       </div>
       {assets.length === 0 ? (
-        <div className="p-8 rounded-lg text-center bg-surface-1 border border-line-subtle" style={{ borderRadius: 8 }}>
-          <Image size={32} className="mx-auto mb-3 text-txt-muted" />
-          <p className="text-sm text-txt-muted" style={{ fontFamily: "'DM Sans'" }}>Nenhuma peça ainda</p>
+        <div className="p-8 rounded-lg text-center" style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
+          <Image size={32} className="mx-auto mb-3" style={{ color: "var(--text-muted)" }} />
+          <p className="text-sm mb-1" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>Nenhuma peça ainda</p>
+          {copiesApproved === 0 ? (
+            <Link
+              to={`/activations/${activationId}/copies`}
+              className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 text-xs font-medium rounded-md transition-all"
+              style={{ background: "var(--accent)", color: "var(--text-inverse)", borderRadius: 6 }}
+            >
+              ← Aprovar copies primeiro
+            </Link>
+          ) : (
+            <Link
+              to={`/activations/${activationId}/assets/new`}
+              className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 text-xs font-medium rounded-md transition-all"
+              style={{ background: "var(--accent)", color: "var(--text-inverse)", borderRadius: 6 }}
+            >
+              <Plus size={14} /> Criar primeira peça
+            </Link>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

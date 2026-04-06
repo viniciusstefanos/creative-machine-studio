@@ -6,9 +6,10 @@ import { Calendar } from "lucide-react";
 
 interface ScheduleTabProps {
   activationId: string;
+  assetsApproved?: number;
 }
 
-export const ScheduleTab = ({ activationId }: ScheduleTabProps) => {
+export const ScheduleTab = ({ activationId, assetsApproved }: ScheduleTabProps) => {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
