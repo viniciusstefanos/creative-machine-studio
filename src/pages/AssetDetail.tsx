@@ -67,7 +67,16 @@ const AssetDetail = () => {
       toast({ title: "Erro", description: "Falha ao atualizar", variant: "destructive" });
     } else {
       setAsset((prev: any) => ({ ...prev, status, ...extraFields }));
-      toast({ title: status === "approved" ? "Peça aprovada!" : "Status atualizado" });
+      if (status === "approved") {
+        toast({
+          title: "Peça aprovada! ✓",
+          description: "Agora você pode criar mais peças ou agendar publicação.",
+        });
+      } else if (status === "rejected") {
+        toast({ title: "Peça rejeitada", description: "Adicione feedback e gere nova versão." });
+      } else {
+        toast({ title: "Status atualizado" });
+      }
     }
     setActionLoading(false);
     setShowFeedback(false);
