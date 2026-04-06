@@ -184,7 +184,8 @@ serve(async (req) => {
     });
   }
 
-  const { asset_id, template_id, copy_id, activation_id, render_config } = body;
+  const { asset_id, template_id, copy_id, activation_id, render_config, use_claude } = body;
+  const useClaude = !!use_claude;
   if (!asset_id || !template_id || !copy_id || !activation_id) {
     return new Response(JSON.stringify({ error: "Missing required fields" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
