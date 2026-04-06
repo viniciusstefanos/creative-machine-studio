@@ -111,7 +111,7 @@ const CopyDetail = () => {
       </div>
 
       {/* Two-column layout */}
-      <div className="flex gap-6">
+      <div className="flex flex-col lg:flex-row gap-6">
         {/* Main — 70% */}
         <div className="flex-1 space-y-4" style={{ minWidth: 0 }}>
           <CopyBlock
@@ -210,7 +210,7 @@ const CopyDetail = () => {
         </div>
 
         {/* Sidebar — 30% */}
-        <div className="w-[320px] shrink-0 space-y-6">
+        <div className="w-full lg:w-[320px] shrink-0 space-y-6">
           <CommentThread entityType="copy" entityId={copyId!} />
 
           {/* Version History */}

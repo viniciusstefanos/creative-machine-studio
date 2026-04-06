@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, Bell, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Bell, Settings, LogOut, Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
@@ -16,6 +16,9 @@ export const Sidebar = () => {
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
   const [profile, setProfile] = useState<{ full_name: string; avatar_url: string; role: string } | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   useEffect(() => {
     if (!user) return;
@@ -42,23 +45,23 @@ export const Sidebar = () => {
     fetchUnread();
   }, [user]);
 
-  return (
-    <aside
-      className="fixed left-0 top-0 bottom-0 flex flex-col z-50"
-      style={{
-        width: 220,
-        background: "var(--bg-surface1)",
-        borderRight: "1px solid var(--border-subtle)",
-      }}
-    >
+  const sidebarContent = (
+    <>
       {/* Logo */}
-      <div className="px-5 py-6">
+      <div className="px-5 py-6 flex items-center justify-between">
         <h1
           className="text-lg font-bold tracking-tight"
           style={{ fontFamily: "'Syne', sans-serif", color: "var(--accent)" }}
         >
           Máquina Criativa
         </h1>
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="md:hidden p-1"
+          style={{ color: "var(--text-muted)" }}
+        >
+          <X size={20} />
+        </button>
       </div>
 
       {/* Nav */}
@@ -105,11 +108,7 @@ export const Sidebar = () => {
         style={{ borderTop: "1px solid var(--border-subtle)" }}
       >
         {profile?.avatar_url ? (
-          <img
-            src={profile.avatar_url}
-            alt=""
-            className="w-8 h-8 rounded-full object-cover"
-          />
+          <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
         ) : (
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
@@ -119,31 +118,53 @@ export const Sidebar = () => {
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p
-            className="text-xs truncate"
-            style={{ color: "var(--text-primary)", fontFamily: "'DM Sans', sans-serif" }}
-          >
+          <p className="text-xs truncate" style={{ color: "var(--text-primary)", fontFamily: "'DM Sans', sans-serif" }}>
             {profile?.full_name || user?.email || "Usuário"}
           </p>
-          <p
-            className="text-[10px] uppercase tracking-wider"
-            style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              color: "var(--accent)",
-            }}
-          >
+          <p className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--accent)" }}>
             {profile?.role || "team"}
           </p>
         </div>
-        <button
-          onClick={signOut}
-          className="p-1.5 rounded transition-all duration-150"
-          style={{ color: "var(--text-muted)" }}
-          title="Sair"
-        >
+        <button onClick={signOut} className="p-1.5 rounded transition-all duration-150" style={{ color: "var(--text-muted)" }} title="Sair">
           <LogOut size={16} />
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile hamburger */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="fixed top-4 left-4 z-50 p-2 rounded-md md:hidden"
+        style={{ background: "var(--bg-surface2)", color: "var(--text-primary)" }}
+      >
+        <Menu size={20} />
+      </button>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 md:hidden"
+          style={{ background: "rgba(0,0,0,0.6)" }}
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - desktop always visible, mobile as overlay */}
+      <aside
+        className={`fixed left-0 top-0 bottom-0 flex flex-col z-50 transition-transform duration-200 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+        style={{
+          width: 220,
+          background: "var(--bg-surface1)",
+          borderRight: "1px solid var(--border-subtle)",
+        }}
+      >
+        {sidebarContent}
+      </aside>
+    </>
   );
 };
