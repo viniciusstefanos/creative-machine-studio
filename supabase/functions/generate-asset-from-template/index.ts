@@ -158,6 +158,8 @@ serve(async (req) => {
   }
 
   try {
+    // Clean up previous renders for re-generation
+    await supabase.from("asset_template_renders").delete().eq("asset_id", asset_id);
     const [templateRes, copyRes, briefRes] = await Promise.all([
       supabase.from("asset_templates").select("*").eq("id", template_id).single(),
       supabase.from("copies").select("*").eq("id", copy_id).single(),
