@@ -4,25 +4,34 @@
 
 @layer base {
   :root {
-    /* Máquina Criativa Design System */
-    --bg-base: 216 33% 5%;
-    --bg-surface1: 216 24% 8%;
-    --bg-surface2: 216 20% 11%;
-    --bg-surface3: 216 18% 13%;
+    /* ── Hierarchical Surface System (darkest → lightest) ── */
+    --bg-base: 220 30% 4%;         /* deepest background */
+    --bg-surface1: 220 24% 7%;     /* cards, panels */
+    --bg-surface2: 220 20% 10%;    /* elevated cards, dropdowns */
+    --bg-surface3: 220 18% 13%;    /* hover states, active items */
+    --bg-surface4: 220 16% 16%;    /* tooltips, popovers */
 
-    --border-subtle: 214 20% 15%;
-    --border-default: 214 20% 18%;
-    --border-strong: 210 20% 23%;
+    /* ── Hierarchical Border System ── */
+    --border-subtle: 220 16% 12%;  /* dividers, separators */
+    --border-default: 220 16% 16%; /* card borders */
+    --border-strong: 220 14% 22%;  /* input borders, focus rings */
+    --border-accent: 166 80% 32%;  /* active/selected borders */
 
-    --accent: 166 100% 39%;
-    --accent-dim: 166 100% 39%;
+    /* ── Accent Palette ── */
+    --accent: 166 100% 39%;        /* primary accent (teal) */
+    --accent-dim: 166 60% 28%;     /* muted accent for subtle highlights */
+    --accent-glow: 166 100% 50%;   /* hover glow, emphasis */
+    --accent-surface: 166 80% 12%; /* accent-tinted background */
 
-    --text-primary: 212 50% 94%;
-    --text-secondary: 217 14% 60%;
-    --text-muted: 214 16% 36%;
-    --text-inverse: 216 33% 5%;
+    /* ── Hierarchical Text System (brightest → dimmest) ── */
+    --text-primary: 210 40% 96%;   /* headings, important content */
+    --text-secondary: 215 16% 65%; /* body text, descriptions */
+    --text-muted: 218 14% 40%;     /* labels, captions, metadata */
+    --text-ghost: 218 12% 26%;     /* disabled, placeholders */
+    --text-inverse: 220 30% 4%;    /* text on accent backgrounds */
 
-    --status-draft: 214 16% 36%;
+    /* ── Status Colors ── */
+    --status-draft: 218 14% 40%;
     --status-review: 38 92% 50%;
     --status-approved: 166 100% 39%;
     --status-rejected: 349 91% 60%;
@@ -30,7 +39,11 @@
     --status-published: 160 64% 52%;
     --status-generating: 38 92% 50%;
 
-    /* shadcn overrides */
+    /* ── Warning / Info ── */
+    --warning: 38 92% 50%;
+    --info: 210 100% 62%;
+
+    /* ── shadcn semantic mapping ── */
     --background: var(--bg-base);
     --foreground: var(--text-primary);
     --card: var(--bg-surface1);
@@ -40,7 +53,7 @@
     --primary: var(--accent);
     --primary-foreground: var(--text-inverse);
     --secondary: var(--bg-surface2);
-    --secondary-foreground: var(--text-primary);
+    --secondary-foreground: var(--text-secondary);
     --muted: var(--bg-surface2);
     --muted-foreground: var(--text-secondary);
     --accent: 166 100% 39%;
