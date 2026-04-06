@@ -8,7 +8,11 @@ const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/clients", icon: Users, label: "Clientes" },
   { to: "/notifications", icon: Bell, label: "Notificações" },
-  { to: "/settings/team", icon: Settings, label: "Configurações" },
+];
+
+const settingsItems = [
+  { to: "/settings/team", label: "Time" },
+  { to: "/settings/formats", label: "Formatos" },
 ];
 
 export const Sidebar = () => {
@@ -100,6 +104,40 @@ export const Sidebar = () => {
             </NavLink>
           );
         })}
+
+        {/* Settings section */}
+        <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--border-subtle)" }}>
+          <NavLink
+            to="/settings/team"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150"
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              background: location.pathname.startsWith("/settings") ? "var(--bg-surface3)" : "transparent",
+              color: location.pathname.startsWith("/settings") ? "var(--text-primary)" : "var(--text-muted)",
+            }}
+          >
+            <Settings size={18} />
+            <span>Configurações</span>
+          </NavLink>
+          {location.pathname.startsWith("/settings") && (
+            <div className="ml-8 mt-1 space-y-0.5">
+              {settingsItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className="block px-3 py-1.5 rounded-md text-xs transition-all duration-150"
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    color: location.pathname === item.to ? "var(--text-primary)" : "var(--text-muted)",
+                    background: location.pathname === item.to ? "var(--bg-surface3)" : "transparent",
+                  }}
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
       </nav>
 
       {/* User Footer */}

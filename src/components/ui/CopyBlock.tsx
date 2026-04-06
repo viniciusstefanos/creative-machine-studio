@@ -1,16 +1,18 @@
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SectionLabel } from "@/components/ui/SectionLabel";
-import { Check, X, RefreshCw } from "lucide-react";
+import { Check, X, RefreshCw, Loader2 } from "lucide-react";
+import { useState } from "react";
 
 interface CopyBlockProps {
   label: string;
   content: string;
   status?: string;
   onApprove?: () => void;
-  onReject?: () => void;
-  onRegenerate?: () => void;
+  onReject?: (feedback?: string) => void;
+  onRegenerate?: (feedback?: string) => void;
   onChange?: (value: string) => void;
   editable?: boolean;
+  regenerating?: boolean;
 }
 
 export const CopyBlock = ({
@@ -22,7 +24,22 @@ export const CopyBlock = ({
   onRegenerate,
   onChange,
   editable = true,
+  regenerating = false,
 }: CopyBlockProps) => {
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [feedbackAction, setFeedbackAction] = useState<"reject" | "regenerate">("reject");
+
+  const handleFeedbackSubmit = () => {
+    if (feedbackAction === "reject") {
+      onReject?.(feedback);
+    } else {
+      onRegenerate?.(feedback);
+    }
+    setShowFeedback(false);
+    setFeedback("");
+  };
+
   return (
     <div
       className="p-5 rounded-lg"
@@ -57,6 +74,42 @@ export const CopyBlock = ({
         </p>
       )}
 
+      {/* Feedback input */}
+      {showFeedback && (
+        <div className="mt-3 space-y-2">
+          <textarea
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            rows={2}
+            placeholder={feedbackAction === "reject" ? "Motivo da rejeição..." : "O que melhorar neste bloco..."}
+            className="w-full px-3 py-2 text-xs outline-none resize-none transition-all duration-150"
+            style={{
+              background: "var(--bg-base)",
+              border: "1px solid var(--border-strong)",
+              color: "var(--text-primary)",
+              fontFamily: "'DM Sans', sans-serif",
+              borderRadius: 6,
+            }}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleFeedbackSubmit}
+              className="px-3 py-1.5 text-[11px] font-medium rounded-md transition-all duration-150"
+              style={{ background: "var(--accent)", color: "var(--text-inverse)", fontFamily: "'DM Sans'", borderRadius: 6 }}
+            >
+              {feedbackAction === "reject" ? "Rejeitar" : "Regenerar"}
+            </button>
+            <button
+              onClick={() => { setShowFeedback(false); setFeedback(""); }}
+              className="px-3 py-1.5 text-[11px] font-medium rounded-md transition-all duration-150"
+              style={{ background: "var(--bg-surface2)", color: "var(--text-muted)", fontFamily: "'DM Sans'", borderRadius: 6 }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2 mt-3">
         {onApprove && (
           <button
@@ -75,7 +128,7 @@ export const CopyBlock = ({
         )}
         {onReject && (
           <button
-            onClick={onReject}
+            onClick={() => { setFeedbackAction("reject"); setShowFeedback(true); }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-md transition-all duration-150"
             style={{
               background: "color-mix(in srgb, var(--status-rejected) 15%, transparent)",
@@ -90,8 +143,9 @@ export const CopyBlock = ({
         )}
         {onRegenerate && (
           <button
-            onClick={onRegenerate}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-md transition-all duration-150"
+            onClick={() => { setFeedbackAction("regenerate"); setShowFeedback(true); }}
+            disabled={regenerating}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-md transition-all duration-150 disabled:opacity-50"
             style={{
               background: "var(--bg-surface2)",
               border: "1px solid var(--border-strong)",
@@ -100,7 +154,7 @@ export const CopyBlock = ({
               borderRadius: 6,
             }}
           >
-            <RefreshCw size={12} /> Regenerar
+            {regenerating ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />} Regenerar
           </button>
         )}
       </div>

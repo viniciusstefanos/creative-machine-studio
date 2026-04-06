@@ -14,6 +14,8 @@ import NewActivation from "./pages/NewActivation.tsx";
 import ActivationHub from "./pages/ActivationHub.tsx";
 import CopyDetail from "./pages/CopyDetail.tsx";
 import Notifications from "./pages/Notifications.tsx";
+import SettingsTeam from "./pages/SettingsTeam.tsx";
+import SettingsFormats from "./pages/SettingsFormats.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -44,6 +46,8 @@ const App = () => (
             <Route path="/activations/:id/schedule" element={<P><ActivationHub /></P>} />
             <Route path="/activations/:id/analytics" element={<P><ActivationHub /></P>} />
             <Route path="/notifications" element={<P><Notifications /></P>} />
+            <Route path="/settings/team" element={<P><SettingsTeam /></P>} />
+            <Route path="/settings/formats" element={<P><SettingsFormats /></P>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
