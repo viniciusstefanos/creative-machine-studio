@@ -90,10 +90,10 @@ const Clients = () => {
             <Link
               key={client.id}
               to={`/clients/${client.id}`}
-              className="p-5 rounded-lg transition-all duration-150 group"
+              className="p-5 rounded-lg card-interactive transition-all group"
               style={{
-                background: "var(--bg-surface1)",
-                border: "1px solid var(--border-default)",
+                background: "hsl(var(--bg-surface1))",
+                border: "1px solid hsl(var(--border-default))",
                 borderRadius: 8,
               }}
             >

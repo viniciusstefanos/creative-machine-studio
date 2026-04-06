@@ -128,10 +128,10 @@ const ClientDetail = () => {
             <Link
               key={act.id}
               to={`/activations/${act.id}`}
-              className="flex items-center justify-between p-4 rounded-lg transition-all duration-150"
+              className="flex items-center justify-between p-4 rounded-lg card-interactive transition-all"
               style={{
-                background: "var(--bg-surface1)",
-                border: "1px solid var(--border-default)",
+                background: "hsl(var(--bg-surface1))",
+                border: "1px solid hsl(var(--border-default))",
                 borderRadius: 8,
               }}
             >
