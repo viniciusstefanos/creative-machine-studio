@@ -3,8 +3,38 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+async function callClaude(systemPrompt: string, userPrompt: string, apiKey: string): Promise<string> {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+      temperature: 0.8,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error("Claude API error:", res.status, errText);
+    if (res.status === 429) throw new Error("rate_limit");
+    if (res.status === 402 || res.status === 400) throw new Error("credits");
+    throw new Error("ai_failed");
+  }
+
+  const data = await res.json();
+  return data.content?.[0]?.text || "";
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -21,17 +51,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableApiKey) {
-      return new Response(JSON.stringify({ error: "AI not configured" }), {
+    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!anthropicKey) {
+      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const prompt = `Você é um copywriter de performance digital. Gere copies de marketing baseados no brief abaixo.
+    const systemPrompt = `Você é um copywriter de performance digital brasileiro. Gere copies de marketing baseados no brief fornecido. Responda APENAS com um JSON array válido, sem markdown, sem explicação.`;
 
-BRIEF DA ATIVAÇÃO: "${activation_name}"
+    const userPrompt = `BRIEF DA ATIVAÇÃO: "${activation_name}"
 - Objetivos: ${brief.objectives || "Não especificado"}
 - Público-alvo: ${brief.target_audience || "Não especificado"}
 - Tom de voz: ${brief.tone_of_voice || "Não especificado"}
@@ -53,43 +83,25 @@ Responda APENAS com um JSON array válido. Exemplo:
 
 Gere no máximo 6 copies variados.`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${lovableApiKey}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.8,
-      }),
-    });
+    const content = await callClaude(systemPrompt, userPrompt, anthropicKey);
 
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("AI API error:", errText);
-      return new Response(JSON.stringify({ error: "AI generation failed" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content || "";
-
-    // Extract JSON from response (handle markdown code blocks)
+    // Extract JSON from response
     let jsonStr = content;
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) {
       jsonStr = jsonMatch[1].trim();
+    }
+    // Also try to find array directly
+    if (!jsonStr.startsWith("[")) {
+      const arrayMatch = content.match(/\[[\s\S]*\]/);
+      if (arrayMatch) jsonStr = arrayMatch[0];
     }
 
     let copies;
     try {
       copies = JSON.parse(jsonStr);
     } catch {
-      console.error("Failed to parse AI response:", content);
+      console.error("Failed to parse Claude response:", content);
       return new Response(JSON.stringify({ error: "Failed to parse AI response" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -128,8 +140,10 @@ Gere no máximo 6 copies variados.`;
     });
   } catch (err) {
     console.error("Unexpected error:", err);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    const status = msg === "rate_limit" ? 429 : msg === "credits" ? 402 : 500;
+    return new Response(JSON.stringify({ error: msg === "rate_limit" ? "Limite de requisições. Tente novamente." : msg === "credits" ? "Créditos insuficientes." : "Erro interno" }), {
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
