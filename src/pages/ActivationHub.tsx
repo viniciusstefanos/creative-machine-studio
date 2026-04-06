@@ -146,11 +146,11 @@ const ActivationHub = () => {
             <Link
               key={tab.key}
               to={`/activations/${id}/${tab.path}`}
-              className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all duration-150 whitespace-nowrap"
+              className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all whitespace-nowrap"
               style={{
                 fontFamily: "'DM Sans', sans-serif",
-                color: isActive ? "var(--accent)" : "var(--text-muted)",
-                borderBottom: isActive ? "2px solid var(--accent)" : "2px solid transparent",
+                color: isActive ? "hsl(var(--text-primary))" : "hsl(var(--text-muted))",
+                borderBottom: isActive ? "2px solid hsl(var(--accent))" : "2px solid transparent",
               }}
             >
               {tab.label}

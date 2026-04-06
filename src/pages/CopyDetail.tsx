@@ -61,7 +61,6 @@ const CopyDetail = () => {
   const handleRegenerate = async (block: string, feedback?: string) => {
     setRegeneratingBlock(block);
     try {
-      // Get brief context
       const { data: briefData } = await supabase
         .from("briefs")
         .select("tone_of_voice, target_audience, objectives")
@@ -107,7 +106,7 @@ const CopyDetail = () => {
   if (loading) {
     return (
       <AppLayout breadcrumbs={[{ label: "..." }]}>
-        <div className="text-sm" style={{ color: "var(--text-muted)" }}>Carregando...</div>
+        <div className="text-caption">Carregando...</div>
       </AppLayout>
     );
   }
@@ -115,7 +114,7 @@ const CopyDetail = () => {
   if (!copy) {
     return (
       <AppLayout breadcrumbs={[{ label: "Copy não encontrado" }]}>
-        <div className="text-sm" style={{ color: "var(--text-muted)" }}>Copy não encontrado</div>
+        <div className="text-caption">Copy não encontrado</div>
       </AppLayout>
     );
   }
@@ -129,32 +128,49 @@ const CopyDetail = () => {
         { label: `Copy v${copy.version}` },
       ]}
     >
-      <div className="flex items-center gap-4 mb-6">
-        <button
-          onClick={() => navigate(`/activations/${activationId}/copies`)}
-          className="p-2 rounded-md transition-all duration-150"
-          style={{ background: "var(--bg-surface2)", color: "var(--text-muted)" }}
+      <div
+        className="grid gap-0"
+        style={{
+          gridTemplateColumns: "1fr 300px",
+          minHeight: "calc(100vh - 120px)",
+        }}
+      >
+        {/* ── Main Content ── */}
+        <div
+          className="pr-8 space-y-4"
+          style={{ borderRight: "1px solid hsl(var(--border-subtle))" }}
         >
-          <ArrowLeft size={16} />
-        </button>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold" style={{ fontFamily: "'Syne', sans-serif", color: "var(--text-primary)" }}>
-              Copy v{copy.version}
-            </h1>
-            <StatusBadge status={copy.status} />
+          {/* Header */}
+          <div
+            className="pb-5 mb-6"
+            style={{ borderBottom: "1px solid hsl(var(--border-subtle))" }}
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <button
+                onClick={() => navigate(`/activations/${activationId}/copies`)}
+                className="p-2 rounded-md transition-all"
+                style={{ background: "hsl(var(--bg-surface2))", color: "hsl(var(--text-muted))" }}
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <h1 className="text-display-md">Copy v{copy.version}</h1>
+              <StatusBadge status={copy.status} />
+            </div>
+            <div className="pl-10">
+              <span
+                className="text-[10px] uppercase tracking-[2px]"
+                style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}
+              >
+                {copy.type} · {copy.channel || "—"} · {copy.funnel_stage || "—"}
+              </span>
+            </div>
           </div>
-          <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>
-            {copy.type} · {copy.channel || "—"} · {copy.funnel_stage || "—"}
-          </span>
-        </div>
-      </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        <div className="flex-1 space-y-4" style={{ minWidth: 0 }}>
+          {/* Copy Blocks */}
           <CopyBlock
             label="Gancho"
             content={hook}
+            status={copy.status}
             onChange={setHook}
             onApprove={() => {}}
             onReject={(fb) => handleRegenerate("hook", fb)}
@@ -164,6 +180,7 @@ const CopyDetail = () => {
           <CopyBlock
             label="Corpo"
             content={body}
+            status={copy.status}
             onChange={setBody}
             onApprove={() => {}}
             onReject={(fb) => handleRegenerate("body", fb)}
@@ -173,6 +190,7 @@ const CopyDetail = () => {
           <CopyBlock
             label="CTA"
             content={cta}
+            status={copy.status}
             onChange={setCta}
             onApprove={() => {}}
             onReject={(fb) => handleRegenerate("cta", fb)}
@@ -181,48 +199,111 @@ const CopyDetail = () => {
           />
 
           {copy.landing_page_url && (
-            <div className="p-4 rounded-lg" style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
+            <div className="card-base">
               <SectionLabel>Landing Page</SectionLabel>
-              <p className="text-xs mt-2 break-all" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--accent)" }}>
+              <p className="text-xs mt-2 break-all" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--accent))" }}>
                 {copy.landing_page_url}
               </p>
             </div>
           )}
 
-          <div className="flex flex-wrap gap-3 pt-2">
-            <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50" style={{ background: "var(--bg-surface2)", border: "1px solid var(--border-strong)", color: "var(--text-primary)", fontFamily: "'DM Sans'", borderRadius: 6 }}>
+          {/* Sticky footer */}
+          <div
+            className="flex justify-end gap-2 pt-5 mt-6 sticky bottom-0"
+            style={{
+              borderTop: "1px solid hsl(var(--border-subtle))",
+              background: "hsl(var(--bg-base))",
+              paddingBottom: 20,
+            }}
+          >
+            {copy.status === "review" && (
+              <button
+                onClick={handleReject}
+                disabled={saving}
+                className="px-4 py-2 text-xs font-medium rounded-md transition-all disabled:opacity-50"
+                style={{
+                  background: "color-mix(in srgb, hsl(var(--status-rejected)) 10%, transparent)",
+                  border: "1px solid color-mix(in srgb, hsl(var(--status-rejected)) 30%, transparent)",
+                  color: "hsl(var(--status-rejected))",
+                  fontFamily: "'DM Sans'",
+                  borderRadius: 6,
+                }}
+              >
+                Rejeitar copy
+              </button>
+            )}
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-4 py-2 text-xs font-medium rounded-md transition-all disabled:opacity-50"
+              style={{
+                background: "hsl(var(--bg-surface2))",
+                border: "1px solid hsl(var(--border-strong))",
+                color: "hsl(var(--text-primary))",
+                fontFamily: "'DM Sans'",
+                borderRadius: 6,
+              }}
+            >
               {saving ? "Salvando..." : "Salvar alterações"}
             </button>
             {copy.status === "draft" && (
-              <button onClick={handleSendToReview} disabled={saving} className="px-5 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50" style={{ background: "color-mix(in srgb, var(--status-review) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--status-review) 30%, transparent)", color: "var(--status-review)", fontFamily: "'DM Sans'", borderRadius: 6 }}>
+              <button
+                onClick={handleSendToReview}
+                disabled={saving}
+                className="px-4 py-2 text-xs font-medium rounded-md transition-all disabled:opacity-50"
+                style={{
+                  background: "color-mix(in srgb, hsl(var(--status-review)) 15%, transparent)",
+                  border: "1px solid color-mix(in srgb, hsl(var(--status-review)) 30%, transparent)",
+                  color: "hsl(var(--status-review))",
+                  fontFamily: "'DM Sans'",
+                  borderRadius: 6,
+                }}
+              >
                 Enviar para revisão
               </button>
             )}
             {(copy.status === "review" || copy.status === "draft") && (
-              <button onClick={handleApproveAll} disabled={saving} className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50" style={{ background: "var(--accent)", color: "var(--text-inverse)", fontFamily: "'DM Sans'", borderRadius: 6 }}>
+              <button
+                onClick={handleApproveAll}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-md transition-all disabled:opacity-50"
+                style={{
+                  background: "hsl(var(--accent))",
+                  color: "hsl(var(--text-inverse))",
+                  fontFamily: "'DM Sans'",
+                  borderRadius: 6,
+                }}
+              >
                 <Check size={14} /> Aprovar copy completo
-              </button>
-            )}
-            {copy.status === "review" && (
-              <button onClick={handleReject} disabled={saving} className="px-5 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50" style={{ background: "color-mix(in srgb, var(--status-rejected) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--status-rejected) 30%, transparent)", color: "var(--status-rejected)", fontFamily: "'DM Sans'", borderRadius: 6 }}>
-                Rejeitar
               </button>
             )}
           </div>
         </div>
 
-        <div className="w-full lg:w-[320px] shrink-0 space-y-6">
+        {/* ── Sidebar ── */}
+        <div
+          className="pl-6 space-y-6"
+          style={{ background: "hsl(var(--bg-surface1))", padding: "24px 20px" }}
+        >
           <CommentThread entityType="copy" entityId={copyId!} />
+
           <div>
             <SectionLabel>Versões</SectionLabel>
-            <div className="mt-3 p-3 rounded-lg" style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
+            <div className="mt-3 card-base">
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: "var(--accent)", color: "var(--text-inverse)", fontFamily: "'JetBrains Mono', monospace" }}>
+                <span
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
+                  style={{
+                    background: "hsl(var(--accent))",
+                    color: "hsl(var(--text-inverse))",
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
                   {copy.version}
                 </span>
                 <div>
-                  <p className="text-xs" style={{ color: "var(--text-primary)", fontFamily: "'DM Sans'" }}>Versão atual</p>
-                  <p className="text-[9px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>
+                  <p className="text-xs" style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}>Versão atual</p>
+                  <p className="text-[9px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
                     {new Date(copy.created_at).toLocaleDateString("pt-BR")}
                   </p>
                 </div>
