@@ -11,21 +11,36 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY")!;
+  const supabase = createClient(supabaseUrl, serviceKey);
+
+  // Parse body outside try so asset_id is accessible in catch for cleanup
+  let asset_id: string | undefined;
+  let body: { asset_id?: string; activation_id?: string; copy_id?: string; format_id?: string };
+
   try {
-    const { asset_id, activation_id, copy_id, format_id } = await req.json();
-    if (!asset_id || !activation_id || !copy_id || !format_id) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey);
+  asset_id = body.asset_id;
+  const { activation_id, copy_id, format_id } = body;
 
-    // Fetch brief, copy, and format
+  if (!asset_id || !activation_id || !copy_id || !format_id) {
+    return new Response(JSON.stringify({ error: "Missing required fields: asset_id, activation_id, copy_id, format_id" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  try {
+    // Fetch brief, copy, and format in parallel
     const [briefRes, copyRes, formatRes] = await Promise.all([
       supabase.from("briefs").select("*").eq("activation_id", activation_id).maybeSingle(),
       supabase.from("copies").select("*").eq("id", copy_id).single(),
@@ -37,36 +52,43 @@ serve(async (req) => {
     const format = formatRes.data;
 
     if (!copy || !format) {
+      await supabase
+        .from("assets")
+        .update({ status: "rejected", feedback: "Copy ou formato não encontrado." })
+        .eq("id", asset_id);
       return new Response(JSON.stringify({ error: "Copy or format not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Generate HTML creative via Lovable AI
-    const htmlPrompt = `You are a creative designer generating an HTML creative piece for a marketing campaign.
+    // ─── 1. Generate HTML creative via Lovable AI ────────────────────────────
+    const htmlPrompt = `You are a creative designer generating an HTML creative piece for a marketing agency.
 
 Format: ${format.name} (${format.category})
-${format.prompt_hint ? `Design hint: ${format.prompt_hint}` : ""}
+${format.prompt_hint ? `Design specification: ${format.prompt_hint}` : ""}
 
-Copy:
-- Hook: ${copy.hook || "N/A"}
-- Body: ${copy.body || "N/A"}
-- CTA: ${copy.cta || "N/A"}
+Copy content:
+- Hook (headline): ${copy.hook || "N/A"}
+- Body (supporting text): ${copy.body || "N/A"}
+- CTA (call to action): ${copy.cta || "N/A"}
 
-${brief ? `Brief context:
+${brief ? `Campaign brief:
 - Objectives: ${brief.objectives || "N/A"}
 - Target audience: ${brief.target_audience || "N/A"}
-- Tone of voice: ${brief.tone_of_voice || "N/A"}` : ""}
+- Tone of voice: ${brief.tone_of_voice || "N/A"}
+- Extra context: ${brief.extra_context || "N/A"}` : ""}
 
-Generate a single, self-contained HTML document for this creative piece. Requirements:
-- Modern, visually striking design with dark theme
-- All CSS inline or in a <style> tag
-- Responsive layout
-- Use the copy text (hook, body, CTA) prominently
-- Make the CTA visually distinct (button-like)
-- Use gradients, subtle shadows, and modern typography
-- Output ONLY the HTML code, no explanation`;
+Generate a self-contained HTML document for this creative piece. Requirements:
+- Dark, modern aesthetic — background #0A0E14, accent color #00C9A7 (teal)
+- All CSS in a <style> block (no external stylesheets, no CDN links)
+- Use Google Fonts via @import only: Syne for headlines, DM Sans for body text
+- Display the hook as the main headline (bold, large)
+- Display the body as supporting text (smaller, lighter weight)
+- Display the CTA as a prominent teal button
+- Layout should feel like a polished social media ad
+- Add subtle gradient background and card shadows
+- Output ONLY the complete HTML document, no markdown, no explanation`;
 
     const htmlResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -77,33 +99,54 @@ Generate a single, self-contained HTML document for this creative piece. Require
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [{ role: "user", content: htmlPrompt }],
+        temperature: 0.7,
       }),
     });
 
     if (!htmlResponse.ok) {
-      const status = htmlResponse.status;
+      const httpStatus = htmlResponse.status;
       const errText = await htmlResponse.text();
-      console.error("AI HTML error:", status, errText);
-      if (status === 429 || status === 402) {
-        await supabase.from("assets").update({ status: "failed" }).eq("id", asset_id);
-        return new Response(JSON.stringify({ error: status === 429 ? "Rate limit exceeded" : "Credits exhausted" }), {
-          status,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error("HTML generation failed");
+      console.error("AI HTML error:", httpStatus, errText);
+
+      const feedbackMsg =
+        httpStatus === 429
+          ? "Limite de requisições atingido. Tente novamente em instantes."
+          : httpStatus === 402
+          ? "Créditos insuficientes. Contate o administrador."
+          : "Falha na geração via IA.";
+
+      await supabase
+        .from("assets")
+        .update({ status: "rejected", feedback: feedbackMsg })
+        .eq("id", asset_id);
+
+      return new Response(JSON.stringify({ error: feedbackMsg }), {
+        status: httpStatus,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const htmlData = await htmlResponse.json();
-    let htmlContent = htmlData.choices?.[0]?.message?.content || "";
-    // Strip markdown code fences if present
-    htmlContent = htmlContent.replace(/^```html?\n?/i, "").replace(/\n?```$/i, "").trim();
+    let htmlContent: string = htmlData.choices?.[0]?.message?.content || "";
 
-    // Generate image via Lovable AI
-    const imagePrompt = `Create a professional marketing visual for: ${brief?.objectives || copy.hook || "marketing campaign"}. Style: modern, clean, vibrant colors on dark background. ${format.prompt_hint || ""}`;
+    // Strip markdown code fences if the model wrapped the output
+    htmlContent = htmlContent
+      .replace(/^```html?\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
 
-    let imageUrl = null;
+    // ─── 2. Generate image via Lovable AI (optional — continues without it) ──
+    let imageUrl: string | null = null;
     try {
+      const imagePrompt = [
+        `Professional marketing visual for: ${brief?.objectives || copy.hook || "marketing campaign"}.`,
+        `Style: modern, clean, dark background, teal (#00C9A7) accents.`,
+        format.prompt_hint ? `Format context: ${format.prompt_hint}` : "",
+        copy.hook ? `Headline theme: ${copy.hook}` : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+
       const imgResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -132,18 +175,18 @@ Generate a single, self-contained HTML document for this creative piece. Require
             const { data: urlData } = supabase.storage.from("assets").getPublicUrl(filePath);
             imageUrl = urlData.publicUrl;
           } else {
-            console.error("Upload error:", uploadError);
+            console.error("Storage upload error:", uploadError.message);
           }
         }
       } else {
-        console.error("Image generation failed:", imgResponse.status);
+        console.warn("Image generation skipped:", imgResponse.status);
       }
     } catch (imgErr) {
-      console.error("Image generation error:", imgErr);
-      // Continue without image
+      // Non-fatal: image is optional
+      console.error("Image generation error (non-fatal):", imgErr);
     }
 
-    // Update asset
+    // ─── 3. Update asset with generated content ──────────────────────────────
     const { error: updateError } = await supabase
       .from("assets")
       .update({
@@ -154,18 +197,34 @@ Generate a single, self-contained HTML document for this creative piece. Require
       .eq("id", asset_id);
 
     if (updateError) {
-      console.error("Update error:", updateError);
-      throw new Error("Failed to update asset");
+      console.error("Asset update error:", updateError);
+      throw new Error(`Failed to update asset: ${updateError.message}`);
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, has_image: imageUrl !== null }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("generate-asset error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("generate-asset unhandled error:", e);
+
+    // Mark asset as rejected so it doesn't stay stuck in 'generating'
+    if (asset_id) {
+      await supabase
+        .from("assets")
+        .update({
+          status: "rejected",
+          feedback: "Erro interno na geração. Tente novamente.",
+        })
+        .eq("id", asset_id)
+        .catch((err) => console.error("Cleanup update failed:", err));
+    }
+
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 });
