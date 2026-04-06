@@ -182,12 +182,19 @@ const AssetDetail = () => {
             ) : currentRender.image_url ? (
               <img src={currentRender.image_url} alt={`Slide ${currentRender.slide_index + 1}`} className="w-full h-full object-contain" />
             ) : currentRender.html_content ? (
-              <iframe
-                srcDoc={currentRender.html_content}
-                sandbox="allow-scripts"
-                className="w-full h-full border-0"
-                title={`Slide ${currentRender.slide_index + 1}`}
-              />
+              <div className="w-full h-full relative overflow-hidden">
+                <iframe
+                  srcDoc={currentRender.html_content}
+                  sandbox="allow-scripts"
+                  className="border-0 origin-top-left"
+                  style={{
+                    width: template?.width_px || 1080,
+                    height: template?.height_px || 1080,
+                    transform: `scale(${540 / (template?.width_px || 1080)})`,
+                  }}
+                  title={`Slide ${currentRender.slide_index + 1}`}
+                />
+              </div>
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <p className="text-sm" style={{ color: "var(--text-muted)" }}>Sem conteúdo</p>
