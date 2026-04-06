@@ -6,6 +6,7 @@ import { CommentThread } from "@/components/ui/CommentThread";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Check } from "lucide-react";
 
 const CopyDetail = () => {
@@ -19,6 +20,7 @@ const CopyDetail = () => {
   const [body, setBody] = useState("");
   const [cta, setCta] = useState("");
   const [saving, setSaving] = useState(false);
+  const [regeneratingBlock, setRegeneratingBlock] = useState<string | null>(null);
 
   useEffect(() => {
     if (!copyId || !activationId) return;
@@ -56,6 +58,47 @@ const CopyDetail = () => {
     setSaving(false);
   };
 
+  const handleRegenerate = async (block: string, feedback?: string) => {
+    setRegeneratingBlock(block);
+    try {
+      // Get brief context
+      const { data: briefData } = await supabase
+        .from("briefs")
+        .select("tone_of_voice, target_audience, objectives")
+        .eq("activation_id", activationId!)
+        .single();
+
+      const briefContext = briefData
+        ? `Tom: ${briefData.tone_of_voice || ""}. Público: ${briefData.target_audience || ""}. Objetivos: ${briefData.objectives || ""}`
+        : "";
+
+      const currentContent = block === "hook" ? hook : block === "body" ? body : cta;
+
+      const { data, error } = await supabase.functions.invoke("regenerate-copy-block", {
+        body: {
+          block,
+          current_content: currentContent,
+          feedback: feedback || "",
+          brief_context: briefContext,
+          channel: copy?.channel,
+          funnel_stage: copy?.funnel_stage,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.content) {
+        if (block === "hook") setHook(data.content);
+        else if (block === "body") setBody(data.content);
+        else setCta(data.content);
+        toast({ title: `${block === "hook" ? "Gancho" : block === "body" ? "Corpo" : "CTA"} regenerado` });
+      }
+    } catch (err) {
+      console.error("Regenerate error:", err);
+      toast({ title: "Erro ao regenerar", description: "Tente novamente.", variant: "destructive" });
+    }
+    setRegeneratingBlock(null);
+  };
+
   const handleSave = () => updateCopy({ hook, body, cta });
   const handleApproveAll = () => updateCopy({ hook, body, cta, status: "approved" });
   const handleReject = () => updateCopy({ status: "rejected" });
@@ -86,7 +129,6 @@ const CopyDetail = () => {
         { label: `Copy v${copy.version}` },
       ]}
     >
-      {/* Back + Header */}
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={() => navigate(`/activations/${activationId}/copies`)}
@@ -102,46 +144,42 @@ const CopyDetail = () => {
             </h1>
             <StatusBadge status={copy.status} />
           </div>
-          <div className="flex items-center gap-3 mt-1">
-            <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>
-              {copy.type} · {copy.channel || "—"} · {copy.funnel_stage || "—"}
-            </span>
-          </div>
+          <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>
+            {copy.type} · {copy.channel || "—"} · {copy.funnel_stage || "—"}
+          </span>
         </div>
       </div>
 
-      {/* Two-column layout */}
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Main — 70% */}
         <div className="flex-1 space-y-4" style={{ minWidth: 0 }}>
           <CopyBlock
             label="Gancho"
             content={hook}
             onChange={setHook}
             onApprove={() => {}}
-            onReject={() => {}}
-            onRegenerate={() => {}}
+            onReject={(fb) => handleRegenerate("hook", fb)}
+            onRegenerate={(fb) => handleRegenerate("hook", fb)}
+            regenerating={regeneratingBlock === "hook"}
           />
-
           <CopyBlock
             label="Corpo"
             content={body}
             onChange={setBody}
             onApprove={() => {}}
-            onReject={() => {}}
-            onRegenerate={() => {}}
+            onReject={(fb) => handleRegenerate("body", fb)}
+            onRegenerate={(fb) => handleRegenerate("body", fb)}
+            regenerating={regeneratingBlock === "body"}
           />
-
           <CopyBlock
             label="CTA"
             content={cta}
             onChange={setCta}
             onApprove={() => {}}
-            onReject={() => {}}
-            onRegenerate={() => {}}
+            onReject={(fb) => handleRegenerate("cta", fb)}
+            onRegenerate={(fb) => handleRegenerate("cta", fb)}
+            regenerating={regeneratingBlock === "cta"}
           />
 
-          {/* LP Override */}
           {copy.landing_page_url && (
             <div className="p-4 rounded-lg" style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
               <SectionLabel>Landing Page</SectionLabel>
@@ -151,83 +189,39 @@ const CopyDetail = () => {
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-5 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50"
-              style={{ background: "var(--bg-surface2)", border: "1px solid var(--border-strong)", color: "var(--text-primary)", fontFamily: "'DM Sans'", borderRadius: 6 }}
-            >
+          <div className="flex flex-wrap gap-3 pt-2">
+            <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50" style={{ background: "var(--bg-surface2)", border: "1px solid var(--border-strong)", color: "var(--text-primary)", fontFamily: "'DM Sans'", borderRadius: 6 }}>
               {saving ? "Salvando..." : "Salvar alterações"}
             </button>
-
             {copy.status === "draft" && (
-              <button
-                onClick={handleSendToReview}
-                disabled={saving}
-                className="px-5 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50"
-                style={{
-                  background: "color-mix(in srgb, var(--status-review) 15%, transparent)",
-                  border: "1px solid color-mix(in srgb, var(--status-review) 30%, transparent)",
-                  color: "var(--status-review)",
-                  fontFamily: "'DM Sans'",
-                  borderRadius: 6,
-                }}
-              >
+              <button onClick={handleSendToReview} disabled={saving} className="px-5 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50" style={{ background: "color-mix(in srgb, var(--status-review) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--status-review) 30%, transparent)", color: "var(--status-review)", fontFamily: "'DM Sans'", borderRadius: 6 }}>
                 Enviar para revisão
               </button>
             )}
-
             {(copy.status === "review" || copy.status === "draft") && (
-              <button
-                onClick={handleApproveAll}
-                disabled={saving}
-                className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50"
-                style={{ background: "var(--accent)", color: "var(--text-inverse)", fontFamily: "'DM Sans'", borderRadius: 6 }}
-              >
+              <button onClick={handleApproveAll} disabled={saving} className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50" style={{ background: "var(--accent)", color: "var(--text-inverse)", fontFamily: "'DM Sans'", borderRadius: 6 }}>
                 <Check size={14} /> Aprovar copy completo
               </button>
             )}
-
             {copy.status === "review" && (
-              <button
-                onClick={handleReject}
-                disabled={saving}
-                className="px-5 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50"
-                style={{
-                  background: "color-mix(in srgb, var(--status-rejected) 15%, transparent)",
-                  border: "1px solid color-mix(in srgb, var(--status-rejected) 30%, transparent)",
-                  color: "var(--status-rejected)",
-                  fontFamily: "'DM Sans'",
-                  borderRadius: 6,
-                }}
-              >
+              <button onClick={handleReject} disabled={saving} className="px-5 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50" style={{ background: "color-mix(in srgb, var(--status-rejected) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--status-rejected) 30%, transparent)", color: "var(--status-rejected)", fontFamily: "'DM Sans'", borderRadius: 6 }}>
                 Rejeitar
               </button>
             )}
           </div>
         </div>
 
-        {/* Sidebar — 30% */}
         <div className="w-full lg:w-[320px] shrink-0 space-y-6">
           <CommentThread entityType="copy" entityId={copyId!} />
-
-          {/* Version History */}
           <div>
             <SectionLabel>Versões</SectionLabel>
             <div className="mt-3 p-3 rounded-lg" style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
               <div className="flex items-center gap-2">
-                <span
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
-                  style={{ background: "var(--accent)", color: "var(--text-inverse)", fontFamily: "'JetBrains Mono', monospace" }}
-                >
+                <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: "var(--accent)", color: "var(--text-inverse)", fontFamily: "'JetBrains Mono', monospace" }}>
                   {copy.version}
                 </span>
                 <div>
-                  <p className="text-xs" style={{ color: "var(--text-primary)", fontFamily: "'DM Sans'" }}>
-                    Versão atual
-                  </p>
+                  <p className="text-xs" style={{ color: "var(--text-primary)", fontFamily: "'DM Sans'" }}>Versão atual</p>
                   <p className="text-[9px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>
                     {new Date(copy.created_at).toLocaleDateString("pt-BR")}
                   </p>
