@@ -63,14 +63,6 @@ const NewActivation = () => {
     setLoading(false);
   };
 
-  const inputStyle = {
-    background: "var(--bg-base)",
-    border: "1px solid var(--border-strong)",
-    color: "var(--text-primary)",
-    fontFamily: "'DM Sans', sans-serif",
-    borderRadius: 6,
-  };
-
   return (
     <AppLayout
       breadcrumbs={[
@@ -81,31 +73,25 @@ const NewActivation = () => {
     >
       <h1
         className="text-2xl font-bold mb-8"
-        style={{ fontFamily: "'Syne', sans-serif", color: "var(--text-primary)" }}
+        style={{ fontFamily: "'Syne', sans-serif", color: "hsl(var(--text-primary))" }}
       >
         Nova Ativação
       </h1>
 
-      <form onSubmit={handleSubmit} className="max-w-lg space-y-5">
+      <form onSubmit={handleSubmit} className="max-w-lg space-y-6">
         <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>
-            Nome *
-          </label>
+          <label className="field-label">Nome *</label>
           <input
             required
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="w-full px-3 py-2.5 text-sm outline-none transition-all duration-150 focus:border-[var(--accent)]"
-            style={inputStyle}
+            className="field-input"
             placeholder="Ex: Campanha Dia das Mães"
           />
         </div>
 
-        {/* Type Toggle */}
         <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>
-            Tipo
-          </label>
+          <label className="field-label">Tipo</label>
           <div className="flex gap-2">
             {(["ongoing", "seasonal"] as const).map((t) => (
               <button
@@ -114,9 +100,9 @@ const NewActivation = () => {
                 onClick={() => setForm({ ...form, type: t })}
                 className="px-4 py-2 text-xs font-medium rounded-md transition-all duration-150"
                 style={{
-                  background: form.type === t ? "var(--accent)" : "var(--bg-surface2)",
-                  color: form.type === t ? "var(--text-inverse)" : "var(--text-secondary)",
-                  border: form.type === t ? "none" : "1px solid var(--border-strong)",
+                  background: form.type === t ? "hsl(var(--accent))" : "hsl(var(--bg-surface2))",
+                  color: form.type === t ? "hsl(var(--text-inverse))" : "hsl(var(--text-secondary))",
+                  border: form.type === t ? "none" : "1px solid hsl(var(--border-strong))",
                   fontFamily: "'DM Sans'",
                   borderRadius: 6,
                 }}
@@ -129,72 +115,57 @@ const NewActivation = () => {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>
-              Data início
-            </label>
+            <label className="field-label">Data início</label>
             <input
               type="date"
               value={form.start_date}
               onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-              className="w-full px-3 py-2.5 text-sm outline-none transition-all duration-150"
-              style={inputStyle}
+              className="field-input"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>
-              Data fim
-            </label>
+            <label className="field-label">Data fim</label>
             <input
               type="date"
               value={form.end_date}
               onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-              className="w-full px-3 py-2.5 text-sm outline-none transition-all duration-150"
-              style={inputStyle}
+              className="field-input"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>
-            Budget (R$)
-          </label>
+          <label className="field-label">Budget (R$)</label>
           <input
             type="number"
             value={form.budget}
             onChange={(e) => setForm({ ...form, budget: e.target.value })}
-            className="w-full px-3 py-2.5 text-sm outline-none transition-all duration-150"
-            style={inputStyle}
+            className="field-input"
             placeholder="0.00"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>
-            Landing page
-          </label>
+          <label className="field-label">Landing page</label>
           <input
             type="url"
             value={form.landing_page_url}
             onChange={(e) => setForm({ ...form, landing_page_url: e.target.value })}
-            className="w-full px-3 py-2.5 text-sm outline-none transition-all duration-150"
-            style={inputStyle}
+            className="field-input"
             placeholder="https://..."
           />
         </div>
 
-        {/* Tags */}
         <div>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>
-            Tags
-          </label>
+          <label className="field-label">Tags</label>
           <div className="flex flex-wrap gap-2 mb-2">
             {form.tags.map((tag, i) => (
               <span
                 key={i}
                 className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] cursor-pointer"
                 style={{
-                  background: "var(--bg-surface3)",
-                  color: "var(--text-secondary)",
+                  background: "hsl(var(--bg-surface3))",
+                  color: "hsl(var(--text-secondary))",
                   fontFamily: "'JetBrains Mono', monospace",
                 }}
                 onClick={() => handleRemoveTag(i)}
@@ -207,8 +178,7 @@ const NewActivation = () => {
             value={tagInput}
             onChange={(e) => setTagInput(e.target.value)}
             onKeyDown={handleAddTag}
-            className="w-full px-3 py-2.5 text-sm outline-none transition-all duration-150"
-            style={inputStyle}
+            className="field-input"
             placeholder="Digite e pressione Enter"
           />
         </div>
@@ -219,8 +189,8 @@ const NewActivation = () => {
             disabled={loading}
             className="px-6 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50"
             style={{
-              background: "var(--accent)",
-              color: "var(--text-inverse)",
+              background: "hsl(var(--accent))",
+              color: "hsl(var(--text-inverse))",
               fontFamily: "'DM Sans'",
               borderRadius: 6,
             }}
@@ -232,9 +202,9 @@ const NewActivation = () => {
             onClick={() => navigate(`/clients/${clientId}`)}
             className="px-6 py-2.5 text-sm font-medium rounded-md transition-all duration-150"
             style={{
-              background: "var(--bg-surface2)",
-              border: "1px solid var(--border-strong)",
-              color: "var(--text-primary)",
+              background: "hsl(var(--bg-surface2))",
+              border: "1px solid hsl(var(--border-strong))",
+              color: "hsl(var(--text-primary))",
               fontFamily: "'DM Sans'",
               borderRadius: 6,
             }}

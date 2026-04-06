@@ -77,3 +77,45 @@
     font-family: 'Syne', sans-serif;
   }
 }
+
+/* Global form field styles */
+@layer components {
+  .field-label {
+    display: block;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: hsl(var(--text-secondary));
+    margin-bottom: 8px;
+  }
+
+  .field-input {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    color: hsl(var(--text-primary));
+    background: hsl(var(--bg-surface1));
+    border: 1px solid hsl(var(--border-default));
+    border-radius: 6px;
+    outline: none;
+    transition: all 0.15s ease;
+  }
+
+  .field-input::placeholder {
+    color: hsl(var(--text-muted));
+    font-weight: 400;
+  }
+
+  .field-input:focus {
+    border-color: hsl(var(--accent));
+    box-shadow: 0 0 0 1px hsl(var(--accent) / 0.25);
+  }
+
+  .field-textarea {
+    resize: none;
+    min-height: 80px;
+  }
+}
