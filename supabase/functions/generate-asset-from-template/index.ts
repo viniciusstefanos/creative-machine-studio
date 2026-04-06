@@ -8,6 +8,36 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// ─── Creative agent visual guidelines ────────────────────────
+const HTML_CREATIVE_RULES = `
+## REGRAS VISUAIS OBRIGATÓRIAS
+- Máximo 2 linhas de texto visível no criativo
+- Fonte grande o suficiente para leitura sem zoom em celular (mín 24px para títulos, 18px para corpo)
+- Contraste obrigatório: texto claro em fundo escuro OU texto escuro em fundo claro
+- Safe zone: nenhum texto importante nos 15% superior e inferior do frame (em 9:16)
+- NUNCA começar com logo ou nome da marca — hook visual primeiro
+- Hierarquia clara: hook > corpo > CTA (tamanhos decrescentes)
+- Uma única mensagem por slide/peça
+
+## PARA CARROSSEL
+- Slide 1: PARA O SCROLL — visual forte + texto que cria lacuna ou promete entrega. NUNCA título de relatório.
+- Slides do meio: 1 ponto por slide, máx 3 linhas de texto. Visual consistente (mesma paleta, mesma tipografia).
+- Último slide: CTA único e claro.
+- O usuário deve entender a proposta lendo apenas slide 1 e o último.
+`;
+
+const IMAGE_CREATIVE_RULES = `
+## DIRETRIZES DE IMAGEM (VALIDADAS 2026)
+- UGC-style > polido: conteúdo que parece feito por usuário supera produções de estúdio
+- Rosto na câmera: pessoa olhando para câmera aumenta conversão em +35%
+- Lo-fi/analog: grana, tungsten warm, overlay de textura (tendência validada)
+- Lifestyle com pessoa em contexto real > produto isolado
+- Alto contraste no frame inicial — nunca começar com imagem escura ou neutra
+- Para produto: demonstração real em uso, não packshot isolado
+- Cores dessaturadas + highlight quente para tom cinematográfico
+- Evitar imagens genéricas de banco de imagens — buscar autenticidade
+`;
+
 // ─── Claude helper (text/HTML) ───────────────────────────────
 async function callClaude(systemPrompt: string, userPrompt: string, apiKey: string): Promise<string> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -73,8 +103,12 @@ async function callTextAI(systemPrompt: string, userPrompt: string, useClaude: b
 async function generateImagePrompt(template: string, context: Record<string, any>, useClaude: boolean, anthropicKey: string, lovableKey: string): Promise<string> {
   const filled = fillTemplate(template, context);
   const res = await callTextAI(
-    `Você é um especialista em prompts para geração de imagem. Receba um rascunho de prompt e melhore-o para gerar a melhor imagem possível. Retorne APENAS o prompt otimizado em inglês, sem explicação.`,
-    `Rascunho de prompt: "${filled}"\n\nOtimize este prompt para geração de imagem:`,
+    `Você é um especialista em prompts para geração de imagem. Receba um rascunho de prompt e melhore-o para gerar a melhor imagem possível.
+
+${IMAGE_CREATIVE_RULES}
+
+Retorne APENAS o prompt otimizado em inglês, sem explicação.`,
+    `Rascunho de prompt: "${filled}"\n\nOtimize este prompt para geração de imagem seguindo as diretrizes visuais validadas:`,
     useClaude, anthropicKey, lovableKey,
   );
   return res.trim() || filled;
@@ -110,16 +144,13 @@ async function generateImage(
       console.log("Choice message keys:", JSON.stringify(Object.keys(choice.message || {})));
     }
 
-    // Try multiple response formats
     let base64Data: string | null = null;
 
-    // Format 1: images array with image_url.url
     const imgUrl = choice?.message?.images?.[0]?.image_url?.url;
     if (imgUrl) {
       base64Data = imgUrl.includes(",") ? imgUrl.split(",")[1] : imgUrl;
     }
 
-    // Format 2: content array with image_url type
     if (!base64Data && Array.isArray(choice?.message?.content)) {
       for (const part of choice.message.content) {
         if (part.type === "image_url" && part.image_url?.url) {
@@ -134,7 +165,6 @@ async function generateImage(
       }
     }
 
-    // Format 3: inline_data in parts
     if (!base64Data && Array.isArray(choice?.message?.parts)) {
       for (const part of choice.message.parts) {
         if (part.inline_data?.data) {
@@ -193,7 +223,6 @@ serve(async (req) => {
   }
 
   try {
-    // Clean up previous renders for re-generation
     await supabase.from("asset_template_renders").delete().eq("asset_id", asset_id);
     const [templateRes, copyRes, briefRes] = await Promise.all([
       supabase.from("asset_templates").select("*").eq("id", template_id).single(),
@@ -245,13 +274,15 @@ serve(async (req) => {
     // ─── Branch by generation_type ────────────────────────────
     if (template.generation_type === "html_only") {
       const carouselInstruction = template.category === "carousel"
-        ? `\n\nDivida o copy em ${template.slides_count_min} a ${template.slides_count_max} slides.\nSlide 1: sempre o GANCHO.\nSlides do meio: pontos do CORPO — um por slide.\nSlide final: sempre o CTA.\nRetorne APENAS um array JSON: [{"slide_index": 0, "html": "..."}]. Zero markdown.`
+        ? `\n\nDivida o copy em ${template.slides_count_min} a ${template.slides_count_max} slides.\nSlide 1: sempre o GANCHO — visual forte que para o scroll, NUNCA título de relatório.\nSlides do meio: 1 ponto por slide, máx 3 linhas de texto. Visual consistente.\nSlide final: sempre o CTA único e claro.\nO usuário deve entender a proposta lendo apenas slide 1 e o último.\nRetorne APENAS um array JSON: [{"slide_index": 0, "html": "..."}]. Zero markdown.`
         : "";
+
+      const systemWithRules = (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction;
 
       const userPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nConfig: ${JSON.stringify(config)}`;
 
       const rawContent = await callTextAI(
-        (template.system_prompt || "") + carouselInstruction,
+        systemWithRules,
         userPrompt,
         useClaude, anthropicKey, lovableKey,
       );
@@ -276,7 +307,6 @@ serve(async (req) => {
       const maxSlides = Math.min(slideParts.length, template.slides_count_max || 5);
 
       for (let i = 0; i < maxSlides; i++) {
-        // Claude optimizes the prompt, Nano Banana generates the image
         const optimizedPrompt = await generateImagePrompt(
           template.image_prompt_template || "",
           { ...context, slide_content: slideParts[i] },
@@ -290,7 +320,6 @@ serve(async (req) => {
       }
 
     } else if (template.generation_type === "html_and_image") {
-      // Claude optimizes image prompt, Nano Banana generates
       const optimizedPrompt = await generateImagePrompt(
         template.image_prompt_template || "",
         context,
@@ -298,8 +327,9 @@ serve(async (req) => {
       );
       const bgImageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
 
+      const overlaySystem = (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES;
       const overlayPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nImagem de fundo: ${bgImageUrl || "não disponível"}\nConfig: ${JSON.stringify(config)}`;
-      const rawHtml = await callTextAI(template.system_prompt || "", overlayPrompt, useClaude, anthropicKey, lovableKey);
+      const rawHtml = await callTextAI(overlaySystem, overlayPrompt, useClaude, anthropicKey, lovableKey);
       const html = rawHtml.replace(/^```html?\s*/i, "").replace(/\s*```$/i, "").trim();
 
       await saveRender(0, { html_content: html, image_url: bgImageUrl });
