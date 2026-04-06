@@ -127,22 +127,13 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
     }
   };
 
-  const getFieldStyle = (field: string) => {
-    const base: React.CSSProperties = {
-      background: "var(--bg-base)",
-      border: "1px solid var(--border-strong)",
-      color: "var(--text-primary)",
-      fontFamily: "'DM Sans', sans-serif",
-      borderRadius: 6,
-    };
+  const getHighlightClass = (field: string) => {
     if (extractedHighlight[field] === true) {
-      base.border = "1px solid var(--accent)";
-      base.boxShadow = "0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent)";
+      return "field-input !border-[hsl(var(--accent))] shadow-[0_0_0_1px_hsl(var(--accent)/0.25)]";
     } else if (extractedHighlight[field] === false) {
-      base.border = "1px solid var(--status-review)";
-      base.boxShadow = "0 0 0 1px color-mix(in srgb, var(--status-review) 30%, transparent)";
+      return "field-input !border-[hsl(var(--status-review))] shadow-[0_0_0_1px_hsl(var(--status-review)/0.25)]";
     }
-    return base;
+    return "field-input";
   };
 
   if (loading) return <div className="text-sm" style={{ color: "var(--text-muted)" }}>Carregando...</div>;
@@ -153,9 +144,7 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
 
       {/* File Upload */}
       <div>
-        <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>
-          Arquivo de briefing
-        </label>
+        <label className="field-label">Arquivo de briefing</label>
         <FileDrop
           onFile={handleFileUpload}
           uploading={uploading}
@@ -164,77 +153,63 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
         />
         {extracting && (
           <div className="flex items-center gap-2 mt-2">
-            <Loader2 size={14} className="animate-spin" style={{ color: "var(--accent)" }} />
-            <span className="text-xs" style={{ color: "var(--accent)", fontFamily: "'DM Sans'" }}>Extraindo campos com IA...</span>
+            <Loader2 size={14} className="animate-spin" style={{ color: "hsl(var(--accent))" }} />
+            <span className="text-xs" style={{ color: "hsl(var(--accent))", fontFamily: "'DM Sans'" }}>Extraindo campos com IA...</span>
           </div>
         )}
       </div>
 
       <div>
-        <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>
-          Tom de voz
-        </label>
+        <label className="field-label">Tom de voz</label>
         <input
           value={form.tone_of_voice}
           onChange={(e) => setForm({ ...form, tone_of_voice: e.target.value })}
-          className="w-full px-3 py-2.5 text-sm outline-none transition-all duration-150"
-          style={getFieldStyle("tone_of_voice")}
+          className={getHighlightClass("tone_of_voice")}
           placeholder="Ex: profissional, descontraído, urgente..."
         />
       </div>
 
       <div>
-        <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>
-          Público-alvo
-        </label>
+        <label className="field-label">Público-alvo</label>
         <textarea
           value={form.target_audience}
           onChange={(e) => setForm({ ...form, target_audience: e.target.value })}
           rows={3}
-          className="w-full px-3 py-2.5 text-sm outline-none resize-none transition-all duration-150"
-          style={getFieldStyle("target_audience")}
+          className={`${getHighlightClass("target_audience")} field-textarea`}
           placeholder="Descreva o público-alvo..."
         />
       </div>
 
       <div>
-        <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>
-          Objetivos
-        </label>
+        <label className="field-label">Objetivos</label>
         <textarea
           value={form.objectives}
           onChange={(e) => setForm({ ...form, objectives: e.target.value })}
           rows={3}
-          className="w-full px-3 py-2.5 text-sm outline-none resize-none transition-all duration-150"
-          style={getFieldStyle("objectives")}
+          className={`${getHighlightClass("objectives")} field-textarea`}
           placeholder="Quais são os objetivos desta ativação?"
         />
       </div>
 
       <div>
-        <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>
-          Contexto adicional
-        </label>
+        <label className="field-label">Contexto adicional</label>
         <textarea
           value={form.extra_context}
           onChange={(e) => setForm({ ...form, extra_context: e.target.value })}
           rows={3}
-          className="w-full px-3 py-2.5 text-sm outline-none resize-none transition-all duration-150"
-          style={getFieldStyle("extra_context")}
+          className={`${getHighlightClass("extra_context")} field-textarea`}
           placeholder="Informações extras relevantes..."
         />
       </div>
 
       <div>
-        <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>
-          Referências (URLs)
-        </label>
+        <label className="field-label">Referências (URLs)</label>
         <div className="flex flex-wrap gap-2 mb-2">
           {form.references_urls.map((url, i) => (
             <span
               key={i}
               className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] cursor-pointer"
-              style={{ background: "var(--bg-surface3)", color: "var(--text-secondary)", fontFamily: "'JetBrains Mono', monospace" }}
+              style={{ background: "hsl(var(--bg-surface3))", color: "hsl(var(--text-secondary))", fontFamily: "'JetBrains Mono', monospace" }}
               onClick={() => setForm({ ...form, references_urls: form.references_urls.filter((_, idx) => idx !== i) })}
             >
               {url.length > 40 ? url.slice(0, 40) + "..." : url} ×
@@ -245,8 +220,7 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
           value={refInput}
           onChange={(e) => setRefInput(e.target.value)}
           onKeyDown={handleAddRef}
-          className="w-full px-3 py-2.5 text-sm outline-none transition-all duration-150"
-          style={getFieldStyle("references_urls")}
+          className={getHighlightClass("references_urls")}
           placeholder="Cole a URL e pressione Enter"
         />
       </div>
@@ -255,7 +229,7 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
         onClick={handleSave}
         disabled={saving}
         className="px-6 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50"
-        style={{ background: "var(--accent)", color: "var(--text-inverse)", fontFamily: "'DM Sans'", borderRadius: 6 }}
+        style={{ background: "hsl(var(--accent))", color: "hsl(var(--text-inverse))", fontFamily: "'DM Sans'", borderRadius: 6 }}
       >
         {saving ? "Salvando..." : brief ? "Atualizar brief" : "Salvar brief"}
       </button>
