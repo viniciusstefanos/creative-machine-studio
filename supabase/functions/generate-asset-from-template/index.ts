@@ -35,13 +35,47 @@ async function callClaude(systemPrompt: string, userPrompt: string, apiKey: stri
   return data.content?.[0]?.text || "";
 }
 
-// ─── Claude generates optimized prompt for Nano Banana ───────
-async function generateImagePrompt(template: string, context: Record<string, any>, apiKey: string): Promise<string> {
+// ─── Lovable AI helper (text/HTML via Gemini) ────────────────
+async function callLovableAI(systemPrompt: string, userPrompt: string, apiKey: string): Promise<string> {
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const status = res.status;
+    const errText = await res.text();
+    console.error("Lovable AI error:", status, errText);
+    throw new Error(status === 429 ? "rate_limit" : status === 402 ? "credits" : "ai_failed");
+  }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || "";
+}
+
+// ─── Unified text generation call ────────────────────────────
+async function callTextAI(systemPrompt: string, userPrompt: string, useClaude: boolean, anthropicKey: string, lovableKey: string): Promise<string> {
+  if (useClaude) {
+    return callClaude(systemPrompt, userPrompt, anthropicKey);
+  }
+  return callLovableAI(systemPrompt, userPrompt, lovableKey);
+}
+
+// ─── Generate optimized image prompt ─────────────────────────
+async function generateImagePrompt(template: string, context: Record<string, any>, useClaude: boolean, anthropicKey: string, lovableKey: string): Promise<string> {
   const filled = fillTemplate(template, context);
-  const res = await callClaude(
+  const res = await callTextAI(
     `Você é um especialista em prompts para geração de imagem. Receba um rascunho de prompt e melhore-o para gerar a melhor imagem possível. Retorne APENAS o prompt otimizado em inglês, sem explicação.`,
     `Rascunho de prompt: "${filled}"\n\nOtimize este prompt para geração de imagem:`,
-    apiKey,
+    useClaude, anthropicKey, lovableKey,
   );
   return res.trim() || filled;
 }
@@ -150,7 +184,8 @@ serve(async (req) => {
     });
   }
 
-  const { asset_id, template_id, copy_id, activation_id, render_config } = body;
+  const { asset_id, template_id, copy_id, activation_id, render_config, use_claude } = body;
+  const useClaude = !!use_claude;
   if (!asset_id || !template_id || !copy_id || !activation_id) {
     return new Response(JSON.stringify({ error: "Missing required fields" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -215,10 +250,10 @@ serve(async (req) => {
 
       const userPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nConfig: ${JSON.stringify(config)}`;
 
-      const rawContent = await callClaude(
+      const rawContent = await callTextAI(
         (template.system_prompt || "") + carouselInstruction,
         userPrompt,
-        anthropicKey,
+        useClaude, anthropicKey, lovableKey,
       );
 
       if (template.category === "carousel") {
@@ -245,7 +280,7 @@ serve(async (req) => {
         const optimizedPrompt = await generateImagePrompt(
           template.image_prompt_template || "",
           { ...context, slide_content: slideParts[i] },
-          anthropicKey,
+          useClaude, anthropicKey, lovableKey,
         );
         const imageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
         await saveRender(i, { image_url: imageUrl });
@@ -259,13 +294,12 @@ serve(async (req) => {
       const optimizedPrompt = await generateImagePrompt(
         template.image_prompt_template || "",
         context,
-        anthropicKey,
+        useClaude, anthropicKey, lovableKey,
       );
       const bgImageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
 
-      // Claude generates HTML overlay
       const overlayPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nImagem de fundo: ${bgImageUrl || "não disponível"}\nConfig: ${JSON.stringify(config)}`;
-      const rawHtml = await callClaude(template.system_prompt || "", overlayPrompt, anthropicKey);
+      const rawHtml = await callTextAI(template.system_prompt || "", overlayPrompt, useClaude, anthropicKey, lovableKey);
       const html = rawHtml.replace(/^```html?\s*/i, "").replace(/\s*```$/i, "").trim();
 
       await saveRender(0, { html_content: html, image_url: bgImageUrl });
