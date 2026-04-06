@@ -253,9 +253,12 @@ const AssetDetail = () => {
           )}
 
           {asset.status === "approved" && (
-            <div className="p-4 rounded-lg bg-surface-1 border border-line-subtle" style={{ borderRadius: 8 }}>
+            <div className="p-4 rounded-lg space-y-2" style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
               <Button className="w-full gap-2" onClick={() => navigate(`/activations/${id}/schedule`)}>
                 <Calendar size={16} /> Agendar publicação
+              </Button>
+              <Button variant="ghost" className="w-full gap-2 text-xs" onClick={() => navigate(`/activations/${id}/assets/new`)}>
+                Criar outra peça →
               </Button>
             </div>
           )}
