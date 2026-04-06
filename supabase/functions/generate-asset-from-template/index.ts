@@ -294,13 +294,12 @@ serve(async (req) => {
       const optimizedPrompt = await generateImagePrompt(
         template.image_prompt_template || "",
         context,
-        anthropicKey,
+        useClaude, anthropicKey, lovableKey,
       );
       const bgImageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
 
-      // Claude generates HTML overlay
       const overlayPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nImagem de fundo: ${bgImageUrl || "não disponível"}\nConfig: ${JSON.stringify(config)}`;
-      const rawHtml = await callClaude(template.system_prompt || "", overlayPrompt, anthropicKey);
+      const rawHtml = await callTextAI(template.system_prompt || "", overlayPrompt, useClaude, anthropicKey, lovableKey);
       const html = rawHtml.replace(/^```html?\s*/i, "").replace(/\s*```$/i, "").trim();
 
       await saveRender(0, { html_content: html, image_url: bgImageUrl });
