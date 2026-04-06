@@ -280,7 +280,7 @@ serve(async (req) => {
         const optimizedPrompt = await generateImagePrompt(
           template.image_prompt_template || "",
           { ...context, slide_content: slideParts[i] },
-          anthropicKey,
+          useClaude, anthropicKey, lovableKey,
         );
         const imageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
         await saveRender(i, { image_url: imageUrl });
