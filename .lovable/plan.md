@@ -1,68 +1,64 @@
 
 
-# Implementar Auth com Google — Máquina Criativa
+# Próxima fase — Máquina Criativa
 
-## Visão Geral
-Configurar Supabase no projeto e implementar autenticação via Google OAuth, com tela de login dark seguindo o design system definido.
+## Status atual
 
-## Pré-requisito: Supabase
-O projeto ainda não tem Supabase integrado. Será necessário habilitar o Lovable Cloud ou conectar um projeto Supabase externo para ter auth + banco de dados.
+Já implementado: Auth Google, layout global, dashboard, clientes CRUD, ativações com hub de tabs (brief, copies, UTM, assets, campaigns, schedule, analytics), geração de copies com IA, tela de edição/aprovação de copy com comentários, notificações.
 
----
+## O que falta (priorizado)
 
-## O que será implementado
+Baseado no checklist, os itens de maior impacto pendentes são:
 
-### 1. Setup Supabase
-- Instalar `@supabase/supabase-js`
-- Criar client Supabase em `src/integrations/supabase/client.ts`
+### Batch 1 — Esta implementação
 
-### 2. Design System Global
-- Adicionar as variáveis CSS customizadas (backgrounds, borders, accent, text, status) ao `index.css`
-- Importar fontes Syne, DM Sans e JetBrains Mono no `index.html`
-- Sobrescrever variáveis shadcn para o tema dark
+**1. Supabase Storage + Upload de brief (PDF/DOCX)**
+- Criar bucket `briefs` no Storage
+- Componente `FileDrop` (drag & drop) no BriefTab
+- Upload do arquivo para Storage
+- Edge Function `extract-brief` que usa Lovable AI (Gemini Flash) para extrair campos estruturados do texto
+- Tela de revisão dos campos extraídos (campos vazios sinalizados em amarelo)
 
-### 3. Contexto de Auth
-- Criar `src/contexts/AuthContext.tsx` com `onAuthStateChange` + `getSession`
-- Provider no `App.tsx` envolvendo todas as rotas
-- Hook `useAuth()` para acessar sessão/usuário
+**2. Regeneração individual de bloco de copy com IA**
+- Edge Function `regenerate-copy-block` que recebe bloco (hook/body/cta), feedback e contexto do brief
+- Conectar os botões "Regenerar" do CopyBlock no CopyDetail
+- Campo de feedback ao rejeitar bloco individual
 
-### 4. Tela de Login (`/login`)
-- Layout centralizado, fundo `--bg-base`
-- Logo "Máquina Criativa" em Syne bold, cor accent
-- Botão "Entrar com Google" estilizado (botão primário accent)
-- Chama `supabase.auth.signInWithOAuth({ provider: 'google' })`
-- Redireciona para `/` após login
+**3. Página de Configurações — Time**
+- Rota `/settings/team` com lista de usuários (profiles)
+- Convidar usuário por email (Supabase Auth invite)
+- Alterar role (admin/team)
 
-### 5. Proteção de Rotas
-- Componente `ProtectedRoute` que redireciona para `/login` se não autenticado
-- Rota `/login` redireciona para `/` se já autenticado
+**4. Página de Configurações — Formatos de Peça**
+- Rota `/settings/formats` com lista de asset_formats por categoria
+- CRUD de formatos (nome, slug, categoria, prompt_hint)
+- Toggle ativo/inativo
+- Seed com formatos padrão via migration
 
-### 6. Tabela `profiles`
-- Criar via migration: `id (uuid, FK auth.users)`, `email`, `full_name`, `avatar_url`, `role (admin/team)`, `created_at`
-- Trigger para auto-criar perfil no signup
-- RLS: usuário lê/atualiza próprio perfil, admin lê todos
+**5. Notification badges no header e sidebar**
+- Dropdown de últimas 5 notificações no sino do header
+- Badge numérico no sino
 
 ---
 
-## Detalhes Técnicos
+## Detalhes técnicos
 
-### Arquivos criados/modificados
-| Arquivo | Ação |
-|---------|------|
-| `index.html` | Adicionar fontes Google |
-| `src/index.css` | Variáveis CSS do design system |
-| `src/integrations/supabase/client.ts` | Cliente Supabase |
-| `src/contexts/AuthContext.tsx` | Context + Provider de auth |
-| `src/components/ProtectedRoute.tsx` | Guarda de rotas |
-| `src/pages/Login.tsx` | Tela de login com Google |
-| `src/App.tsx` | Integrar provider e rotas |
-| Migration SQL | Tabela profiles + trigger + RLS |
+| Item | Arquivos |
+|------|----------|
+| Storage + FileDrop | Migration (bucket), `src/components/ui/FileDrop.tsx`, `BriefTab.tsx` |
+| Extract brief | `supabase/functions/extract-brief/index.ts` |
+| Regenerate block | `supabase/functions/regenerate-copy-block/index.ts`, `CopyDetail.tsx`, `CopyBlock.tsx` |
+| Settings Team | `src/pages/SettingsTeam.tsx`, `App.tsx` (rota) |
+| Settings Formats | `src/pages/SettingsFormats.tsx`, `App.tsx` (rota), Migration (seed) |
+| Notification badges | `Header.tsx`, `Sidebar.tsx` |
 
-### Fluxo
+### Fluxo de extração de brief
 ```text
-/login → Botão Google → Supabase OAuth → Redirect → / (Dashboard)
-                                                    ↓
-                                              AuthContext verifica sessão
-                                              Cria perfil automaticamente
+Upload PDF/DOCX → Storage → Edge Function
+  → Lê arquivo do Storage
+  → Extrai texto (text content)
+  → Prompt Gemini Flash → JSON com campos
+  → Retorna campos extraídos
+  → UI mostra para revisão → Salva em briefs
 ```
 
