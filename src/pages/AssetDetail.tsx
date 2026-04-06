@@ -29,11 +29,19 @@ const AssetDetail = () => {
     if (data) {
       setAsset(data);
       // Fetch related data
-      const promises: Promise<any>[] = [
-        supabase.from("activations").select("*, clients(name)").eq("id", data.activation_id).single(),
-      ];
-      if (data.format_id) promises.push(supabase.from("asset_formats").select("*").eq("id", data.format_id).single());
-      if (data.copy_id) promises.push(supabase.from("copies").select("hook, channel, type").eq("id", data.copy_id).single());
+    const actRes = await supabase.from("activations").select("*, clients(name)").eq("id", data.activation_id).single();
+      if (actRes.data) {
+        setActivation(actRes.data);
+        setClientName((actRes.data as any).clients?.name || "");
+      }
+      if (data.format_id) {
+        const fmtRes = await supabase.from("asset_formats").select("*").eq("id", data.format_id).single();
+        if (fmtRes.data) setFormat(fmtRes.data);
+      }
+      if (data.copy_id) {
+        const cpRes = await supabase.from("copies").select("hook, channel, type").eq("id", data.copy_id).single();
+        if (cpRes.data) setCopy(cpRes.data);
+      }
 
       const results = await Promise.all(promises);
       if (results[0]?.data) {
