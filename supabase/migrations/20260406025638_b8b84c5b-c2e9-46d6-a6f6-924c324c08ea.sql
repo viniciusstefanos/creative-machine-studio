@@ -1,0 +1,2 @@
+ALTER TABLE public.assets DROP CONSTRAINT assets_category_check;
+ALTER TABLE public.assets ADD CONSTRAINT assets_category_check CHECK (category = ANY (ARRAY['static', 'video', 'carousel', 'social', 'display', 'email']));
