@@ -184,6 +184,116 @@ export type Database = {
         }
         Relationships: []
       }
+      asset_template_renders: {
+        Row: {
+          asset_id: string
+          created_at: string | null
+          html_content: string | null
+          id: string
+          image_url: string | null
+          png_url: string | null
+          slide_index: number | null
+          status: string | null
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string | null
+          html_content?: string | null
+          id?: string
+          image_url?: string | null
+          png_url?: string | null
+          slide_index?: number | null
+          status?: string | null
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string | null
+          html_content?: string | null
+          id?: string
+          image_url?: string | null
+          png_url?: string | null
+          slide_index?: number | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_template_renders_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_templates: {
+        Row: {
+          active: boolean | null
+          aspect_ratio: string | null
+          category: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          editable_fields: Json | null
+          generation_type: string
+          height_px: number
+          html_scaffold: string | null
+          id: string
+          image_prompt_template: string | null
+          is_base: boolean | null
+          name: string
+          slides_count_max: number | null
+          slides_count_min: number | null
+          slug: string
+          system_prompt: string | null
+          thumbnail_url: string | null
+          width_px: number
+        }
+        Insert: {
+          active?: boolean | null
+          aspect_ratio?: string | null
+          category: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          editable_fields?: Json | null
+          generation_type: string
+          height_px: number
+          html_scaffold?: string | null
+          id?: string
+          image_prompt_template?: string | null
+          is_base?: boolean | null
+          name: string
+          slides_count_max?: number | null
+          slides_count_min?: number | null
+          slug: string
+          system_prompt?: string | null
+          thumbnail_url?: string | null
+          width_px: number
+        }
+        Update: {
+          active?: boolean | null
+          aspect_ratio?: string | null
+          category?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          editable_fields?: Json | null
+          generation_type?: string
+          height_px?: number
+          html_scaffold?: string | null
+          id?: string
+          image_prompt_template?: string | null
+          is_base?: boolean | null
+          name?: string
+          slides_count_max?: number | null
+          slides_count_min?: number | null
+          slug?: string
+          system_prompt?: string | null
+          thumbnail_url?: string | null
+          width_px?: number
+        }
+        Relationships: []
+      }
       assets: {
         Row: {
           activation_id: string
@@ -198,8 +308,10 @@ export type Database = {
           html_content: string | null
           id: string
           image_url: string | null
+          render_config: Json | null
           status: string | null
           tags: string[] | null
+          template_id: string | null
           version: number | null
         }
         Insert: {
@@ -215,8 +327,10 @@ export type Database = {
           html_content?: string | null
           id?: string
           image_url?: string | null
+          render_config?: Json | null
           status?: string | null
           tags?: string[] | null
+          template_id?: string | null
           version?: number | null
         }
         Update: {
@@ -232,8 +346,10 @@ export type Database = {
           html_content?: string | null
           id?: string
           image_url?: string | null
+          render_config?: Json | null
           status?: string | null
           tags?: string[] | null
+          template_id?: string | null
           version?: number | null
         }
         Relationships: [
@@ -256,6 +372,13 @@ export type Database = {
             columns: ["format_id"]
             isOneToOne: false
             referencedRelation: "asset_formats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "asset_templates"
             referencedColumns: ["id"]
           },
         ]
