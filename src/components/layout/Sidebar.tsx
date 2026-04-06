@@ -12,6 +12,7 @@ const navItems = [
 
 const settingsItems = [
   { to: "/settings/team", label: "Time" },
+  { to: "/settings/templates", label: "Templates" },
   { to: "/settings/formats", label: "Formatos" },
 ];
 
