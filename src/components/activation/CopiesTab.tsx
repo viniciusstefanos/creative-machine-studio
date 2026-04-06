@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, FileText } from "lucide-react";
+import { Plus, FileText, Sparkles, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface CopiesTabProps {
   activationId: string;
@@ -14,6 +15,7 @@ export const CopiesTab = ({ activationId }: CopiesTabProps) => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [form, setForm] = useState({
     type: "post",
     channel: "",
@@ -52,6 +54,53 @@ export const CopiesTab = ({ activationId }: CopiesTabProps) => {
     setSaving(false);
   };
 
+  const handleAIGenerate = async () => {
+    setGenerating(true);
+    try {
+      // Fetch brief and activation info
+      const [briefRes, actRes] = await Promise.all([
+        supabase.from("briefs").select("*").eq("activation_id", activationId).single(),
+        supabase.from("activations").select("name").eq("id", activationId).single(),
+      ]);
+
+      if (!briefRes.data || !briefRes.data.objectives) {
+        toast({
+          title: "Brief incompleto",
+          description: "Preencha o brief da ativação antes de gerar copies com IA.",
+          variant: "destructive",
+        });
+        setGenerating(false);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("generate-copies", {
+        body: {
+          activation_id: activationId,
+          activation_name: actRes.data?.name || "",
+          brief: briefRes.data,
+          channels: ["instagram", "facebook"],
+          funnel_stages: ["top", "mid", "bottom"],
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Copies gerados!",
+        description: `${data.copies?.length || 0} copies criados com IA.`,
+      });
+      fetchCopies();
+    } catch (err) {
+      console.error("AI generation error:", err);
+      toast({
+        title: "Erro ao gerar",
+        description: "Não foi possível gerar copies com IA. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+    setGenerating(false);
+  };
+
   const inputStyle = {
     background: "var(--bg-base)",
     border: "1px solid var(--border-strong)",
@@ -64,16 +113,33 @@ export const CopiesTab = ({ activationId }: CopiesTabProps) => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <SectionLabel>Copies</SectionLabel>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-all duration-150"
-          style={{ background: "var(--accent)", color: "var(--text-inverse)", fontFamily: "'DM Sans'", borderRadius: 6 }}
-        >
-          <Plus size={14} />
-          Novo copy
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleAIGenerate}
+            disabled={generating}
+            className="flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-all duration-150 disabled:opacity-50"
+            style={{
+              background: "color-mix(in srgb, var(--accent) 15%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--accent) 30%, transparent)",
+              color: "var(--accent)",
+              fontFamily: "'DM Sans'",
+              borderRadius: 6,
+            }}
+          >
+            {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+            {generating ? "Gerando..." : "Gerar com IA"}
+          </button>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-all duration-150"
+            style={{ background: "var(--accent)", color: "var(--text-inverse)", fontFamily: "'DM Sans'", borderRadius: 6 }}
+          >
+            <Plus size={14} />
+            Novo copy
+          </button>
+        </div>
       </div>
 
       {/* New Copy Form */}
@@ -83,7 +149,7 @@ export const CopiesTab = ({ activationId }: CopiesTabProps) => {
           className="p-5 rounded-lg mb-6 space-y-4"
           style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}
         >
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>Tipo</label>
               <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full px-3 py-2.5 text-sm outline-none" style={inputStyle}>
@@ -122,7 +188,7 @@ export const CopiesTab = ({ activationId }: CopiesTabProps) => {
             <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>Landing page (override)</label>
             <input value={form.landing_page_url} onChange={(e) => setForm({ ...form, landing_page_url: e.target.value })} className="w-full px-3 py-2.5 text-sm outline-none" style={inputStyle} placeholder="https://..." />
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <button type="submit" disabled={saving} className="px-5 py-2 text-sm font-medium rounded-md disabled:opacity-50" style={{ background: "var(--accent)", color: "var(--text-inverse)", fontFamily: "'DM Sans'", borderRadius: 6 }}>
               {saving ? "Criando..." : "Criar copy"}
             </button>
@@ -137,7 +203,10 @@ export const CopiesTab = ({ activationId }: CopiesTabProps) => {
       {copies.length === 0 ? (
         <div className="p-8 rounded-lg text-center" style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
           <FileText size={32} className="mx-auto mb-3" style={{ color: "var(--text-muted)" }} />
-          <p className="text-sm" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>Nenhum copy ainda</p>
+          <p className="text-sm mb-1" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>Nenhum copy ainda</p>
+          <p className="text-xs" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>
+            Crie manualmente ou gere com IA a partir do brief
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -145,7 +214,7 @@ export const CopiesTab = ({ activationId }: CopiesTabProps) => {
             <Link
               key={copy.id}
               to={`/activations/${activationId}/copies/${copy.id}`}
-              className="flex items-center justify-between p-4 rounded-lg transition-all duration-150"
+              className="flex items-center justify-between p-4 rounded-lg transition-all duration-150 hover:border-opacity-80"
               style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}
             >
               <div className="flex-1 min-w-0">
