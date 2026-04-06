@@ -1,64 +1,85 @@
 
 
-# Próxima fase — Máquina Criativa
+# Batch A — Assets: Geração, Detalhe e Aprovação
 
-## Status atual
+## O que será construído
 
-Já implementado: Auth Google, layout global, dashboard, clientes CRUD, ativações com hub de tabs (brief, copies, UTM, assets, campaigns, schedule, analytics), geração de copies com IA, tela de edição/aprovação de copy com comentários, notificações.
+4 entregas: página de criação de asset, edge function de geração com IA, página de detalhe/aprovação, e atualização da tab de assets existente.
 
-## O que falta (priorizado)
+---
 
-Baseado no checklist, os itens de maior impacto pendentes são:
+## 1. Página `NewAsset.tsx`
 
-### Batch 1 — Esta implementação
+Rota: `/activations/:id/assets/new`
 
-**1. Supabase Storage + Upload de brief (PDF/DOCX)**
-- Criar bucket `briefs` no Storage
-- Componente `FileDrop` (drag & drop) no BriefTab
-- Upload do arquivo para Storage
-- Edge Function `extract-brief` que usa Lovable AI (Gemini Flash) para extrair campos estruturados do texto
-- Tela de revisão dos campos extraídos (campos vazios sinalizados em amarelo)
+Fluxo em 3 steps dentro da mesma página:
+- **Step 1**: Lista copies da ativação com `status = 'approved'`. Usuário seleciona um. Cards clicáveis com hook truncado + StatusBadge.
+- **Step 2**: Lista `asset_formats` ativos. Cards com nome, categoria (badge) e `prompt_hint` como dica. Seleção obrigatória.
+- **Step 3**: Botão "Gerar peça com IA" que:
+  1. Insere registro em `assets` com `status: 'generating'`, `copy_id`, `format_id`, `activation_id`
+  2. Chama `supabase.functions.invoke("generate-asset", { body: { asset_id, activation_id, copy_id, format_id } })`
+  3. Redireciona para `/activations/:id/assets/:assetId`
 
-**2. Regeneração individual de bloco de copy com IA**
-- Edge Function `regenerate-copy-block` que recebe bloco (hook/body/cta), feedback e contexto do brief
-- Conectar os botões "Regenerar" do CopyBlock no CopyDetail
-- Campo de feedback ao rejeitar bloco individual
+Design: stepper visual com 3 círculos numerados, dark theme, fontes do design system.
 
-**3. Página de Configurações — Time**
-- Rota `/settings/team` com lista de usuários (profiles)
-- Convidar usuário por email (Supabase Auth invite)
-- Alterar role (admin/team)
+## 2. Edge Function `generate-asset`
 
-**4. Página de Configurações — Formatos de Peça**
-- Rota `/settings/formats` com lista de asset_formats por categoria
-- CRUD de formatos (nome, slug, categoria, prompt_hint)
-- Toggle ativo/inativo
-- Seed com formatos padrão via migration
+Arquivo: `supabase/functions/generate-asset/index.ts`
 
-**5. Notification badges no header e sidebar**
-- Dropdown de últimas 5 notificações no sino do header
-- Badge numérico no sino
+Fluxo:
+1. Recebe `{ asset_id, activation_id, copy_id, format_id }`
+2. Cria client Supabase com service role
+3. Busca brief (tom, público, objetivos), copy (hook/body/cta), e format (nome, prompt_hint)
+4. Chama Lovable AI (`google/gemini-3-flash-preview`) com prompt para gerar HTML responsivo da peça criativa baseado no copy + format + brief context
+5. Chama Lovable AI (`google/gemini-3.1-flash-image-preview`) para gerar imagem contextual baseada no brief
+6. Faz upload da imagem gerada para Storage bucket `assets` (criar bucket via migration)
+7. Atualiza o asset: `html_content`, `image_url` (URL pública do storage), `status: 'review'`
+8. Trata erros 429/402 e retorna mensagem adequada
+
+## 3. Página `AssetDetail.tsx`
+
+Rota: `/activations/:id/assets/:assetId`
+
+Layout em 2 colunas:
+- **Coluna principal (2/3)**:
+  - Se `status === 'generating'`: skeleton animado com "Gerando peça..." + polling a cada 3s
+  - Se `html_content`: renderizar em iframe sandboxed
+  - Se `image_url`: mostrar imagem
+- **Sidebar (1/3)**:
+  - StatusBadge, metadados (formato, categoria, copy vinculado, versão, data)
+  - Botões contextuais por status:
+    - `review`: "Aprovar" → `approved` | "Rejeitar" → textarea feedback → `rejected`
+    - `approved`: "Agendar" → navega para schedule tab
+    - `rejected`: "Gerar nova versão" → insere novo asset com `version+1` e feedback, chama generate-asset novamente
+  - CommentThread com `entityType="asset"`
+
+## 4. Atualizar `AssetsTab.tsx`
+
+- Adicionar botão "Nova peça" linkando para `/activations/:id/assets/new`
+- Cards clicáveis com `Link` para `/activations/:id/assets/:assetId`
+- Mostrar nome do formato (join com `asset_formats`)
+
+## 5. Registrar rotas no `App.tsx`
+
+```
+/activations/:id/assets/new → NewAsset
+/activations/:id/assets/:assetId → AssetDetail
+```
+
+## 6. Migration SQL
+
+- Criar bucket `assets` no Storage (público para leitura de imagens geradas)
 
 ---
 
 ## Detalhes técnicos
 
-| Item | Arquivos |
-|------|----------|
-| Storage + FileDrop | Migration (bucket), `src/components/ui/FileDrop.tsx`, `BriefTab.tsx` |
-| Extract brief | `supabase/functions/extract-brief/index.ts` |
-| Regenerate block | `supabase/functions/regenerate-copy-block/index.ts`, `CopyDetail.tsx`, `CopyBlock.tsx` |
-| Settings Team | `src/pages/SettingsTeam.tsx`, `App.tsx` (rota) |
-| Settings Formats | `src/pages/SettingsFormats.tsx`, `App.tsx` (rota), Migration (seed) |
-| Notification badges | `Header.tsx`, `Sidebar.tsx` |
-
-### Fluxo de extração de brief
-```text
-Upload PDF/DOCX → Storage → Edge Function
-  → Lê arquivo do Storage
-  → Extrai texto (text content)
-  → Prompt Gemini Flash → JSON com campos
-  → Retorna campos extraídos
-  → UI mostra para revisão → Salva em briefs
-```
+| Arquivo | Ação |
+|---------|------|
+| `supabase/migrations/xxx.sql` | Criar storage bucket `assets` |
+| `supabase/functions/generate-asset/index.ts` | Nova edge function |
+| `src/pages/NewAsset.tsx` | Nova página |
+| `src/pages/AssetDetail.tsx` | Nova página |
+| `src/components/activation/AssetsTab.tsx` | Atualizar com botão + links |
+| `src/App.tsx` | 2 novas rotas |
 
