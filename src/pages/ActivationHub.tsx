@@ -10,6 +10,7 @@ import { UtmTab } from "@/components/activation/UtmTab";
 import { ScheduleTab } from "@/components/activation/ScheduleTab";
 import { AnalyticsTab } from "@/components/activation/AnalyticsTab";
 import { CampaignsTab } from "@/components/activation/CampaignsTab";
+import { WorkflowProgress } from "@/components/activation/WorkflowProgress";
 
 const tabs = [
   { key: "brief", label: "Brief", path: "brief" },
@@ -28,6 +29,14 @@ const ActivationHub = () => {
   const [clientName, setClientName] = useState("");
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [workflowData, setWorkflowData] = useState({
+    briefDone: false,
+    copiesApproved: 0,
+    copiesTotal: 0,
+    assetsApproved: 0,
+    assetsTotal: 0,
+    scheduledCount: 0,
+  });
 
   useEffect(() => {
     if (!id) return;
@@ -43,15 +52,31 @@ const ActivationHub = () => {
         setClientName((act as any).clients?.name || "");
       }
 
-      const [copiesRes, assetsRes] = await Promise.all([
+      const [copiesReviewRes, assetsReviewRes, briefRes, copiesAllRes, copiesApprovedRes, assetsAllRes, assetsApprovedRes, scheduledRes] = await Promise.all([
         supabase.from("copies").select("status", { count: "exact" }).eq("activation_id", id!).eq("status", "review"),
         supabase.from("assets").select("status", { count: "exact" }).eq("activation_id", id!).eq("status", "review"),
+        supabase.from("briefs").select("objectives").eq("activation_id", id!).single(),
+        supabase.from("copies").select("id", { count: "exact" }).eq("activation_id", id!),
+        supabase.from("copies").select("id", { count: "exact" }).eq("activation_id", id!).eq("status", "approved"),
+        supabase.from("assets").select("id", { count: "exact" }).eq("activation_id", id!),
+        supabase.from("assets").select("id", { count: "exact" }).eq("activation_id", id!).eq("status", "approved"),
+        supabase.from("scheduled_posts").select("id", { count: "exact" }).eq("activation_id", id!),
       ]);
 
       setCounts({
-        copies: copiesRes.count || 0,
-        assets: assetsRes.count || 0,
+        copies: copiesReviewRes.count || 0,
+        assets: assetsReviewRes.count || 0,
       });
+
+      setWorkflowData({
+        briefDone: !!(briefRes.data?.objectives),
+        copiesApproved: copiesApprovedRes.count || 0,
+        copiesTotal: copiesAllRes.count || 0,
+        assetsApproved: assetsApprovedRes.count || 0,
+        assetsTotal: assetsAllRes.count || 0,
+        scheduledCount: scheduledRes.count || 0,
+      });
+
       setLoading(false);
     };
     fetchData();
@@ -82,11 +107,11 @@ const ActivationHub = () => {
   const renderTabContent = () => {
     switch (activeTab) {
       case "brief": return <BriefTab activationId={id!} />;
-      case "copies": return <CopiesTab activationId={id!} />;
-      case "assets": return <AssetsTab activationId={id!} />;
+      case "copies": return <CopiesTab activationId={id!} briefDone={workflowData.briefDone} />;
+      case "assets": return <AssetsTab activationId={id!} copiesApproved={workflowData.copiesApproved} />;
       case "ad-campaigns": return <CampaignsTab activationId={id!} />;
       case "utm": return <UtmTab activationId={id!} landingPageUrl={activation.landing_page_url} />;
-      case "schedule": return <ScheduleTab activationId={id!} />;
+      case "schedule": return <ScheduleTab activationId={id!} assetsApproved={workflowData.assetsApproved} />;
       case "analytics": return <AnalyticsTab activationId={id!} />;
       default: return <BriefTab activationId={id!} />;
     }
@@ -132,6 +157,18 @@ const ActivationHub = () => {
           )}
         </div>
       </div>
+
+      {/* Workflow Progress */}
+      <WorkflowProgress
+        activationId={id!}
+        briefDone={workflowData.briefDone}
+        copiesApproved={workflowData.copiesApproved}
+        copiesTotal={workflowData.copiesTotal}
+        assetsApproved={workflowData.assetsApproved}
+        assetsTotal={workflowData.assetsTotal}
+        scheduledCount={workflowData.scheduledCount}
+        activeTab={activeTab}
+      />
 
       {/* Tabs */}
       <div
