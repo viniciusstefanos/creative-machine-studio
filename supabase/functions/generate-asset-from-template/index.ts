@@ -35,13 +35,47 @@ async function callClaude(systemPrompt: string, userPrompt: string, apiKey: stri
   return data.content?.[0]?.text || "";
 }
 
-// ─── Claude generates optimized prompt for Nano Banana ───────
-async function generateImagePrompt(template: string, context: Record<string, any>, apiKey: string): Promise<string> {
+// ─── Lovable AI helper (text/HTML via Gemini) ────────────────
+async function callLovableAI(systemPrompt: string, userPrompt: string, apiKey: string): Promise<string> {
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const status = res.status;
+    const errText = await res.text();
+    console.error("Lovable AI error:", status, errText);
+    throw new Error(status === 429 ? "rate_limit" : status === 402 ? "credits" : "ai_failed");
+  }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || "";
+}
+
+// ─── Unified text generation call ────────────────────────────
+async function callTextAI(systemPrompt: string, userPrompt: string, useClaude: boolean, anthropicKey: string, lovableKey: string): Promise<string> {
+  if (useClaude) {
+    return callClaude(systemPrompt, userPrompt, anthropicKey);
+  }
+  return callLovableAI(systemPrompt, userPrompt, lovableKey);
+}
+
+// ─── Generate optimized image prompt ─────────────────────────
+async function generateImagePrompt(template: string, context: Record<string, any>, useClaude: boolean, anthropicKey: string, lovableKey: string): Promise<string> {
   const filled = fillTemplate(template, context);
-  const res = await callClaude(
+  const res = await callTextAI(
     `Você é um especialista em prompts para geração de imagem. Receba um rascunho de prompt e melhore-o para gerar a melhor imagem possível. Retorne APENAS o prompt otimizado em inglês, sem explicação.`,
     `Rascunho de prompt: "${filled}"\n\nOtimize este prompt para geração de imagem:`,
-    apiKey,
+    useClaude, anthropicKey, lovableKey,
   );
   return res.trim() || filled;
 }
