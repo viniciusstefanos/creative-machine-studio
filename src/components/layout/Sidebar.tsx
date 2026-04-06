@@ -8,7 +8,11 @@ const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/clients", icon: Users, label: "Clientes" },
   { to: "/notifications", icon: Bell, label: "Notificações" },
-  { to: "/settings/team", icon: Settings, label: "Configurações" },
+];
+
+const settingsItems = [
+  { to: "/settings/team", label: "Time" },
+  { to: "/settings/formats", label: "Formatos" },
 ];
 
 export const Sidebar = () => {
