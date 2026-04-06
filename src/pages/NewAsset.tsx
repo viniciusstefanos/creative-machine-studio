@@ -97,6 +97,7 @@ const NewAsset = () => {
           copy_id: selectedCopy,
           template_id: selectedTemplate.id,
           render_config: renderConfig,
+          use_claude: useClaude,
         },
       })
       .catch((err) => console.error("generate error:", err));
