@@ -31,6 +31,7 @@ const NewAsset = () => {
   const [activation, setActivation] = useState<any>(null);
   const [clientName, setClientName] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [useClaude, setUseClaude] = useState(false);
 
   useEffect(() => {
     if (!id) return;
