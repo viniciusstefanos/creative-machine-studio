@@ -54,20 +54,67 @@ async function generateImage(
   assetId: string,
 ): Promise<string | null> {
   try {
+    console.log("Image gen: sending request...");
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-3.1-flash-image-preview",
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: `Generate an image: ${prompt}` }],
         modalities: ["image", "text"],
       }),
     });
-    if (!res.ok) { console.warn("Image gen failed:", res.status); return null; }
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Image gen failed:", res.status, errText);
+      return null;
+    }
     const data = await res.json();
-    const base64Url = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    if (!base64Url) return null;
-    const base64Data = base64Url.split(",")[1];
+    console.log("Image gen response keys:", JSON.stringify(Object.keys(data)));
+    const choice = data.choices?.[0];
+    if (choice) {
+      console.log("Choice message keys:", JSON.stringify(Object.keys(choice.message || {})));
+    }
+
+    // Try multiple response formats
+    let base64Data: string | null = null;
+
+    // Format 1: images array with image_url.url
+    const imgUrl = choice?.message?.images?.[0]?.image_url?.url;
+    if (imgUrl) {
+      base64Data = imgUrl.includes(",") ? imgUrl.split(",")[1] : imgUrl;
+    }
+
+    // Format 2: content array with image_url type
+    if (!base64Data && Array.isArray(choice?.message?.content)) {
+      for (const part of choice.message.content) {
+        if (part.type === "image_url" && part.image_url?.url) {
+          const url = part.image_url.url;
+          base64Data = url.includes(",") ? url.split(",")[1] : url;
+          break;
+        }
+        if (part.type === "image" && part.data) {
+          base64Data = part.data;
+          break;
+        }
+      }
+    }
+
+    // Format 3: inline_data in parts
+    if (!base64Data && Array.isArray(choice?.message?.parts)) {
+      for (const part of choice.message.parts) {
+        if (part.inline_data?.data) {
+          base64Data = part.inline_data.data;
+          break;
+        }
+      }
+    }
+
+    if (!base64Data) {
+      console.error("No image data found in response. Full structure:", JSON.stringify(data).substring(0, 1000));
+      return null;
+    }
+
     const imageBytes = decode(base64Data);
     const filePath = `generated/${assetId}/${Date.now()}.png`;
     const { error: uploadErr } = await supabase.storage
@@ -75,6 +122,7 @@ async function generateImage(
       .upload(filePath, imageBytes, { contentType: "image/png", upsert: true });
     if (uploadErr) { console.error("Upload error:", uploadErr); return null; }
     const { data: urlData } = supabase.storage.from("assets").getPublicUrl(filePath);
+    console.log("Image uploaded:", urlData.publicUrl);
     return urlData.publicUrl;
   } catch (e) {
     console.error("Image gen error:", e);
