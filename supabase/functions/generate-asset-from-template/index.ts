@@ -250,10 +250,10 @@ serve(async (req) => {
 
       const userPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nConfig: ${JSON.stringify(config)}`;
 
-      const rawContent = await callClaude(
+      const rawContent = await callTextAI(
         (template.system_prompt || "") + carouselInstruction,
         userPrompt,
-        anthropicKey,
+        useClaude, anthropicKey, lovableKey,
       );
 
       if (template.category === "carousel") {
