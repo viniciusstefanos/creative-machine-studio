@@ -468,9 +468,31 @@ const NewAsset = () => {
               )}
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3 mt-6 items-center">
               <Button variant="ghost" onClick={() => setStep(3)}>← Voltar</Button>
-              <Button onClick={handleGenerate} disabled={generating} className="gap-2">
+
+              {/* Claude toggle */}
+              <button
+                onClick={() => setUseClaude(!useClaude)}
+                className="flex items-center gap-2 px-3 py-2 rounded text-xs transition-all"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  background: useClaude ? "var(--accent-dim)" : "var(--bg-surface2)",
+                  color: useClaude ? "var(--accent)" : "var(--text-muted)",
+                  border: useClaude ? "1px solid var(--accent)" : "1px solid var(--border-default)",
+                  borderRadius: 6,
+                }}
+              >
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{
+                    background: useClaude ? "var(--accent)" : "var(--border-strong)",
+                  }}
+                />
+                Claude (Anthropic)
+              </button>
+
+              <Button onClick={handleGenerate} disabled={generating} className="gap-2 ml-auto">
                 {generating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
                 {generating ? "Gerando..." : "Gerar peça com IA"}
               </Button>
