@@ -42,11 +42,6 @@ const AssetDetail = () => {
         const cpRes = await supabase.from("copies").select("hook, channel, type").eq("id", data.copy_id).single();
         if (cpRes.data) setCopy(cpRes.data);
       }
-        setActivation(results[0].data);
-        setClientName((results[0].data as any).clients?.name || "");
-      }
-      if (data.format_id && results[1]?.data) setFormat(results[1].data);
-      if (data.copy_id && results[data.format_id ? 2 : 1]?.data) setCopy(results[data.format_id ? 2 : 1].data);
     }
     setLoading(false);
   }, [assetId]);
