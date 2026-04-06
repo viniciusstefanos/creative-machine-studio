@@ -12,6 +12,8 @@ import NewClient from "./pages/NewClient.tsx";
 import ClientDetail from "./pages/ClientDetail.tsx";
 import NewActivation from "./pages/NewActivation.tsx";
 import ActivationHub from "./pages/ActivationHub.tsx";
+import NewAsset from "./pages/NewAsset.tsx";
+import AssetDetail from "./pages/AssetDetail.tsx";
 import CopyDetail from "./pages/CopyDetail.tsx";
 import Notifications from "./pages/Notifications.tsx";
 import SettingsTeam from "./pages/SettingsTeam.tsx";
