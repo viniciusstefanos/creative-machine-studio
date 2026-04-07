@@ -58,7 +58,7 @@ export const BriefFilesSection = ({
         activation_id: activationId,
         file_path: filePath,
         file_name: file.name,
-        category: selectedCategory,
+        category: "geral",
       }])
       .select()
       .single();
