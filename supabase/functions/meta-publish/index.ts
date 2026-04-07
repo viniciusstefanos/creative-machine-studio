@@ -124,6 +124,18 @@ Deno.serve(async (req) => {
       const publishData = await publishRes.json();
       if (!publishRes.ok) throw new Error(`Carousel publish failed: ${JSON.stringify(publishData)}`);
 
+      // Update scheduled_post status
+      if (scheduled_post_id) {
+        await supabase
+          .from("scheduled_posts")
+          .update({
+            status: "published",
+            platform_post_id: publishData.id,
+            published_at: new Date().toISOString(),
+          })
+          .eq("id", scheduled_post_id);
+      }
+
       return new Response(JSON.stringify({ success: true, post_id: publishData.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
