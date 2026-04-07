@@ -5,12 +5,13 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CommentThread } from "@/components/ui/CommentThread";
+import { NextStepBar } from "@/components/activation/NextStepBar";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Check, X, RefreshCw, Calendar, Loader2, ChevronLeft, ChevronRight,
-  Pencil, Image, Wand2, Save, RotateCcw
+  Pencil, Image, Wand2, Save, RotateCcw, ArrowLeft
 } from "lucide-react";
 
 const AssetDetail = () => {

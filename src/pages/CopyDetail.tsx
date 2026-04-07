@@ -5,9 +5,11 @@ import { CopyBlock } from "@/components/ui/CopyBlock";
 import { CommentThread } from "@/components/ui/CommentThread";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { Button } from "@/components/ui/button";
+import { NextStepBar } from "@/components/activation/NextStepBar";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Check } from "lucide-react";
+import { toast } from "sonner";
+import { ArrowLeft, Check, Send, X } from "lucide-react";
 
 const CopyDetail = () => {
   const { id: activationId, copyId } = useParams<{ id: string; copyId: string }>();
@@ -21,6 +23,7 @@ const CopyDetail = () => {
   const [cta, setCta] = useState("");
   const [saving, setSaving] = useState(false);
   const [regeneratingBlock, setRegeneratingBlock] = useState<string | null>(null);
+  const [workflowData, setWorkflowData] = useState({ briefDone: false, copiesApproved: 0, assetsApproved: 0, scheduledCount: 0 });
 
   useEffect(() => {
     if (!copyId || !activationId) return;
@@ -39,6 +42,21 @@ const CopyDetail = () => {
         setActivation(actRes.data);
         setClientName((actRes.data as any).clients?.name || "");
       }
+
+      // Fetch workflow counts
+      const [briefRes, copiesApprovedRes, assetsApprovedRes, scheduledRes] = await Promise.all([
+        supabase.from("briefs").select("objectives").eq("activation_id", activationId).single(),
+        supabase.from("copies").select("id", { count: "exact" }).eq("activation_id", activationId).eq("status", "approved"),
+        supabase.from("assets").select("id", { count: "exact" }).eq("activation_id", activationId).eq("status", "approved"),
+        supabase.from("scheduled_posts").select("id", { count: "exact" }).eq("activation_id", activationId),
+      ]);
+      setWorkflowData({
+        briefDone: !!(briefRes.data?.objectives),
+        copiesApproved: copiesApprovedRes.count || 0,
+        assetsApproved: assetsApprovedRes.count || 0,
+        scheduledCount: scheduledRes.count || 0,
+      });
+
       setLoading(false);
     };
     fetchData();
@@ -56,6 +74,25 @@ const CopyDetail = () => {
       setCta(data.cta || "");
     }
     setSaving(false);
+
+    // Actionable toasts
+    if (updates.status === "approved") {
+      toast.success("Copy aprovado!", {
+        description: "Agora crie peças visuais com este copy.",
+        action: {
+          label: "Criar peça →",
+          onClick: () => navigate(`/activations/${activationId}/assets/new`),
+        },
+      });
+    } else if (updates.status === "rejected") {
+      toast("Copy rejeitado", {
+        description: "Volte para a lista de copies.",
+        action: {
+          label: "Ver copies",
+          onClick: () => navigate(`/activations/${activationId}/copies`),
+        },
+      });
+    }
   };
 
   const handleRegenerate = async (block: string, feedback?: string) => {
@@ -89,11 +126,11 @@ const CopyDetail = () => {
         if (block === "hook") setHook(data.content);
         else if (block === "body") setBody(data.content);
         else setCta(data.content);
-        toast({ title: `${block === "hook" ? "Gancho" : block === "body" ? "Corpo" : "CTA"} regenerado` });
+        toast.success(`${block === "hook" ? "Gancho" : block === "body" ? "Corpo" : "CTA"} regenerado`);
       }
     } catch (err) {
       console.error("Regenerate error:", err);
-      toast({ title: "Erro ao regenerar", description: "Tente novamente.", variant: "destructive" });
+      toast.error("Erro ao regenerar. Tente novamente.");
     }
     setRegeneratingBlock(null);
   };
@@ -128,39 +165,35 @@ const CopyDetail = () => {
         { label: `Copy v${copy.version}` },
       ]}
     >
-      <div
-        className="grid gap-0"
-        style={{
-          gridTemplateColumns: "1fr 300px",
-          minHeight: "calc(100vh - 120px)",
-        }}
-      >
+      {/* Mini workflow progress */}
+      <NextStepBar
+        activationId={activationId!}
+        currentStep="copies"
+        briefDone={workflowData.briefDone}
+        copiesApproved={workflowData.copiesApproved}
+        assetsApproved={workflowData.assetsApproved}
+        scheduledCount={workflowData.scheduledCount}
+      />
+
+      <div className="grid gap-0" style={{ gridTemplateColumns: "1fr 300px", minHeight: "calc(100vh - 180px)" }}>
         {/* ── Main Content ── */}
-        <div
-          className="pr-8 space-y-4"
-          style={{ borderRight: "1px solid hsl(var(--border-subtle))" }}
-        >
+        <div className="pr-8 space-y-4" style={{ borderRight: "1px solid hsl(var(--border-subtle))" }}>
           {/* Header */}
-          <div
-            className="pb-5 mb-6"
-            style={{ borderBottom: "1px solid hsl(var(--border-subtle))" }}
-          >
+          <div className="pb-5 mb-6" style={{ borderBottom: "1px solid hsl(var(--border-subtle))" }}>
             <div className="flex items-center gap-3 mb-2">
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
                 onClick={() => navigate(`/activations/${activationId}/copies`)}
-                className="p-2 rounded-md transition-all"
-                style={{ background: "hsl(var(--bg-surface2))", color: "hsl(var(--text-muted))" }}
               >
                 <ArrowLeft size={16} />
-              </button>
+              </Button>
               <h1 className="text-display-md">Copy v{copy.version}</h1>
               <StatusBadge status={copy.status} />
             </div>
-            <div className="pl-10">
-              <span
-                className="text-[10px] uppercase tracking-[2px]"
-                style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}
-              >
+            <div className="pl-11">
+              <span className="text-mono-label">
                 {copy.type} · {copy.channel || "—"} · {copy.funnel_stage || "—"}
               </span>
             </div>
@@ -201,7 +234,7 @@ const CopyDetail = () => {
           {copy.landing_page_url && (
             <div className="card-base">
               <SectionLabel>Landing Page</SectionLabel>
-              <p className="text-xs mt-2 break-all" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--accent))" }}>
+              <p className="text-mono mt-2 break-all" style={{ color: "hsl(var(--accent))" }}>
                 {copy.landing_page_url}
               </p>
             </div>
@@ -209,82 +242,32 @@ const CopyDetail = () => {
 
           {/* Sticky footer */}
           <div
-            className="flex justify-end gap-2 pt-5 mt-6 sticky bottom-0"
-            style={{
-              borderTop: "1px solid hsl(var(--border-subtle))",
-              background: "hsl(var(--bg-base))",
-              paddingBottom: 20,
-            }}
+            className="form__footer sticky bottom-0"
+            style={{ background: "hsl(var(--bg-base))", paddingBottom: 20 }}
           >
             {copy.status === "review" && (
-              <button
-                onClick={handleReject}
-                disabled={saving}
-                className="px-4 py-2 text-xs font-medium rounded-md transition-all disabled:opacity-50"
-                style={{
-                  background: "color-mix(in srgb, hsl(var(--status-rejected)) 10%, transparent)",
-                  border: "1px solid color-mix(in srgb, hsl(var(--status-rejected)) 30%, transparent)",
-                  color: "hsl(var(--status-rejected))",
-                  fontFamily: "'DM Sans'",
-                  borderRadius: 6,
-                }}
-              >
-                Rejeitar copy
-              </button>
+              <Button variant="destructive" size="sm" onClick={handleReject} disabled={saving} className="gap-2">
+                <X size={14} /> Rejeitar
+              </Button>
             )}
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-4 py-2 text-xs font-medium rounded-md transition-all disabled:opacity-50"
-              style={{
-                background: "hsl(var(--bg-surface2))",
-                border: "1px solid hsl(var(--border-strong))",
-                color: "hsl(var(--text-primary))",
-                fontFamily: "'DM Sans'",
-                borderRadius: 6,
-              }}
-            >
+            <Button variant="outline" size="sm" onClick={handleSave} disabled={saving}>
               {saving ? "Salvando..." : "Salvar alterações"}
-            </button>
+            </Button>
             {copy.status === "draft" && (
-              <button
-                onClick={handleSendToReview}
-                disabled={saving}
-                className="px-4 py-2 text-xs font-medium rounded-md transition-all disabled:opacity-50"
-                style={{
-                  background: "color-mix(in srgb, hsl(var(--status-review)) 15%, transparent)",
-                  border: "1px solid color-mix(in srgb, hsl(var(--status-review)) 30%, transparent)",
-                  color: "hsl(var(--status-review))",
-                  fontFamily: "'DM Sans'",
-                  borderRadius: 6,
-                }}
-              >
-                Enviar para revisão
-              </button>
+              <Button variant="secondary" size="sm" onClick={handleSendToReview} disabled={saving} className="gap-2">
+                <Send size={14} /> Enviar para revisão
+              </Button>
             )}
             {(copy.status === "review" || copy.status === "draft") && (
-              <button
-                onClick={handleApproveAll}
-                disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-md transition-all disabled:opacity-50"
-                style={{
-                  background: "hsl(var(--accent))",
-                  color: "hsl(var(--text-inverse))",
-                  fontFamily: "'DM Sans'",
-                  borderRadius: 6,
-                }}
-              >
+              <Button size="sm" onClick={handleApproveAll} disabled={saving} className="gap-2">
                 <Check size={14} /> Aprovar copy completo
-              </button>
+              </Button>
             )}
           </div>
         </div>
 
         {/* ── Sidebar ── */}
-        <div
-          className="pl-6 space-y-6"
-          style={{ background: "hsl(var(--bg-surface1))", padding: "24px 20px" }}
-        >
+        <div className="pl-6 space-y-6" style={{ background: "hsl(var(--bg-surface1))", padding: "24px 20px" }}>
           <CommentThread entityType="copy" entityId={copyId!} />
 
           <div>
@@ -302,8 +285,8 @@ const CopyDetail = () => {
                   {copy.version}
                 </span>
                 <div>
-                  <p className="text-xs" style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}>Versão atual</p>
-                  <p className="text-[9px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
+                  <p className="text-body-sm" style={{ color: "hsl(var(--text-primary))" }}>Versão atual</p>
+                  <p className="text-mono" style={{ color: "hsl(var(--text-muted))" }}>
                     {new Date(copy.created_at).toLocaleDateString("pt-BR")}
                   </p>
                 </div>
