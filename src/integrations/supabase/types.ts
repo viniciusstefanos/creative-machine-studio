@@ -63,6 +63,7 @@ export type Database = {
           id: string
           landing_page_url: string | null
           name: string
+          slug: string | null
           start_date: string | null
           status: string | null
           tags: string[] | null
@@ -77,6 +78,7 @@ export type Database = {
           id?: string
           landing_page_url?: string | null
           name: string
+          slug?: string | null
           start_date?: string | null
           status?: string | null
           tags?: string[] | null
@@ -91,6 +93,7 @@ export type Database = {
           id?: string
           landing_page_url?: string | null
           name?: string
+          slug?: string | null
           start_date?: string | null
           status?: string | null
           tags?: string[] | null
