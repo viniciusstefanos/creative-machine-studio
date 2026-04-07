@@ -10,20 +10,34 @@ const corsHeaders = {
 
 // ─── Brazilian / Instagram-native context ────────────────────
 const CONTEXT_BRASIL_INSTAGRAM = `
-## CONTEXTO OBRIGATÓRIO
+## CONTEXTO OBRIGATÓRIO — BRASIL 2026
 - Público: Brasil. Linguagem nativa de Instagram BR.
 - Tom: coloquial-profissional. Evitar anglicismos desnecessários, usar gírias brasileiras quando natural (ex: "bora", "dá match", "vibe", "rolê").
 - Referência cultural: memes BR, trends do Reels/TikTok BR, estética brasileira (diversidade, cor, calor, naturalidade).
-- Formatos validados 2025-2026: carrossel educativo (engajamento 3x feed), Reels <15s (82% completion), stories com enquete/slider (resposta 2x), post-lista com número ímpar (CTR +22%).
-- Métricas de referência: CTR médio Reels 1.87%, engagement rate carrossel 1.92%, story com sticker interativo = 2x resposta.
-- Horários de pico BR: 12h-14h e 19h-21h (GMT-3).
+
+## DIMENSÕES OFICIAIS INSTAGRAM 2026
+- Feed/Carrossel: 1080×1350px (4:5) — PADRÃO DOMINANTE (substitui 1:1)
+- Reels/Stories: 1080×1920px (9:16) — tela cheia, máx impacto
+- Quadrado 1:1 = formato legado, perde alcance. EVITAR.
+
+## BENCHMARKS REAIS 2026 (Buffer 45M+ posts, Metricool, Socialinsider)
+- Carrossel educativo: 10.15% engagement rate, 3.1x mais que post único
+- Reels 7-12s: 2.25x mais reach que estáticos, 82% completion rate
+- Story com sticker interativo: 2x resposta vs passivo
+- Números ímpares no título (3, 5, 7): +22% CTR
+- UGC-style: supera produções polidas em conversão
+- Rosto na câmera: +35% conversão
+- Horários de pico BR: 12h-14h e 19h-21h (GMT-3)
 
 ## FORMATOS PERSUASIVOS VALIDADOS
-- Carrossel educativo: slide 1 = gancho impossível de ignorar, slides do meio = valor tangível, último = CTA claro
+- Carrossel educativo (5-10 slides): slide 1 = gancho impossível de ignorar, slides do meio = valor tangível, último = CTA claro
+- Carrossel listicle: número ímpar no título, 1 item por slide, escaneável
+- Carrossel antes/depois: prova visual direta. Alto save rate.
 - Reels hook-first: primeiros 0.5s decidem. Texto grande + movimento.
-- Post feed estático: imagem forte + caption curta. Menos é mais.
-- Story interativo: enquete, quiz, slider — nunca só imagem passiva.
-- Antes/depois: prova visual direta. Funciona em todos os nichos BR.
+- Post feed estático 4:5: imagem forte + caption curta. Menos é mais.
+- Post tipográfico: frase provocativa bold = alto share rate
+- Post dado/estatística: número gigante = alto save rate
+- Story interativo: enquete, quiz, slider — nunca só imagem passiva. 2x resposta.
 `;
 
 // ─── Creative agent visual guidelines ────────────────────────
@@ -47,22 +61,23 @@ ${CONTEXT_BRASIL_INSTAGRAM}
 `;
 
 const IMAGE_CREATIVE_RULES = `
-## DIRETRIZES DE IMAGEM (VALIDADAS 2026)
-- UGC-style > polido: conteúdo que parece feito por usuário supera produções de estúdio
-- Rosto na câmera: pessoa olhando para câmera aumenta conversão em +35%
-- Lo-fi/analog: grana, tungsten warm, overlay de textura (tendência validada)
+## DIRETRIZES DE IMAGEM — INSTAGRAM BRASIL 2026
+- UGC-style > polido: conteúdo que parece feito por usuário supera produções de estúdio (+35% conversão com rosto na câmera)
+- Lo-fi/analog: grana, tungsten warm, overlay de textura (tendência validada 2026)
 - Lifestyle com pessoa em contexto real > produto isolado
 - Alto contraste no frame inicial — nunca começar com imagem escura ou neutra
 - Para produto: demonstração real em uso, não packshot isolado
 - Cores dessaturadas + highlight quente para tom cinematográfico
 - Evitar imagens genéricas de banco de imagens — buscar autenticidade
+- Proporção 4:5 (1080×1350) para feed/carrossel, 9:16 (1080×1920) para Reels/Stories
 
-## CONTEXTO BRASIL
+## CONTEXTO BRASIL 2026
 - Pessoas brasileiras diversas (tom de pele, cabelo, contexto urbano/rural BR)
 - Cenários brasileiros quando relevante: cidade, praia, escritório BR, apartamento BR
 - Luz natural tropical: dourada, quente, alta exposição
 - Estética Instagram BR: saturação moderada, filtro warm, vibe acessível
 - Evitar estética "americana/europeia genérica" — buscar autenticidade brasileira
+- Referência: trends Reels/TikTok BR, estética lo-fi, diversidade brasileira
 `;
 
 // ─── Claude helper (text/HTML) ───────────────────────────────
