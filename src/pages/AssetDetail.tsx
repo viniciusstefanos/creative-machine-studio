@@ -98,7 +98,10 @@ const AssetDetail = () => {
         .select("id, status, version, category, image_url")
         .eq("activation_id", id)
         .order("created_at", { ascending: false });
-      setSiblingAssets(data || []);
+      // Sort: review first, then generating, then rest
+      const priorityOrder: Record<string, number> = { review: 0, generating: 1, rejected: 2, draft: 3, approved: 4 };
+      const sorted = (data || []).sort((a, b) => (priorityOrder[a.status] ?? 5) - (priorityOrder[b.status] ?? 5));
+      setSiblingAssets(sorted);
     };
     fetchSiblings();
   }, [id]);
@@ -578,11 +581,19 @@ const AssetDetail = () => {
         <h1 className="text-display-md">Peça v{asset.version || 1}</h1>
         <StatusBadge status={asset.status} />
         <div className="ml-auto flex items-center gap-1">
-          {siblingAssets.length > 1 && (
-            <span className="text-mono text-txt-muted mr-2">
-              {currentAssetIndex + 1} / {siblingAssets.length}
-            </span>
-          )}
+          {siblingAssets.length > 1 && (() => {
+            const reviewCount = siblingAssets.filter(a => a.status === "review").length;
+            return (
+              <span className="text-mono text-txt-muted mr-2">
+                {currentAssetIndex + 1}/{siblingAssets.length}
+                {reviewCount > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px]" style={{ background: "hsl(var(--status-review) / 0.15)", color: "hsl(var(--status-review))" }}>
+                    {reviewCount} p/ revisar
+                  </span>
+                )}
+              </span>
+            );
+          })()}
           <Button
             variant="outline"
             size="icon"
@@ -719,6 +730,9 @@ const AssetDetail = () => {
               </Button>
               <Button variant="ghost" className="w-full gap-2 text-xs" onClick={() => navigate(`/activations/${id}/assets/new`)}>
                 Criar outra peça →
+              </Button>
+              <Button variant="outline" className="w-full gap-2 text-xs text-destructive border-destructive/30" onClick={() => updateStatus("review")} disabled={actionLoading}>
+                <RotateCcw size={14} /> Desaprovar (voltar p/ revisão)
               </Button>
             </div>
           )}
