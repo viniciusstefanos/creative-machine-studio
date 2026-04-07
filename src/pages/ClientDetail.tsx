@@ -5,6 +5,7 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, FileText, Image, CheckCircle } from "lucide-react";
+import { MetaAccountSettings } from "@/components/client/MetaAccountSettings";
 
 const ClientDetail = () => {
   const { id } = useParams<{ id: string }>();
