@@ -616,9 +616,19 @@ const AssetDetail = () => {
                     onChange={(e) => setFeedback(e.target.value)}
                     className="text-sm"
                   />
-                  <Button variant="destructive" className="w-full" onClick={() => updateStatus("rejected", { feedback })} disabled={actionLoading}>
-                    Confirmar rejeição
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="destructive" className="flex-1" onClick={() => updateStatus("rejected", { feedback })} disabled={actionLoading}>
+                      Rejeitar
+                    </Button>
+                    {nextAsset && (
+                      <Button variant="destructive" className="flex-1 gap-1" onClick={async () => {
+                        await updateStatus("rejected", { feedback });
+                        navigate(`/activations/${id}/assets/${nextAsset.id}`);
+                      }} disabled={actionLoading}>
+                        Rejeitar e próxima →
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
