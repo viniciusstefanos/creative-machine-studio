@@ -42,17 +42,13 @@ export const SchedulePostDialog = ({
   useEffect(() => {
     if (!open) return;
     const load = async () => {
-      // Fetch approved assets + the preselected asset (which may not be approved yet)
       const { data } = await supabase
         .from("assets")
         .select("id, category, image_url, copy_id, template_id, status, asset_templates(name)")
         .eq("activation_id", activationId)
+        .in("status", ["approved", "review", "generating", "done"])
         .order("created_at", { ascending: false });
-      // Show approved + preselected asset
-      const filtered = (data || []).filter(
-        (a) => a.status === "approved" || a.id === preselectedAssetId || a.id === editingPost?.asset_id
-      );
-      setAssets(filtered);
+      setAssets(data || []);
 
       if (editingPost) {
         setSelectedAssetId(editingPost.asset_id || "");
@@ -162,7 +158,10 @@ export const SchedulePostDialog = ({
                       ) : (
                         <Image size={14} className="text-txt-ghost" />
                       )}
-                      {a.category || (a as any).asset_templates?.name || a.id.slice(0, 8)}
+                      {(a as any).asset_templates?.name || a.category || a.id.slice(0, 8)}
+                      {a.status && a.status !== "approved" && (
+                        <span className="text-[10px] text-caption ml-1">({a.status})</span>
+                      )}
                     </span>
                   </SelectItem>
                 ))}
