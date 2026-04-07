@@ -231,18 +231,56 @@ const AssetDetail = () => {
   };
 
   const regenerateImage = async () => {
-    if (!currentRender || !imagePrompt.trim()) return;
+    if (!imagePrompt.trim()) return;
     setEditLoading(true);
-    const { data, error } = await supabase.functions.invoke("edit-asset-render", {
-      body: { render_id: currentRender.id, asset_id: assetId, action: "regenerate_image", image_prompt: imagePrompt },
-    });
-    if (error || !data?.image_url) {
+    try {
+      if (currentRender) {
+        // Template-based asset with renders
+        const { data, error } = await supabase.functions.invoke("edit-asset-render", {
+          body: { render_id: currentRender.id, asset_id: assetId, action: "regenerate_image", image_prompt: imagePrompt },
+        });
+        if (error || !data?.image_url) {
+          console.error("regenerate_image error:", error, data);
+          toast.error("Falha ao gerar imagem");
+        } else {
+          // For HTML renders, inject the new image into the HTML as well
+          if (currentRender.html_content) {
+            const updatedHtml = currentRender.html_content.replace(
+              /(<img[^>]*src=["'])[^"']+/i,
+              `$1${data.image_url}`
+            );
+            setRenders(prev => prev.map((r, i) => i === currentSlide
+              ? { ...r, image_url: data.image_url, html_content: updatedHtml, png_url: null }
+              : r));
+            await supabase.from("asset_template_renders").update({ html_content: updatedHtml, png_url: null }).eq("id", currentRender.id);
+          } else {
+            setRenders(prev => prev.map((r, i) => i === currentSlide
+              ? { ...r, image_url: data.image_url, png_url: null }
+              : r));
+          }
+          toast.success("Imagem regenerada ✓");
+          setImagePrompt("");
+          setEditMode("none");
+        }
+      } else if (asset) {
+        // Image-only asset without renders
+        const { data, error } = await supabase.functions.invoke("edit-asset-render", {
+          body: { render_id: assetId, asset_id: assetId, action: "regenerate_image", image_prompt: imagePrompt },
+        });
+        if (error || !data?.image_url) {
+          console.error("regenerate_image error (no render):", error, data);
+          toast.error("Falha ao gerar imagem");
+        } else {
+          setAsset((prev: any) => ({ ...prev, image_url: data.image_url }));
+          await supabase.from("assets").update({ image_url: data.image_url }).eq("id", assetId);
+          toast.success("Imagem regenerada ✓");
+          setImagePrompt("");
+          setEditMode("none");
+        }
+      }
+    } catch (e: any) {
+      console.error("regenerateImage exception:", e);
       toast.error("Falha ao gerar imagem");
-    } else {
-      setRenders(prev => prev.map((r, i) => i === currentSlide ? { ...r, image_url: data.image_url, png_url: null } : r));
-      toast.success("Imagem regenerada ✓");
-      setImagePrompt("");
-      setEditMode("none");
     }
     setEditLoading(false);
   };
@@ -386,7 +424,8 @@ const AssetDetail = () => {
 
   // ─── Edit panel below preview ─────────────────────────────────
   const renderEditPanel = () => {
-    if (!canEdit || !currentRender) return null;
+    if (!canEdit) return null;
+    const showImageRegen = currentRender ? (hasImage || template?.generation_type?.includes("image")) : !!asset?.image_url;
 
     return (
       <div className="mt-4 space-y-3">
@@ -403,7 +442,7 @@ const AssetDetail = () => {
                 </Button>
               </>
             )}
-            {(hasImage || template?.generation_type?.includes("image")) && (
+            {showImageRegen && (
               <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditMode("image")}>
                 <Image size={14} /> Regerar imagem
               </Button>
