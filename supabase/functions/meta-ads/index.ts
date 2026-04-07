@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     const { action } = body;
     const token = body.page_access_token || META_ACCESS_TOKEN;
 
-    // Get ad accounts
+    // ─── Get ad accounts ───
     if (action === "get_ad_accounts") {
       const res = await fetch(`${META_GRAPH_URL}/me/adaccounts?fields=id,name,account_status,currency&access_token=${token}`);
       const data = await res.json();
@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create campaign
+    // ─── Create campaign ───
     if (action === "create_campaign") {
       const { ad_account_id, name, objective, status: campStatus, daily_budget, activation_id } = body;
 
@@ -54,52 +54,94 @@ Deno.serve(async (req) => {
       if (!res.ok) throw new Error(`Create campaign failed [${res.status}]: ${JSON.stringify(data)}`);
 
       // Save to DB
+      let dbCampaignId: string | null = null;
       if (activation_id) {
-        await supabase.from("ad_campaigns").insert({
+        const { data: inserted } = await supabase.from("ad_campaigns").insert({
           activation_id,
           platform: "meta",
           name,
           objective: objective || "OUTCOME_ENGAGEMENT",
           budget: daily_budget || null,
+          daily_budget_cents: daily_budget ? Math.round(daily_budget * 100) : null,
           status: campStatus || "paused",
           platform_campaign_id: data.id,
-        });
+          ad_account_id: ad_account_id,
+          targeting: body.targeting || null,
+          start_date: body.start_date || null,
+          end_date: body.end_date || null,
+        }).select("id").single();
+        dbCampaignId = inserted?.id || null;
       }
 
-      return new Response(JSON.stringify({ success: true, campaign_id: data.id }), {
+      return new Response(JSON.stringify({ success: true, campaign_id: data.id, db_campaign_id: dbCampaignId }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Create ad set
+    // ─── Create ad set ───
     if (action === "create_adset") {
-      const { ad_account_id, campaign_id, name, daily_budget: budget, targeting, optimization_goal } = body;
+      const {
+        ad_account_id, campaign_id, name,
+        daily_budget: budget,
+        targeting, optimization_goal,
+        start_date, end_date,
+        age_min, age_max, genders,
+        db_campaign_id,
+      } = body;
+
+      // Build targeting object
+      const targetingObj: Record<string, unknown> = {
+        geo_locations: targeting?.geo_locations || { countries: ["BR"] },
+      };
+      if (age_min) targetingObj.age_min = age_min;
+      if (age_max) targetingObj.age_max = age_max;
+      if (genders && genders.length > 0) targetingObj.genders = genders;
+      if (targeting?.flexible_spec) targetingObj.flexible_spec = targeting.flexible_spec;
+      if (targeting?.interests) {
+        targetingObj.flexible_spec = [{ interests: targeting.interests }];
+      }
+
+      const adsetPayload: Record<string, unknown> = {
+        name,
+        campaign_id,
+        daily_budget: budget || 2000,
+        billing_event: "IMPRESSIONS",
+        optimization_goal: optimization_goal || "REACH",
+        targeting: targetingObj,
+        status: "PAUSED",
+        access_token: token,
+      };
+
+      if (start_date) adsetPayload.start_time = new Date(start_date).toISOString();
+      if (end_date) adsetPayload.end_time = new Date(end_date).toISOString();
 
       const res = await fetch(`${META_GRAPH_URL}/${ad_account_id}/adsets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          campaign_id,
-          daily_budget: budget || 2000, // in cents
-          billing_event: "IMPRESSIONS",
-          optimization_goal: optimization_goal || "REACH",
-          targeting: targeting || { geo_locations: { countries: ["BR"] } },
-          status: "PAUSED",
-          access_token: token,
-        }),
+        body: JSON.stringify(adsetPayload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(`Create adset failed [${res.status}]: ${JSON.stringify(data)}`);
+
+      // Update campaign in DB with adset info
+      if (db_campaign_id) {
+        await supabase.from("ad_campaigns").update({
+          platform_adset_id: data.id,
+          adset_name: name,
+        }).eq("id", db_campaign_id);
+      }
 
       return new Response(JSON.stringify({ success: true, adset_id: data.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Create ad creative + ad
+    // ─── Create ad creative + ad ───
     if (action === "create_ad") {
-      const { ad_account_id, adset_id, name, image_url, caption, link, instagram_page_id } = body;
+      const {
+        ad_account_id, adset_id, name, image_url, caption, link,
+        instagram_page_id, db_campaign_id, asset_id,
+      } = body;
 
       // Upload image to Meta
       const imgRes = await fetch(`${META_GRAPH_URL}/${ad_account_id}/adimages`, {
@@ -148,7 +190,76 @@ Deno.serve(async (req) => {
       const adData = await adRes.json();
       if (!adRes.ok) throw new Error(`Create ad failed [${adRes.status}]: ${JSON.stringify(adData)}`);
 
-      return new Response(JSON.stringify({ success: true, ad_id: adData.id }), {
+      // Save ad creative to DB
+      if (db_campaign_id) {
+        await supabase.from("ad_creatives").insert({
+          campaign_id: db_campaign_id,
+          asset_id: asset_id || null,
+          name,
+          caption,
+          link: link || null,
+          platform_ad_id: adData.id,
+          platform_creative_id: creativeData.id,
+          status: "paused",
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, ad_id: adData.id, creative_id: creativeData.id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── Get campaign status ───
+    if (action === "get_campaign_status") {
+      const { platform_campaign_id } = body;
+
+      const res = await fetch(
+        `${META_GRAPH_URL}/${platform_campaign_id}?fields=id,name,status,effective_status,daily_budget,objective&access_token=${token}`
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(`Get campaign status failed [${res.status}]: ${JSON.stringify(data)}`);
+
+      // Also fetch adsets
+      const adsetsRes = await fetch(
+        `${META_GRAPH_URL}/${platform_campaign_id}/adsets?fields=id,name,status,effective_status,daily_budget&access_token=${token}`
+      );
+      const adsetsData = await adsetsRes.json();
+
+      // Fetch ads for each adset
+      const adsets = adsetsData.data || [];
+      for (const adset of adsets) {
+        const adsRes = await fetch(
+          `${META_GRAPH_URL}/${adset.id}/ads?fields=id,name,status,effective_status&access_token=${token}`
+        );
+        const adsData = await adsRes.json();
+        adset.ads = adsData.data || [];
+      }
+
+      return new Response(JSON.stringify({ campaign: data, adsets }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── Get client meta credentials ───
+    if (action === "get_client_meta") {
+      const { activation_id } = body;
+      
+      // Get client_id from activation
+      const { data: activation } = await supabase
+        .from("activations")
+        .select("client_id")
+        .eq("id", activation_id)
+        .single();
+      
+      if (!activation) throw new Error("Activation not found");
+
+      const { data: metaAccount } = await supabase
+        .from("client_meta_accounts")
+        .select("*")
+        .eq("client_id", activation.client_id)
+        .single();
+
+      return new Response(JSON.stringify({ meta_account: metaAccount || null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
