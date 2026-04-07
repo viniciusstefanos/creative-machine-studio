@@ -159,21 +159,27 @@ export const SchedulePostDialog = ({
                 <SelectValue placeholder="Selecione uma peça aprovada" />
               </SelectTrigger>
               <SelectContent>
-                {assets.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    <span className="flex items-center gap-2">
-                      {a.image_url ? (
-                        <img src={a.image_url} alt="" className="w-6 h-6 rounded object-cover" />
-                      ) : (
-                        <Image size={14} className="text-txt-ghost" />
-                      )}
-                      {(a as any).asset_templates?.name || a.category || a.id.slice(0, 8)}
-                      {a.status && a.status !== "approved" && (
-                        <span className="text-[10px] text-caption ml-1">({a.status})</span>
-                      )}
-                    </span>
-                  </SelectItem>
-                ))}
+                {assets.map((a) => {
+                  const tplName = (a as any).asset_templates?.name;
+                  const label = [tplName, a.category].filter(Boolean).join(" · ") || a.id.slice(0, 8);
+                  const version = a.version ? `v${a.version}` : "";
+                  return (
+                    <SelectItem key={a.id} value={a.id}>
+                      <span className="flex items-center gap-2">
+                        {a.image_url ? (
+                          <img src={a.image_url} alt="" className="w-6 h-6 rounded object-cover" />
+                        ) : (
+                          <Image size={14} className="text-txt-ghost" />
+                        )}
+                        <span>{label}</span>
+                        {version && <span className="text-[10px] text-caption">{version}</span>}
+                        {a.status !== "approved" && (
+                          <span className="text-[10px] text-amber-400">({a.status})</span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             {selectedAsset?.image_url && (
