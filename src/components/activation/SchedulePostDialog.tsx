@@ -44,10 +44,19 @@ export const SchedulePostDialog = ({
     const load = async () => {
       const { data } = await supabase
         .from("assets")
-        .select("id, category, image_url, copy_id, template_id, status, asset_templates(name)")
+        .select("id, category, image_url, copy_id, template_id, status, version, asset_templates(name)")
         .eq("activation_id", activationId)
-        .in("status", ["approved", "review", "generating", "done"])
+        .eq("status", "approved")
         .order("created_at", { ascending: false });
+      // Also include the preselected/editing asset even if not approved
+      if (preselectedAssetId && !(data || []).find((a) => a.id === preselectedAssetId)) {
+        const { data: extra } = await supabase
+          .from("assets")
+          .select("id, category, image_url, copy_id, template_id, status, version, asset_templates(name)")
+          .eq("id", preselectedAssetId)
+          .maybeSingle();
+        if (extra) data?.push(extra);
+      }
       setAssets(data || []);
 
       if (editingPost) {
@@ -150,21 +159,27 @@ export const SchedulePostDialog = ({
                 <SelectValue placeholder="Selecione uma peça aprovada" />
               </SelectTrigger>
               <SelectContent>
-                {assets.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    <span className="flex items-center gap-2">
-                      {a.image_url ? (
-                        <img src={a.image_url} alt="" className="w-6 h-6 rounded object-cover" />
-                      ) : (
-                        <Image size={14} className="text-txt-ghost" />
-                      )}
-                      {(a as any).asset_templates?.name || a.category || a.id.slice(0, 8)}
-                      {a.status && a.status !== "approved" && (
-                        <span className="text-[10px] text-caption ml-1">({a.status})</span>
-                      )}
-                    </span>
-                  </SelectItem>
-                ))}
+                {assets.map((a) => {
+                  const tplName = (a as any).asset_templates?.name;
+                  const label = [tplName, a.category].filter(Boolean).join(" · ") || a.id.slice(0, 8);
+                  const version = a.version ? `v${a.version}` : "";
+                  return (
+                    <SelectItem key={a.id} value={a.id}>
+                      <span className="flex items-center gap-2">
+                        {a.image_url ? (
+                          <img src={a.image_url} alt="" className="w-6 h-6 rounded object-cover" />
+                        ) : (
+                          <Image size={14} className="text-txt-ghost" />
+                        )}
+                        <span>{label}</span>
+                        {version && <span className="text-[10px] text-caption">{version}</span>}
+                        {a.status !== "approved" && (
+                          <span className="text-[10px] text-amber-400">({a.status})</span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             {selectedAsset?.image_url && (
