@@ -40,7 +40,6 @@ export const BriefFilesSection = ({
   const [uploading, setUploading] = useState(false);
   const [extractingId, setExtractingId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState("briefing");
 
   const handleFileUpload = async (file: File) => {
     setUploading(true);
