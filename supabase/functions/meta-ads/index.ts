@@ -198,17 +198,45 @@ Deno.serve(async (req) => {
         storySpec.instagram_actor_id = igActorId;
       }
 
-      const creativeRes = await fetch(`${META_GRAPH_URL}/${ad_account_id}/adcreatives`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: `Creative - ${name}`,
-          object_story_spec: storySpec,
-          access_token: token,
-        }),
-      });
-      const creativeData = await creativeRes.json();
-      if (!creativeRes.ok) throw new Error(`Create creative failed [${creativeRes.status}]: ${JSON.stringify(creativeData)}`);
+      const createCreative = async (includeInstagramActor: boolean) => {
+        const storySpec: Record<string, unknown> = {
+          page_id: fbPageId,
+          link_data: linkData,
+        };
+        if (includeInstagramActor && igActorId) {
+          storySpec.instagram_actor_id = igActorId;
+        }
+
+        const res = await fetch(`${META_GRAPH_URL}/${ad_account_id}/adcreatives`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: `Creative - ${name}`,
+            object_story_spec: storySpec,
+            access_token: token,
+          }),
+        });
+
+        return {
+          ok: res.ok,
+          status: res.status,
+          data: await res.json(),
+        };
+      };
+
+      let creativeAttempt = await createCreative(Boolean(igActorId));
+      if (!creativeAttempt.ok && igActorId) {
+        const creativeErrorText = JSON.stringify(creativeAttempt.data);
+        if (creativeErrorText.includes("instagram_actor_id")) {
+          console.warn("instagram_actor_id inválido; tentando criar o criativo sem instagram_actor_id");
+          creativeAttempt = await createCreative(false);
+        }
+      }
+
+      if (!creativeAttempt.ok) {
+        throw new Error(`Create creative failed [${creativeAttempt.status}]: ${JSON.stringify(creativeAttempt.data)}`);
+      }
+      const creativeData = creativeAttempt.data;
 
       // Create ad
       const adRes = await fetch(`${META_GRAPH_URL}/${ad_account_id}/ads`, {
