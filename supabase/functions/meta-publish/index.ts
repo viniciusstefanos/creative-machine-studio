@@ -6,19 +6,93 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const META_GRAPH_URL = "https://graph.facebook.com/v21.0";
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function parseJsonResponse(res: Response) {
+  const text = await res.text();
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    return { raw: text };
+  }
+}
+
+async function postToMeta(path: string, params: Record<string, string | undefined>) {
+  const body = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    const normalized = value?.trim();
+    if (normalized) body.set(key, normalized);
+  }
+
+  return fetch(`${META_GRAPH_URL}/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+}
+
 // Poll container status until FINISHED or timeout
 async function waitForContainer(containerId: string, token: string, maxAttempts = 15): Promise<void> {
+  const normalizedContainerId = containerId.trim();
+  const normalizedToken = token.trim();
+
   for (let i = 0; i < maxAttempts; i++) {
     const res = await fetch(
-      `${META_GRAPH_URL}/${containerId}?fields=status_code&access_token=${token}`
+      `${META_GRAPH_URL}/${normalizedContainerId}?fields=status_code,status&access_token=${encodeURIComponent(normalizedToken)}`
     );
-    const data = await res.json();
-    console.log(`Container ${containerId} status: ${data.status_code} (attempt ${i + 1})`);
-    if (data.status_code === "FINISHED") return;
-    if (data.status_code === "ERROR") throw new Error(`Container processing failed: ${JSON.stringify(data)}`);
-    await new Promise((r) => setTimeout(r, 2000));
+    const data = await parseJsonResponse(res);
+    const statusCode = String(data.status_code || data.status || "").toUpperCase();
+
+    console.log(`Container ${normalizedContainerId} status: ${statusCode || "UNKNOWN"} (attempt ${i + 1})`);
+
+    if (!res.ok || data.error) {
+      throw new Error(`Container status check failed [${res.status}]: ${JSON.stringify(data)}`);
+    }
+
+    if (statusCode === "FINISHED" || statusCode === "PUBLISHED") {
+      await sleep(1500);
+      return;
+    }
+
+    if (statusCode === "ERROR" || statusCode === "EXPIRED") {
+      throw new Error(`Container processing failed: ${JSON.stringify(data)}`);
+    }
+
+    await sleep(2000);
   }
   throw new Error("Container not ready after polling timeout");
+}
+
+async function publishContainerWithRetry(instagramPageId: string, containerId: string, token: string, maxAttempts = 10) {
+  const normalizedPageId = instagramPageId.trim();
+  const normalizedContainerId = containerId.trim();
+  const normalizedToken = token.trim();
+
+  for (let i = 0; i < maxAttempts; i++) {
+    const publishRes = await postToMeta(`${normalizedPageId}/media_publish`, {
+      creation_id: normalizedContainerId,
+      access_token: normalizedToken,
+    });
+    const publishData = await parseJsonResponse(publishRes);
+
+    if (publishRes.ok) return publishData;
+
+    const errorCode = publishData?.error?.code;
+    const errorSubcode = publishData?.error?.error_subcode;
+    const errorMessage = JSON.stringify(publishData?.error || publishData);
+    const isMediaStillProcessing = errorCode === 9007 || errorSubcode === 2207027;
+
+    if (!isMediaStillProcessing || i === maxAttempts - 1) {
+      throw new Error(`Meta publish failed [${publishRes.status}]: ${JSON.stringify(publishData)}`);
+    }
+
+    console.log(`Container ${normalizedContainerId} still processing during publish attempt ${i + 1}: ${errorMessage}`);
+    await sleep(3000);
+    await waitForContainer(normalizedContainerId, normalizedToken, 10);
+  }
+
+  throw new Error("Meta publish retry limit reached");
 }
 
 Deno.serve(async (req) => {
@@ -38,18 +112,24 @@ Deno.serve(async (req) => {
 
     const { action, scheduled_post_id, instagram_page_id, page_access_token, image_url, caption, images } = await req.json();
 
-    const token = page_access_token || META_ACCESS_TOKEN;
+    const token = (page_access_token || META_ACCESS_TOKEN)?.trim();
+    const instagramPageId = instagram_page_id?.trim();
+
+    if (!token) {
+      throw new Error("Meta access token não configurado");
+    }
+
+    if (!instagramPageId && action !== "get_pages") {
+      throw new Error("instagram_page_id é obrigatório");
+    }
 
     if (action === "publish_post") {
-      const containerRes = await fetch(
-        `${META_GRAPH_URL}/${instagram_page_id}/media`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image_url, caption, access_token: token }),
-        }
-      );
-      const containerData = await containerRes.json();
+      const containerRes = await postToMeta(`${instagramPageId}/media`, {
+        image_url,
+        caption,
+        access_token: token,
+      });
+      const containerData = await parseJsonResponse(containerRes);
       if (!containerRes.ok) {
         throw new Error(`Meta container creation failed [${containerRes.status}]: ${JSON.stringify(containerData)}`);
       }
@@ -59,18 +139,7 @@ Deno.serve(async (req) => {
       // Wait for container to be ready
       await waitForContainer(containerId, token);
 
-      const publishRes = await fetch(
-        `${META_GRAPH_URL}/${instagram_page_id}/media_publish`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ creation_id: containerId, access_token: token }),
-        }
-      );
-      const publishData = await publishRes.json();
-      if (!publishRes.ok) {
-        throw new Error(`Meta publish failed [${publishRes.status}]: ${JSON.stringify(publishData)}`);
-      }
+      const publishData = await publishContainerWithRetry(instagramPageId, containerId, token);
 
       if (scheduled_post_id) {
         await supabase
@@ -90,12 +159,12 @@ Deno.serve(async (req) => {
 
       const containerIds = [];
       for (const img of carouselImages) {
-        const res = await fetch(`${META_GRAPH_URL}/${instagram_page_id}/media`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image_url: img, is_carousel_item: true, access_token: token }),
+        const res = await postToMeta(`${instagramPageId}/media`, {
+          image_url: img,
+          is_carousel_item: "true",
+          access_token: token,
         });
-        const data = await res.json();
+        const data = await parseJsonResponse(res);
         if (!res.ok) throw new Error(`Carousel item failed: ${JSON.stringify(data)}`);
         containerIds.push(data.id);
       }
@@ -105,24 +174,19 @@ Deno.serve(async (req) => {
         await waitForContainer(cid, token);
       }
 
-      const carouselRes = await fetch(`${META_GRAPH_URL}/${instagram_page_id}/media`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ media_type: "CAROUSEL", children: containerIds, caption: carouselCaption, access_token: token }),
+      const carouselRes = await postToMeta(`${instagramPageId}/media`, {
+        media_type: "CAROUSEL",
+        children: containerIds.join(","),
+        caption: carouselCaption,
+        access_token: token,
       });
-      const carouselData = await carouselRes.json();
+      const carouselData = await parseJsonResponse(carouselRes);
       if (!carouselRes.ok) throw new Error(`Carousel creation failed: ${JSON.stringify(carouselData)}`);
 
       // Wait for carousel container too
       await waitForContainer(carouselData.id, token);
 
-      const publishRes = await fetch(`${META_GRAPH_URL}/${instagram_page_id}/media_publish`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ creation_id: carouselData.id, access_token: token }),
-      });
-      const publishData = await publishRes.json();
-      if (!publishRes.ok) throw new Error(`Carousel publish failed: ${JSON.stringify(publishData)}`);
+      const publishData = await publishContainerWithRetry(instagramPageId, carouselData.id, token);
 
       if (scheduled_post_id) {
         await supabase
@@ -137,8 +201,8 @@ Deno.serve(async (req) => {
     }
 
     if (action === "get_pages") {
-      const res = await fetch(`${META_GRAPH_URL}/me/accounts?fields=id,name,instagram_business_account{id,username}&access_token=${token}`);
-      const data = await res.json();
+      const res = await fetch(`${META_GRAPH_URL}/me/accounts?fields=id,name,instagram_business_account{id,username}&access_token=${encodeURIComponent(token)}`);
+      const data = await parseJsonResponse(res);
       if (!res.ok) throw new Error(`Get pages failed [${res.status}]: ${JSON.stringify(data)}`);
       return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
