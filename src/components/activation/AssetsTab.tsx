@@ -4,7 +4,7 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Image, Plus } from "lucide-react";
+import { Image, Plus, Layers } from "lucide-react";
 
 interface AssetsTabProps {
   activationId: string;
@@ -34,11 +34,18 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
     <div>
       <div className="flex items-center justify-between mb-4">
         <SectionLabel>Peças Visuais</SectionLabel>
-        <Link to={`/activations/${activationId}/assets/new`}>
-          <Button size="sm" className="gap-2">
-            <Plus size={14} /> Nova peça
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to={`/activations/${activationId}/assets/batch`}>
+            <Button size="sm" variant="outline" className="gap-2">
+              <Layers size={14} /> Gerar em lote
+            </Button>
+          </Link>
+          <Link to={`/activations/${activationId}/assets/new`}>
+            <Button size="sm" className="gap-2">
+              <Plus size={14} /> Nova peça
+            </Button>
+          </Link>
+        </div>
       </div>
       {assets.length === 0 ? (
         <div className="empty-state card-base">

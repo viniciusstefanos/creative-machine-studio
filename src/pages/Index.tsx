@@ -3,8 +3,12 @@ import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { StatsCards } from "@/components/dashboard/StatsCards";
+import { VolumeChart } from "@/components/dashboard/VolumeChart";
+import { TemplateRanking } from "@/components/dashboard/TemplateRanking";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, TrendingUp, DollarSign, FileText, Image } from "lucide-react";
+import { Calendar, FileText, Image, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Activation {
   id: string;
@@ -21,7 +25,6 @@ interface ReviewItem {
   status: string;
   hook?: string;
   category?: string;
-  activation_name?: string;
 }
 
 const Dashboard = () => {
@@ -39,16 +42,8 @@ const Dashboard = () => {
           .eq("status", "active")
           .order("created_at", { ascending: false })
           .limit(10),
-        supabase
-          .from("copies")
-          .select("id, activation_id, status, hook")
-          .eq("status", "review")
-          .limit(10),
-        supabase
-          .from("assets")
-          .select("id, activation_id, status, category")
-          .eq("status", "review")
-          .limit(10),
+        supabase.from("copies").select("id, activation_id, status, hook").eq("status", "review").limit(10),
+        supabase.from("assets").select("id, activation_id, status, category").eq("status", "review").limit(10),
         supabase
           .from("scheduled_posts")
           .select("id, channel, scheduled_at, status, assets(id, category)")
@@ -56,10 +51,8 @@ const Dashboard = () => {
           .order("scheduled_at", { ascending: true })
           .limit(7),
       ]);
-
       setActivations((activationsRes.data as any) || []);
       setScheduledPosts(scheduledRes.data || []);
-
       const queue: ReviewItem[] = [
         ...(copiesRes.data || []).map((c: any) => ({ ...c, type: "copy" as const })),
         ...(assetsRes.data || []).map((a: any) => ({ ...a, type: "asset" as const })),
@@ -67,250 +60,123 @@ const Dashboard = () => {
       setReviewQueue(queue);
       setLoading(false);
     };
-
     fetchData();
   }, []);
 
+  const exportGlobalCSV = async () => {
+    const { data: metrics } = await supabase
+      .from("metrics")
+      .select("*, activations(name), assets(category, asset_templates(name))")
+      .order("date", { ascending: false })
+      .limit(1000);
+    if (!metrics || metrics.length === 0) return;
+    const headers = "Ativação,Peça,Template,Data,Curtidas,Comentários,Compartilhamentos,Salvos,Investido,Resultados,CPR\n";
+    const rows = metrics.map((m: any) =>
+      `"${m.activations?.name || ""}","${m.assets?.category || ""}","${m.assets?.asset_templates?.name || ""}",${m.date || ""},${m.likes || 0},${m.comments_count || 0},${m.shares || 0},${m.saves || 0},${m.spend || 0},${m.results || 0},${m.cost_per_result || ""}`
+    ).join("\n");
+    const blob = new Blob([headers + rows], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `relatorio-geral-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <AppLayout breadcrumbs={[{ label: "Dashboard" }]}>
-      <h1
-        className="text-2xl font-bold mb-8"
-        style={{ fontFamily: "'Syne', sans-serif", color: "var(--text-primary)" }}
-      >
-        Dashboard
-      </h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-display-lg">Dashboard</h1>
+        <Button variant="ghost" size="sm" className="gap-2" onClick={exportGlobalCSV}>
+          <Download size={14} /> Exportar CSV
+        </Button>
+      </div>
 
       {loading ? (
-        <div className="text-sm" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>
-          Carregando...
-        </div>
+        <p className="text-caption">Carregando...</p>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Column 1: Active Activations */}
-          <div className="space-y-4">
-            <SectionLabel>Ativações Ativas</SectionLabel>
-            {activations.length === 0 ? (
-              <div
-                className="p-6 rounded-lg text-center text-sm"
-                style={{
-                  background: "var(--bg-surface1)",
-                  border: "1px solid var(--border-default)",
-                  color: "var(--text-muted)",
-                  fontFamily: "'DM Sans'",
-                }}
-              >
-                Nenhuma ativação ativa
-              </div>
-            ) : (
-              activations.map((act) => (
-                <Link
-                  key={act.id}
-                  to={`/activations/${act.id}`}
-                  className="block p-4 rounded-lg card-interactive transition-all"
-                  style={{
-                    background: "hsl(var(--bg-surface1))",
-                    border: "1px solid hsl(var(--border-default))",
-                    borderRadius: 8,
-                  }}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p
-                        className="text-sm font-medium"
-                        style={{ color: "var(--text-primary)", fontFamily: "'DM Sans'" }}
-                      >
-                        {act.name}
-                      </p>
-                      <p
-                        className="text-[11px] mt-0.5"
-                        style={{
-                          color: "var(--text-muted)",
-                          fontFamily: "'JetBrains Mono', monospace",
-                        }}
-                      >
-                        {act.clients?.name || "—"}
-                      </p>
-                    </div>
-                    <StatusBadge status={act.status} />
-                  </div>
-                  <div className="flex items-center gap-3 mt-3">
-                    <span
-                      className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded"
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        background: "var(--bg-surface3)",
-                        color: "var(--text-secondary)",
-                      }}
-                    >
-                      {act.type}
-                    </span>
-                  </div>
-                </Link>
-              ))
-            )}
+        <div className="space-y-8">
+          {/* Stats */}
+          <StatsCards />
+
+          {/* Charts row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <VolumeChart />
+            <TemplateRanking />
           </div>
 
-          {/* Column 2: Approval Queue */}
-          <div className="space-y-4">
-            <SectionLabel>Fila de Aprovação</SectionLabel>
-            {reviewQueue.length === 0 ? (
-              <div
-                className="p-6 rounded-lg text-center text-sm"
-                style={{
-                  background: "var(--bg-surface1)",
-                  border: "1px solid var(--border-default)",
-                  color: "var(--text-muted)",
-                  fontFamily: "'DM Sans'",
-                }}
-              >
-                Nenhum item pendente
-              </div>
-            ) : (
-              reviewQueue.map((item) => (
-                <Link
-                  key={`${item.type}-${item.id}`}
-                  to={
-                    item.type === "copy"
-                      ? `/activations/${item.activation_id}/copies/${item.id}`
-                      : `/activations/${item.activation_id}/assets/${item.id}`
-                  }
-                  className="flex items-center gap-3 p-4 rounded-lg card-interactive transition-all"
-                  style={{
-                    background: "hsl(var(--bg-surface1))",
-                    border: "1px solid hsl(var(--border-default))",
-                    borderRadius: 8,
-                  }}
-                >
-                  <div
-                    className="p-2 rounded"
-                    style={{ background: "var(--bg-surface3)" }}
-                  >
-                    {item.type === "copy" ? (
-                      <FileText size={16} style={{ color: "var(--status-review)" }} />
-                    ) : (
-                      <Image size={16} style={{ color: "var(--status-review)" }} />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="text-xs font-medium truncate"
-                      style={{ color: "var(--text-primary)", fontFamily: "'DM Sans'" }}
-                    >
-                      {item.type === "copy"
-                        ? item.hook || "Copy sem gancho"
-                        : `Peça ${item.category || ""}`}
-                    </p>
-                    <p
-                      className="text-[10px] uppercase tracking-wider mt-0.5"
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        color: "var(--text-muted)",
-                      }}
-                    >
-                      {item.type}
-                    </p>
-                  </div>
-                  <StatusBadge status="review" />
-                </Link>
-              ))
-            )}
-          </div>
-
-          {/* Column 3: Calendar + Metrics */}
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <SectionLabel>Agendamentos</SectionLabel>
-              {scheduledPosts.length === 0 ? (
-                <div
-                  className="p-6 rounded-lg text-center text-sm"
-                  style={{
-                    background: "var(--bg-surface1)",
-                    border: "1px solid var(--border-default)",
-                    color: "var(--text-muted)",
-                    fontFamily: "'DM Sans'",
-                  }}
-                >
-                  Nenhum post agendado
+          {/* Main content */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Active activations */}
+            <div className="space-y-3">
+              <SectionLabel>Ativações Ativas</SectionLabel>
+              {activations.length === 0 ? (
+                <div className="card-base text-center py-6">
+                  <p className="text-caption">Nenhuma ativação ativa</p>
                 </div>
               ) : (
-                scheduledPosts.map((post) => (
-                  <div
-                    key={post.id}
-                    className="flex items-center gap-3 p-3 rounded-lg"
-                    style={{
-                      background: "var(--bg-surface1)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: 8,
-                    }}
-                  >
-                    <Calendar size={14} style={{ color: "var(--status-scheduled)" }} />
-                    <div className="flex-1">
-                      <p
-                        className="text-[10px]"
-                        style={{
-                          fontFamily: "'JetBrains Mono', monospace",
-                          color: "var(--text-secondary)",
-                        }}
-                      >
-                        {post.scheduled_at
-                          ? new Date(post.scheduled_at).toLocaleDateString("pt-BR", {
-                              day: "2-digit",
-                              month: "short",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "—"}
-                      </p>
+                activations.map((act) => (
+                  <Link key={act.id} to={`/activations/${act.id}`} className="card-base card-interactive block">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <p className="text-body font-medium">{act.name}</p>
+                        <p className="text-mono-label mt-0.5">{act.clients?.name || "—"}</p>
+                      </div>
+                      <StatusBadge status={act.status} />
                     </div>
-                    <span
-                      className="text-[10px] uppercase"
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        color: "var(--text-muted)",
-                      }}
-                    >
-                      {post.channel || "—"}
-                    </span>
-                  </div>
+                    <span className="text-mono px-1.5 py-0.5 rounded bg-surface-3 text-txt-muted">{act.type}</span>
+                  </Link>
                 ))
               )}
             </div>
 
-            {/* Quick Metrics */}
-            <div className="space-y-4">
-              <SectionLabel>Métricas Rápidas</SectionLabel>
-              {[
-                { icon: FileText, label: "Publicações", value: "—" },
-                { icon: TrendingUp, label: "Engajamento médio", value: "—" },
-                { icon: DollarSign, label: "Custo médio/resultado", value: "—" },
-              ].map((metric) => (
-                <div
-                  key={metric.label}
-                  className="flex items-center gap-3 p-3 rounded-lg"
-                  style={{
-                    background: "var(--bg-surface1)",
-                    border: "1px solid var(--border-default)",
-                    borderRadius: 8,
-                  }}
-                >
-                  <metric.icon size={14} style={{ color: "var(--accent)" }} />
-                  <span
-                    className="flex-1 text-xs"
-                    style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}
-                  >
-                    {metric.label}
-                  </span>
-                  <span
-                    className="text-sm font-medium"
-                    style={{
-                      color: "var(--text-primary)",
-                      fontFamily: "'JetBrains Mono', monospace",
-                    }}
-                  >
-                    {metric.value}
-                  </span>
+            {/* Review queue */}
+            <div className="space-y-3">
+              <SectionLabel>Fila de Aprovação</SectionLabel>
+              {reviewQueue.length === 0 ? (
+                <div className="card-base text-center py-6">
+                  <p className="text-caption">Nenhum item pendente</p>
                 </div>
-              ))}
+              ) : (
+                reviewQueue.map((item) => (
+                  <Link
+                    key={`${item.type}-${item.id}`}
+                    to={item.type === "copy" ? `/activations/${item.activation_id}/copies/${item.id}` : `/activations/${item.activation_id}/assets/${item.id}`}
+                    className="card-base card-interactive flex items-center gap-3"
+                  >
+                    <div className="p-2 rounded bg-surface-3">
+                      {item.type === "copy" ? <FileText size={16} className="text-txt-muted" /> : <Image size={16} className="text-txt-muted" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-body-sm truncate">{item.type === "copy" ? item.hook || "Copy" : `Peça ${item.category || ""}`}</p>
+                      <p className="text-mono-label">{item.type}</p>
+                    </div>
+                    <StatusBadge status="review" />
+                  </Link>
+                ))
+              )}
+            </div>
+
+            {/* Schedule */}
+            <div className="space-y-3">
+              <SectionLabel>Agendamentos</SectionLabel>
+              {scheduledPosts.length === 0 ? (
+                <div className="card-base text-center py-6">
+                  <p className="text-caption">Nenhum post agendado</p>
+                </div>
+              ) : (
+                scheduledPosts.map((post) => (
+                  <div key={post.id} className="card-base flex items-center gap-3">
+                    <Calendar size={14} style={{ color: "hsl(var(--status-scheduled))" }} />
+                    <span className="text-mono-label flex-1">
+                      {post.scheduled_at
+                        ? new Date(post.scheduled_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+                        : "—"}
+                    </span>
+                    <span className="text-mono-label">{post.channel || "—"}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

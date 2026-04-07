@@ -4,12 +4,13 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus } from "lucide-react";
+import { Plus, FileText, Image, CheckCircle } from "lucide-react";
 
 const ClientDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [client, setClient] = useState<any>(null);
   const [activations, setActivations] = useState<any[]>([]);
+  const [volumeStats, setVolumeStats] = useState({ assets: 0, approved: 0, published: 0, copies: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,14 +18,28 @@ const ClientDetail = () => {
     const fetchData = async () => {
       const [clientRes, activationsRes] = await Promise.all([
         supabase.from("clients").select("*").eq("id", id).single(),
-        supabase
-          .from("activations")
-          .select("*")
-          .eq("client_id", id)
-          .order("created_at", { ascending: false }),
+        supabase.from("activations").select("*").eq("client_id", id).order("created_at", { ascending: false }),
       ]);
       setClient(clientRes.data);
-      setActivations(activationsRes.data || []);
+      const acts = activationsRes.data || [];
+      setActivations(acts);
+
+      // Fetch volume stats across all activations
+      if (acts.length > 0) {
+        const actIds = acts.map((a: any) => a.id);
+        const [assetsRes, copiesRes, scheduledRes] = await Promise.all([
+          supabase.from("assets").select("status").in("activation_id", actIds),
+          supabase.from("copies").select("id", { count: "exact", head: true }).in("activation_id", actIds),
+          supabase.from("scheduled_posts").select("id", { count: "exact", head: true }).in("activation_id", actIds).eq("status", "published"),
+        ]);
+        const assets = assetsRes.data || [];
+        setVolumeStats({
+          assets: assets.length,
+          approved: assets.filter((a) => a.status === "approved").length,
+          published: scheduledRes.count || 0,
+          copies: copiesRes.count || 0,
+        });
+      }
       setLoading(false);
     };
     fetchData();
@@ -33,9 +48,7 @@ const ClientDetail = () => {
   if (loading) {
     return (
       <AppLayout breadcrumbs={[{ label: "Clientes", href: "/clients" }, { label: "..." }]}>
-        <div className="text-sm" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>
-          Carregando...
-        </div>
+        <p className="text-caption">Carregando...</p>
       </AppLayout>
     );
   }
@@ -43,114 +56,71 @@ const ClientDetail = () => {
   if (!client) {
     return (
       <AppLayout breadcrumbs={[{ label: "Clientes", href: "/clients" }]}>
-        <div className="text-sm" style={{ color: "var(--text-muted)" }}>Cliente não encontrado</div>
+        <p className="text-caption">Cliente não encontrado</p>
       </AppLayout>
     );
   }
 
+  const volumeCards = [
+    { label: "Copies", value: volumeStats.copies, icon: FileText },
+    { label: "Peças", value: volumeStats.assets, icon: Image },
+    { label: "Aprovadas", value: volumeStats.approved, icon: CheckCircle },
+  ];
+
   return (
-    <AppLayout
-      breadcrumbs={[
-        { label: "Clientes", href: "/clients" },
-        { label: client.name },
-      ]}
-    >
+    <AppLayout breadcrumbs={[{ label: "Clientes", href: "/clients" }, { label: client.name }]}>
       {/* Client Header */}
       <div className="flex items-center gap-4 mb-8">
         {client.logo_url ? (
           <img src={client.logo_url} alt="" className="w-14 h-14 rounded-lg object-cover" />
         ) : (
-          <div
-            className="w-14 h-14 rounded-lg flex items-center justify-center text-xl font-bold"
-            style={{
-              background: "var(--bg-surface3)",
-              color: "var(--accent)",
-              fontFamily: "'Syne', sans-serif",
-            }}
-          >
+          <div className="w-14 h-14 rounded-lg flex items-center justify-center text-xl font-bold bg-surface-3 text-accent" style={{ fontFamily: "'Syne', sans-serif" }}>
             {client.name[0]?.toUpperCase()}
           </div>
         )}
         <div>
-          <h1
-            className="text-2xl font-bold"
-            style={{ fontFamily: "'Syne', sans-serif", color: "var(--text-primary)" }}
-          >
-            {client.name}
-          </h1>
-          {client.contact_email && (
-            <p
-              className="text-xs mt-0.5"
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                color: "var(--text-muted)",
-              }}
-            >
-              {client.contact_email}
-            </p>
-          )}
+          <h1 className="text-display-lg">{client.name}</h1>
+          {client.contact_email && <p className="text-mono-label mt-0.5">{client.contact_email}</p>}
         </div>
       </div>
+
+      {/* Volume Summary */}
+      {activations.length > 0 && (
+        <div className="grid grid-cols-3 gap-3 mb-8">
+          {volumeCards.map((c) => (
+            <div key={c.label} className="card-base flex items-center gap-3">
+              <c.icon size={18} style={{ color: "hsl(var(--accent))" }} />
+              <div>
+                <p className="text-mono-label">{c.label}</p>
+                <p className="text-display-lg !text-xl">{c.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Activations */}
       <div className="flex items-center justify-between mb-4">
         <SectionLabel>Ativações</SectionLabel>
         <Link
           to={`/clients/${id}/activations/new`}
-          className="flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-all duration-150"
-          style={{
-            background: "var(--accent)",
-            color: "var(--text-inverse)",
-            fontFamily: "'DM Sans', sans-serif",
-            borderRadius: 6,
-          }}
+          className="flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium btn-primary"
         >
-          <Plus size={14} />
-          Nova ativação
+          <Plus size={14} /> Nova ativação
         </Link>
       </div>
 
       {activations.length === 0 ? (
-        <div
-          className="p-8 rounded-lg text-center text-sm"
-          style={{
-            background: "var(--bg-surface1)",
-            border: "1px solid var(--border-default)",
-            color: "var(--text-muted)",
-            fontFamily: "'DM Sans'",
-          }}
-        >
-          Nenhuma ativação ainda
+        <div className="empty-state card-base">
+          <p className="empty-state__title">Nenhuma ativação ainda</p>
         </div>
       ) : (
         <div className="space-y-3">
           {activations.map((act: any) => (
-            <Link
-              key={act.id}
-              to={`/activations/${act.id}`}
-              className="flex items-center justify-between p-4 rounded-lg card-interactive transition-all"
-              style={{
-                background: "hsl(var(--bg-surface1))",
-                border: "1px solid hsl(var(--border-default))",
-                borderRadius: 8,
-              }}
-            >
+            <Link key={act.id} to={`/activations/${act.id}`} className="card-base card-interactive flex items-center justify-between">
               <div>
-                <p
-                  className="text-sm font-medium"
-                  style={{ color: "var(--text-primary)", fontFamily: "'DM Sans'" }}
-                >
-                  {act.name}
-                </p>
-                <p
-                  className="text-[10px] mt-1 uppercase tracking-wider"
-                  style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  {act.type} · {act.start_date || "sem data"}
-                </p>
+                <p className="text-body font-medium">{act.name}</p>
+                <p className="text-mono-label mt-1">{act.type} · {act.start_date || "sem data"}</p>
               </div>
               <StatusBadge status={act.status} />
             </Link>
