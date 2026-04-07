@@ -30,6 +30,12 @@ const AssetDetail = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [workflowData, setWorkflowData] = useState({ briefDone: false, copiesApproved: 0, assetsApproved: 0, scheduledCount: 0 });
 
+  // Sibling assets for navigation
+  const [siblingAssets, setSiblingAssets] = useState<any[]>([]);
+  const currentAssetIndex = siblingAssets.findIndex((a) => a.id === assetId);
+  const prevAsset = currentAssetIndex > 0 ? siblingAssets[currentAssetIndex - 1] : null;
+  const nextAsset = currentAssetIndex < siblingAssets.length - 1 ? siblingAssets[currentAssetIndex + 1] : null;
+
   // Editing state
   const [editMode, setEditMode] = useState<"none" | "html" | "refine" | "image">("none");
   const [editHtml, setEditHtml] = useState("");
