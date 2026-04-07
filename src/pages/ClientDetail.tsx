@@ -128,6 +128,11 @@ const ClientDetail = () => {
           ))}
         </div>
       )}
+
+      {/* Meta Accounts */}
+      <div className="mt-8">
+        <MetaAccountSettings clientId={id!} />
+      </div>
     </AppLayout>
   );
 };
