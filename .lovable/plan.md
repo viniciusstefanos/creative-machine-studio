@@ -1,40 +1,75 @@
 
 
-# Fix: Peça nao aparece no dropdown de agendamento
+# Incorporar Design Rules Meta Ads + Revisar Templates
 
-## Problema raiz
+## O que muda
 
-A query na linha 47 do `SchedulePostDialog.tsx` faz um join implícito:
-```sql
-select("id, category, image_url, copy_id, template_id, status, version, asset_templates(name)")
-```
+O documento `design-rules-meta-ads.md` traz regras detalhadas de composição, tipografia, cores, fotografia, copy, animação e checklist de aprovação. Muitas já existem parcialmente nos prompts atuais, mas faltam regras cruciais como:
 
-Mas a tabela `assets` **nao tem foreign key** para `asset_templates`. O Supabase retorna erro silencioso e `data` vem `null`, resultando em dropdown vazio.
+- Tamanhos mínimos de fonte (headline 60px, corpo 28px, CTA 32px)
+- Zona segura de Stories/Reels (topo 250px, base 300px, lateral 96px) — atualmente usa valores menores
+- Regra dos 20% de texto, hierarquia em 3 níveis, espaço negativo 30%
+- Profundidade em 3 planos (fundo, plano médio, primeiro plano)
+- Cores: paleta 3 cores (dominante, suporte, acento/CTA), psicologia food & beverage
+- Copy: estrutura Gancho → Benefício/Dor → Prova → CTA, headlines max 8 palavras
+- Carrossel: continuidade visual entre cards, bordas que "sangram"
+- Proibições absolutas (10 itens) e checklist de aprovação
 
-## Solucao
+## Plano
 
-### 1. Remover o join quebrado da query
+### 1. Salvar documento como memory
+Criar `mem://features/design-rules-meta-ads` com o conteúdo condensado do documento para referência futura.
 
-Substituir a query por uma sem join. Buscar o nome do template separadamente se necessário, ou simplesmente usar `category` + `version` como label (já suficiente para identificar a peça).
+### 2. Atualizar `generate-asset-from-template/index.ts`
 
-### Arquivo alterado
+**`HTML_CREATIVE_RULES`** — reescrever incorporando:
+- Safe zones corrigidas: Stories topo 250px, base 300px, lateral 96px (atualmente 200px/250px/80px)
+- Tamanhos mínimos de fonte do documento (headline 60px, sub 36px, corpo 28px, CTA 32px)
+- Regra dos 20% de cobertura de texto
+- Hierarquia 3 níveis obrigatória (âncora, suporte, CTA)
+- Espaço negativo mínimo 30%
+- Profundidade 3 planos
+- Paleta 3 cores: dominante + suporte + acento CTA
+- Contraste mínimo 4.5:1 (já existe, reforçar)
+- Carrossel: continuidade visual, bordas sangradas, card 1 isolado funciona
+- 10 proibições absolutas como checklist final no prompt
+- Headlines max 8 palavras
 
-`src/components/activation/SchedulePostDialog.tsx`
+**`IMAGE_CREATIVE_RULES`** — adicionar:
+- Fotografia: hero shot, lifestyle, flat lay
+- Edição: temperatura consistente, saturação moderada, produto = ponto mais luminoso
+- Profundidade de campo seletiva
+- Psicologia de cores food & beverage
 
-- **Linha 47**: Remover `asset_templates(name)` do select — usar apenas campos diretos da tabela `assets`
-- **Linha 55**: Idem para a query de fallback do preselectedAssetId
-- **Linhas 162-181**: Ajustar label do dropdown para usar `category` + `version` (sem depender de `tplName`)
+### 3. Atualizar `generate-copies/index.ts`
 
-### Alternativa (mais robusta)
+**`CREATIVE_AGENT_SYSTEM_PROMPT`** — incorporar:
+- Estrutura copy: Gancho → Benefício/Dor → Prova → CTA
+- CTAs proibidos: "Saiba mais", "Clique aqui" sem contexto
+- CTAs food & beverage: "Peça agora", "Ver cardápio", "Reserve sua mesa"
+- Tom de voz por segmento (fast food, casual, fine dining, saudável, bar)
+- Headlines max 8 palavras
+- Prova social obrigatória quando aplicável
+- Variações A/B: teste uma variável por vez
 
-Criar uma migration adicionando a FK:
-```sql
-ALTER TABLE assets ADD CONSTRAINT assets_template_id_fkey 
-  FOREIGN KEY (template_id) REFERENCES asset_templates(id);
-```
-Isso permitiria manter o join. Porém é mais arriscado se houver dados órfãos. A solução simples (remover o join) é mais segura.
+### 4. Atualizar `regenerate-copy-block/index.ts`
 
-### Resultado esperado
+Adicionar ao system prompt as regras de copy do documento (estrutura, CTAs, tom de voz, anti-patterns).
 
-Ao clicar "Agendar publicação" na tela de uma peça aprovada, o dropdown mostra a peça pré-selecionada com thumbnail e label corretos.
+### 5. Revisar templates no banco (seed data)
+
+Consultar `asset_templates` para verificar se os 8 templates base estão com dimensões e configurações alinhadas ao documento:
+- Feed 4:5 = 1080×1350 (não 1080×1080)
+- Stories/Reels 9:16 = 1080×1920
+- Zona segura lateral 14px (feed) vs 96px (stories)
+- `system_prompt` de cada template alinhado com as novas regras
+
+Se necessário, criar migration para atualizar `system_prompt`, `html_scaffold`, dimensões ou campos editáveis dos templates existentes.
+
+### Arquivos modificados
+- `supabase/functions/generate-asset-from-template/index.ts` — prompts visuais e HTML
+- `supabase/functions/generate-copies/index.ts` — prompt de copy
+- `supabase/functions/regenerate-copy-block/index.ts` — prompt de regeneração
+- `mem://features/design-rules-meta-ads` — novo memory file
+- Possível migration SQL para atualizar templates
 
