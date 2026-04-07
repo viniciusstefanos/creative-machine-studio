@@ -13,6 +13,7 @@ import {
   Check, X, RefreshCw, Calendar, Loader2, ChevronLeft, ChevronRight,
   Pencil, Image, Wand2, Save, RotateCcw, ArrowLeft, Type
 } from "lucide-react";
+import { HtmlVisualEditor } from "@/components/ui/HtmlVisualEditor";
 
 const AssetDetail = () => {
   const { id, assetId } = useParams<{ id: string; assetId: string }>();
