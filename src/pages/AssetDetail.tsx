@@ -14,6 +14,7 @@ import {
   Pencil, Image, Wand2, Save, RotateCcw, ArrowLeft, Type, Layers
 } from "lucide-react";
 import { HtmlVisualEditor } from "@/components/ui/HtmlVisualEditor";
+import { SchedulePostDialog } from "@/components/activation/SchedulePostDialog";
 
 const AssetDetail = () => {
   const { id, assetId } = useParams<{ id: string; assetId: string }>();
@@ -45,6 +46,7 @@ const AssetDetail = () => {
   const [editLoading, setEditLoading] = useState(false);
   const [editCopy, setEditCopy] = useState<{ hook: string; body: string; cta: string }>({ hook: "", body: "", cta: "" });
   const [syncingCopy, setSyncingCopy] = useState(false);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
 
   const fetchAsset = useCallback(async () => {
     if (!assetId) return;
@@ -785,7 +787,7 @@ const AssetDetail = () => {
 
           {asset.status === "approved" && (
             <div className="card-base space-y-2">
-              <Button className="w-full gap-2" onClick={() => navigate(`/activations/${id}/schedule`)}>
+              <Button className="w-full gap-2" onClick={() => setScheduleDialogOpen(true)}>
                 <Calendar size={16} /> Agendar publicação
               </Button>
               <Button variant="ghost" className="w-full gap-2 text-xs" onClick={() => navigate(`/activations/${id}/assets/new`)}>
@@ -818,6 +820,16 @@ const AssetDetail = () => {
           </div>
         </div>
       </div>
+
+      {asset && id && (
+        <SchedulePostDialog
+          open={scheduleDialogOpen}
+          onOpenChange={setScheduleDialogOpen}
+          activationId={id}
+          preselectedAssetId={assetId}
+          onSaved={() => setScheduleDialogOpen(false)}
+        />
+      )}
     </AppLayout>
   );
 };
