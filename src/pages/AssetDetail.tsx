@@ -59,7 +59,7 @@ const AssetDetail = () => {
         if (tplRes.data) setTemplate(tplRes.data);
       }
       if (data.copy_id) {
-        const cpRes = await supabase.from("copies").select("hook, channel, type").eq("id", data.copy_id).single();
+        const cpRes = await supabase.from("copies").select("id, hook, body, cta, channel, type, full_copy").eq("id", data.copy_id).single();
         if (cpRes.data) setCopy(cpRes.data);
       }
       const { data: renderData } = await supabase
