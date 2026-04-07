@@ -82,19 +82,25 @@ export const BriefFilesSection = ({
       });
       if (fnError) throw fnError;
 
-      // Update brief_files with raw_text and extracted_fields
+      // Update brief_files with raw_text, extracted_fields, and detected category
+      const detectedCategory = data?.extracted?.detected_category;
+      const updatePayload: any = {
+        raw_text: data?.raw_text || null,
+        extracted_fields: data?.extracted || null,
+      };
+      if (detectedCategory) {
+        updatePayload.category = detectedCategory;
+      }
+
       await supabase
         .from("brief_files" as any)
-        .update({
-          raw_text: data?.raw_text || null,
-          extracted_fields: data?.extracted || null,
-        })
+        .update(updatePayload)
         .eq("id", (newFile as any).id);
 
       // Update local state
       const finalFiles = updatedFiles.map((f) =>
         f.id === (newFile as any).id
-          ? { ...f, raw_text: data?.raw_text, extracted_fields: data?.extracted }
+          ? { ...f, raw_text: data?.raw_text, extracted_fields: data?.extracted, ...(detectedCategory ? { category: detectedCategory } : {}) }
           : f
       );
       onFilesChange(finalFiles);
