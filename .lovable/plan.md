@@ -1,71 +1,86 @@
 
 
-# Implementar Templates Virais Instagram Brasil 2026
+# Plano de Melhoria — Navegacao e UX entre Etapas
 
-## Pesquisa Consolidada — Dados Validados 2026
+## Problemas Identificados
 
-Baseado em múltiplas fontes (Buffer 45M+ posts, Socialinsider, Metricool, Hootsuite, Envox, Conbersa):
+### 1. Navegacao sem retorno claro
+- `AssetDetail` nao tem botao "Voltar" para a lista de pecas. O usuario fica preso.
+- `CopyDetail` tem botao voltar mas usa inline styles inconsistentes.
+- Apos gerar peca (`NewAsset`), o usuario e redirecionado para `AssetDetail` mas nao consegue voltar facilmente ao hub.
 
-### Dimensões Oficiais Instagram 2026
-| Formato | Resolução | Proporção | Notas |
-|---------|-----------|-----------|-------|
-| Feed/Carrossel | 1080×1350px | 4:5 | Novo padrão dominante (substitui 1:1) |
-| Feed vertical alto | 1080×1440px | 3:4 | Aceito, mais espaço visual |
-| Reels/Stories | 1080×1920px | 9:16 | Tela cheia, máx impacto |
-| Quadrado (legado) | 1080×1080px | 1:1 | Ainda funciona mas perde alcance |
+### 2. Fluxo morto apos acoes
+- Apos **aprovar** um copy em `CopyDetail`, nada acontece — o usuario fica na mesma tela sem orientacao do proximo passo ("Agora crie pecas").
+- Apos **aprovar** uma peca em `AssetDetail`, ha botao "Agendar" mas nenhuma indicacao visual de progresso.
+- Apos **rejeitar** um copy, nao ha link para voltar e gerar nova versao.
 
-### Formatos com Maior Engajamento (dados reais)
-1. **Carrossel educativo** — 3.1x mais engagement que post único, 10.15% engagement rate (Metricool)
-2. **Reels 7-12s** — 2.25x mais reach que estáticos, 82% completion rate
-3. **Carrossel antes/depois** — alto save rate (bookmarking)
-4. **Carrossel listicle** — números ímpares (3, 5, 7) no título = +22% CTR
-5. **Post estático com frase forte** — funciona para quote/dados
-6. **Story interativo** — 2x resposta com stickers
+### 3. WorkflowProgress desconectado
+- O `WorkflowProgress` aparece no hub mas desaparece ao entrar em `CopyDetail` ou `AssetDetail`. O usuario perde nocao de onde esta no fluxo.
+- Tabs no hub usam `hsl(var(--text-primary))` enquanto o WorkflowProgress usa `var(--text-primary)` — mistura de formatos CSS.
 
-### Estruturas Virais Validadas Brasil
-- **Hook impossível de ignorar** (slide 1): nunca título de relatório
-- **1 ponto por slide** no carrossel (máx 3 linhas)
-- **CTA único e claro** no último slide
-- **UGC-style** supera produções polidas
-- **Rosto na câmera** = +35% conversão
+### 4. Empty states sem direcao
+- `AssetsTab` e `ScheduleTab` mostram links para etapa anterior mas sem contexto de progresso geral.
+- `CopiesTab` empty state nao menciona quantos copies a IA vai gerar.
+
+### 5. Inconsistencia de design system
+- `CopiesTab`, `AssetsTab`, `ScheduleTab` usam inline `style={{...}}` em vez das classes CSS do design system (`card-base`, `field-label`, `text-mono-label`, etc.) — ja corrigido em `NewAsset` e `SettingsTemplates` mas nao propagado.
+- `CopyDetail` usa `hsl(var(--...))` em muitos lugares — deveria usar classes.
+
+### 6. Mobile: stepper do NewAsset nao responsivo
+- Labels do stepper quebram em telas pequenas. Nao ha versao compacta.
 
 ---
 
-## O que será feito
+## Alteracoes Propostas
 
-### 1. Atualizar dimensões dos templates existentes (1:1 → 4:5)
-Os 5 templates atuais usam 1080×1080 (1:1) — formato obsoleto. Atualizar para 1080×1350 (4:5), o padrão dominante 2026.
+### A. Adicionar "Next Step Bar" contextual (todas as paginas de detalhe)
 
-### 2. Criar 8 novos templates virais
+Componente `NextStepBar` — barra fixa no topo ou abaixo do header que mostra:
+- Onde o usuario esta no workflow (mini breadcrumb visual)
+- Acao principal sugerida ("Proximo: criar pecas", "Proximo: agendar")
+- Botao para avancar para proxima etapa
 
-| Template | Categoria | Tipo | Dimensão | Slides |
-|----------|-----------|------|----------|--------|
-| **Carrossel Educativo** | carousel | html_only | 1080×1350 (4:5) | 5-10 |
-| **Carrossel Antes/Depois** | carousel | html_and_image | 1080×1350 (4:5) | 4-6 |
-| **Carrossel Listicle** | carousel | html_only | 1080×1350 (4:5) | 5-7 |
-| **Reels Cover** | static | html_and_image | 1080×1920 (9:16) | 1 |
-| **Post Frase Forte** | static | html_only | 1080×1350 (4:5) | 1 |
-| **Post Dado/Estatística** | static | html_only | 1080×1350 (4:5) | 1 |
-| **Post CTA Direto** | static | html_and_image | 1080×1350 (4:5) | 1 |
-| **Story Interativo** | static | html_only | 1080×1920 (9:16) | 1 |
+Aparece em: `CopyDetail` (apos aprovar), `AssetDetail` (apos aprovar), `NewAsset` (no final).
 
-Cada template terá:
-- `system_prompt` com instruções específicas de estrutura viral
-- `html_scaffold` otimizado para o formato
-- `image_prompt_template` (quando aplicável) com regras UGC/Brasil
-- `editable_fields` com campos relevantes (headline, body, cta, cor, etc.)
+### B. Botao "Voltar" consistente em todas as paginas de detalhe
 
-### 3. Atualizar system prompts na edge function
+- `AssetDetail`: adicionar botao voltar para `/activations/{id}/assets`
+- Padronizar estilo usando `Button variant="ghost"` com icone `ArrowLeft`
 
-Incorporar os dados de benchmark reais (engagement rates, completion rates) nos prompts, reforçando as estruturas que performam melhor.
+### C. Toasts com acao apos aprovar/rejeitar
+
+- Aprovar copy: toast com botao "Criar peca →"
+- Aprovar peca: toast com botao "Agendar →"  
+- Rejeitar: toast com botao "Voltar para lista"
+
+### D. Migrar tabs do hub para classes do design system
+
+- `CopiesTab`: substituir inline styles por `card-base`, `card-interactive`, `field-label`, `text-mono-label`
+- `AssetsTab`: idem
+- `ScheduleTab`: idem
+- `CopyDetail`: substituir `hsl(var(--...))` por classes CSS existentes
+
+### E. Stepper responsivo no NewAsset
+
+- Em mobile: mostrar apenas step atual + numero / total
+- Esconder labels, manter apenas circulos numerados
+
+### F. WorkflowProgress mini nas paginas de detalhe
+
+- Adicionar versao compacta (apenas circulos + linha) no header de `CopyDetail` e `AssetDetail` para manter contexto de progresso
 
 ---
 
 ## Arquivos modificados
 
-| Arquivo | Ação |
+| Arquivo | Acao |
 |---------|------|
-| Migration SQL | UPDATE templates existentes (4:5) + INSERT 8 novos |
-| `supabase/functions/generate-asset-from-template/index.ts` | Atualizar prompts com benchmarks 2026 |
-| `mem://features/creative-agent` | Atualizar com dados de pesquisa |
+| `src/components/activation/NextStepBar.tsx` | Novo — barra contextual de proximo passo |
+| `src/pages/AssetDetail.tsx` | Botao voltar + NextStepBar + toasts com acao |
+| `src/pages/CopyDetail.tsx` | NextStepBar + toasts com acao + migrar para classes CSS |
+| `src/pages/NewAsset.tsx` | Stepper responsivo mobile |
+| `src/components/activation/CopiesTab.tsx` | Migrar inline styles para classes do design system |
+| `src/components/activation/AssetsTab.tsx` | Migrar inline styles para classes do design system |
+| `src/components/activation/ScheduleTab.tsx` | Migrar inline styles para classes do design system |
+| `src/components/activation/WorkflowProgress.tsx` | Extrair versao compacta para uso em paginas de detalhe |
 
