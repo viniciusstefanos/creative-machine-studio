@@ -87,8 +87,9 @@ Deno.serve(async (req) => {
 
     // ─── Create ad set ───
     if (action === "create_adset") {
+      const ad_account_id = ensureActPrefix(body.ad_account_id);
       const {
-        ad_account_id, campaign_id, name,
+        campaign_id, name,
         daily_budget: budget,
         targeting, optimization_goal,
         start_date, end_date,
@@ -145,8 +146,9 @@ Deno.serve(async (req) => {
 
     // ─── Create ad creative + ad ───
     if (action === "create_ad") {
+      const ad_account_id = ensureActPrefix(body.ad_account_id);
       const {
-        ad_account_id, adset_id, name, image_url, caption, link,
+        adset_id, name, image_url, caption, link,
         instagram_page_id, db_campaign_id, asset_id,
       } = body;
 
