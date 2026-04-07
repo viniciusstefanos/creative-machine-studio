@@ -743,6 +743,7 @@ export type Database = {
         Row: {
           activation_id: string
           asset_id: string | null
+          caption: string | null
           channel: string | null
           final_url: string | null
           id: string
@@ -754,6 +755,7 @@ export type Database = {
         Insert: {
           activation_id: string
           asset_id?: string | null
+          caption?: string | null
           channel?: string | null
           final_url?: string | null
           id?: string
@@ -765,6 +767,7 @@ export type Database = {
         Update: {
           activation_id?: string
           asset_id?: string | null
+          caption?: string | null
           channel?: string | null
           final_url?: string | null
           id?: string
