@@ -16,6 +16,7 @@ interface CreateCampaignWizardProps {
     ad_account_id: string | null;
     page_access_token: string | null;
     instagram_page_id: string | null;
+    facebook_page_id: string | null;
   } | null;
   landingPageUrl?: string | null;
   onCreated: () => void;

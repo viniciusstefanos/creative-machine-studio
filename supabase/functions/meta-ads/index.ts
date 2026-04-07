@@ -151,10 +151,15 @@ Deno.serve(async (req) => {
       const {
         adset_id, name, image_url, caption, link,
         instagram_page_id, db_campaign_id, asset_id,
-        page_id,
+        facebook_page_id,
       } = body;
 
-      const effectivePageId = (page_id || instagram_page_id || "").trim();
+      const fbPageId = (facebook_page_id || "").trim();
+      const igActorId = (instagram_page_id || "").trim();
+
+      if (!fbPageId) {
+        throw new Error("facebook_page_id is required to create an ad creative. Configure it in the client's Meta settings.");
+      }
 
       // Try uploading image hash first; if that fails (missing capability), fall back to image_url
       let imageHash: string | null = null;
@@ -185,16 +190,20 @@ Deno.serve(async (req) => {
         linkData.picture = image_url;
       }
 
+      const storySpec: Record<string, unknown> = {
+        page_id: fbPageId,
+        link_data: linkData,
+      };
+      if (igActorId) {
+        storySpec.instagram_actor_id = igActorId;
+      }
+
       const creativeRes = await fetch(`${META_GRAPH_URL}/${ad_account_id}/adcreatives`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: `Creative - ${name}`,
-          object_story_spec: {
-            page_id: effectivePageId,
-            instagram_actor_id: instagram_page_id || undefined,
-            link_data: linkData,
-          },
+          object_story_spec: storySpec,
           access_token: token,
         }),
       });
