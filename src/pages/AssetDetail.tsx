@@ -442,7 +442,7 @@ const AssetDetail = () => {
                 </Button>
               </>
             )}
-            {(hasImage || template?.generation_type?.includes("image")) && (
+            {showImageRegen && (
               <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditMode("image")}>
                 <Image size={14} /> Regerar imagem
               </Button>
