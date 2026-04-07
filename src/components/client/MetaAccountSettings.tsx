@@ -73,15 +73,16 @@ export const MetaAccountSettings = ({ clientId }: MetaAccountSettingsProps) => {
       if (data?.data?.length > 0) {
         const page = data.data[0];
         const igAccount = page.instagram_business_account;
+        setForm((prev) => ({
+          ...prev,
+          facebook_page_id: page.id || prev.facebook_page_id,
+          instagram_page_id: igAccount?.id || prev.instagram_page_id,
+          instagram_username: igAccount?.username || prev.instagram_username,
+        }));
         if (igAccount) {
-          setForm((prev) => ({
-            ...prev,
-            instagram_page_id: igAccount.id,
-            instagram_username: igAccount.username || "",
-          }));
-          toast({ title: "Conta Instagram encontrada", description: `@${igAccount.username}` });
+          toast({ title: "Página e Instagram encontrados", description: `Page ${page.id} · @${igAccount.username}` });
         } else {
-          toast({ title: "Nenhuma conta Instagram Business vinculada à página", variant: "destructive" });
+          toast({ title: "Página encontrada, sem Instagram Business vinculado", description: `Page ID: ${page.id}` });
         }
       } else {
         toast({ title: "Nenhuma página encontrada no token", variant: "destructive" });
