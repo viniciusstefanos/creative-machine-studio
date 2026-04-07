@@ -785,7 +785,7 @@ const AssetDetail = () => {
 
           {asset.status === "approved" && (
             <div className="card-base space-y-2">
-              <Button className="w-full gap-2" onClick={() => navigate(`/activations/${id}/schedule`)}>
+              <Button className="w-full gap-2" onClick={() => setScheduleDialogOpen(true)}>
                 <Calendar size={16} /> Agendar publicação
               </Button>
               <Button variant="ghost" className="w-full gap-2 text-xs" onClick={() => navigate(`/activations/${id}/assets/new`)}>
