@@ -40,7 +40,6 @@ export const BriefFilesSection = ({
   const [uploading, setUploading] = useState(false);
   const [extractingId, setExtractingId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState("briefing");
 
   const handleFileUpload = async (file: File) => {
     setUploading(true);
@@ -59,7 +58,7 @@ export const BriefFilesSection = ({
         activation_id: activationId,
         file_path: filePath,
         file_name: file.name,
-        category: selectedCategory,
+        category: "geral",
       }])
       .select()
       .single();
@@ -82,19 +81,25 @@ export const BriefFilesSection = ({
       });
       if (fnError) throw fnError;
 
-      // Update brief_files with raw_text and extracted_fields
+      // Update brief_files with raw_text, extracted_fields, and detected category
+      const detectedCategory = data?.extracted?.detected_category;
+      const updatePayload: any = {
+        raw_text: data?.raw_text || null,
+        extracted_fields: data?.extracted || null,
+      };
+      if (detectedCategory) {
+        updatePayload.category = detectedCategory;
+      }
+
       await supabase
         .from("brief_files" as any)
-        .update({
-          raw_text: data?.raw_text || null,
-          extracted_fields: data?.extracted || null,
-        })
+        .update(updatePayload)
         .eq("id", (newFile as any).id);
 
       // Update local state
       const finalFiles = updatedFiles.map((f) =>
         f.id === (newFile as any).id
-          ? { ...f, raw_text: data?.raw_text, extracted_fields: data?.extracted }
+          ? { ...f, raw_text: data?.raw_text, extracted_fields: data?.extracted, ...(detectedCategory ? { category: detectedCategory } : {}) }
           : f
       );
       onFilesChange(finalFiles);
@@ -201,30 +206,7 @@ export const BriefFilesSection = ({
         </div>
       )}
 
-      {/* Category selector + drop zone */}
-      <div className="flex items-center gap-2 mb-1">
-        <label className="text-[10px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
-          Categoria do próximo arquivo:
-        </label>
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="text-xs px-2 py-1 rounded"
-          style={{
-            background: "hsl(var(--bg-surface2))",
-            color: "hsl(var(--text-primary))",
-            border: "1px solid hsl(var(--border-default))",
-            fontFamily: "'DM Sans'",
-            borderRadius: 6,
-          }}
-        >
-          {FILE_CATEGORIES.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* Drop zone */}
 
       <label
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}

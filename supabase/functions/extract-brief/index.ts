@@ -105,14 +105,24 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 2048,
-        system: `Você é um assistente que extrai informações de briefing de marketing de documentos.
+         system: `Você é um assistente que extrai informações de briefing de marketing de documentos.
 Analise o documento e extraia APENAS informações que REALMENTE existam no texto.
 Se o documento NÃO for um brief de marketing (ex: é um guia de design, documento técnico, etc.), 
 retorne os campos vazios e coloque no extra_context um resumo do que o documento realmente contém.
 NUNCA invente informações. Se um campo não está presente no documento, retorne string vazia.
 
+Classifique o documento em UMA categoria:
+- "identidade_visual" = guia de marca, manual de identidade, brand book, paleta de cores, tipografia
+- "produto" = ficha técnica, cardápio, catálogo, especificações de produto
+- "tom_de_voz" = guia de tom, voz da marca, diretrizes de comunicação
+- "publico_alvo" = pesquisa de público, persona, segmentação, dados demográficos
+- "contexto" = análise de mercado, concorrência, tendências, cenário
+- "referencias" = moodboard, referências visuais, benchmarks, cases
+- "briefing" = brief completo de campanha, ativação, projeto
+- "geral" = outros documentos que não se encaixam nas categorias acima
+
 Responda APENAS com JSON válido, sem markdown:
-{"tone_of_voice":"","target_audience":"","objectives":"","extra_context":"","references_urls":[]}`,
+{"tone_of_voice":"","target_audience":"","objectives":"","extra_context":"","references_urls":[],"detected_category":""}`,
         messages: [
           { role: "user", content: `Extraia campos de brief deste documento:\n\n${text.slice(0, 12000)}` },
         ],
@@ -186,7 +196,7 @@ NUNCA invente informações.`,
           type: "function",
           function: {
             name: "extract_brief",
-            description: "Extract structured brief fields from document",
+            description: "Extract structured brief fields and detect document category",
             parameters: {
               type: "object",
               properties: {
@@ -195,8 +205,13 @@ NUNCA invente informações.`,
                 objectives: { type: "string" },
                 extra_context: { type: "string" },
                 references_urls: { type: "array", items: { type: "string" } },
+                detected_category: {
+                  type: "string",
+                  enum: ["identidade_visual", "produto", "tom_de_voz", "publico_alvo", "contexto", "referencias", "briefing", "geral"],
+                  description: "Category of the document based on its content",
+                },
               },
-              required: ["tone_of_voice", "target_audience", "objectives", "extra_context", "references_urls"],
+              required: ["tone_of_voice", "target_audience", "objectives", "extra_context", "references_urls", "detected_category"],
               additionalProperties: false,
             },
           },
