@@ -424,7 +424,8 @@ const AssetDetail = () => {
 
   // ─── Edit panel below preview ─────────────────────────────────
   const renderEditPanel = () => {
-    if (!canEdit || !currentRender) return null;
+    if (!canEdit) return null;
+    const showImageRegen = currentRender ? (hasImage || template?.generation_type?.includes("image")) : !!asset?.image_url;
 
     return (
       <div className="mt-4 space-y-3">
