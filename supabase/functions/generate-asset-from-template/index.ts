@@ -139,12 +139,14 @@ O HTML gerado DEVE seguir estas regras pixel-a-pixel:
 - [ ] Prova social ou diferencial visível (quando aplicável)
 
 ## TEMPLATE HTML OBRIGATÓRIO
-Sempre inicie o HTML com esta estrutura base:
+Sempre inicie o HTML com esta estrutura base (incluindo o import de fontes):
 \`\`\`
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <div style="width: {W}px; height: {H}px; box-sizing: border-box; padding: {PADDING}; background: {BG}; display: flex; flex-direction: column; justify-content: center; font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; overflow: hidden; position: relative;">
   <!-- conteúdo aqui -->
 </div>
 \`\`\`
+IMPORTANTE: O \`<link>\` do Google Fonts DEVE estar presente no HTML final para garantir renderização correta das fontes tanto na preview quanto na exportação PNG.
 
 ${CONTEXT_BRASIL_INSTAGRAM}
 `;

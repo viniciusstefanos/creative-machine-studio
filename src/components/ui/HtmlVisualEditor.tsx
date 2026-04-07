@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -47,6 +46,8 @@ interface TextSegment {
   text: string;
   tag: string;
   priority: number;
+  /** The full match string for precise replacement */
+  fullMatch: string;
 }
 
 function extractTextSegments(html: string): TextSegment[] {
@@ -65,6 +66,7 @@ function extractTextSegments(html: string): TextSegment[] {
         text: innerText,
         tag: match[1].toLowerCase(),
         priority: priorities[match[1].toLowerCase()] ?? 10,
+        fullMatch: match[0],
       });
     }
   }
@@ -92,22 +94,35 @@ const TAG_META: Record<string, { label: string; icon: typeof Type }> = {
   figcaption: { label: "Legenda", icon: Tag },
 };
 
-/* ── Checkerboard for alpha colors ── */
 const checkerboard = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect width='8' height='8' fill='%23333'/%3E%3Crect x='8' y='8' width='8' height='8' fill='%23333'/%3E%3Crect x='8' width='8' height='8' fill='%23555'/%3E%3Crect y='8' width='8' height='8' fill='%23555'/%3E%3C/svg%3E")`;
 
 export const HtmlVisualEditor = ({
   html, onChange, onSave, onClose, onRestore, loading,
 }: HtmlVisualEditorProps) => {
   const [tab, setTab] = useState("text");
+  // Local text edits keyed by original text
+  const [textEdits, setTextEdits] = useState<Record<string, string>>({});
 
   const allColors = useMemo(() => extractColors(html), [html]);
   const solidColors = useMemo(() => allColors.filter(c => c.isSolid), [allColors]);
   const alphaColors = useMemo(() => allColors.filter(c => !c.isSolid), [allColors]);
   const textSegments = useMemo(() => extractTextSegments(html), [html]);
 
-  const updateText = useCallback((oldText: string, newText: string) => {
-    if (oldText === newText) return;
-    onChange(html.replace(oldText, newText));
+  /** Safe text replacement: only replaces text content within tags, not attributes */
+  const updateText = useCallback((seg: TextSegment, newText: string) => {
+    if (seg.text === newText) return;
+    // Replace the inner text within the full matched tag
+    const newFullMatch = seg.fullMatch.replace(seg.text, newText);
+    const newHtml = html.replace(seg.fullMatch, newFullMatch);
+    if (newHtml !== html) {
+      onChange(newHtml);
+    }
+    // Clear local edit
+    setTextEdits(prev => {
+      const next = { ...prev };
+      delete next[seg.text];
+      return next;
+    });
   }, [html, onChange]);
 
   const replaceColor = useCallback((oldColor: string, newColor: string) => {
@@ -115,11 +130,6 @@ export const HtmlVisualEditor = ({
     const escaped = oldColor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     onChange(html.replace(new RegExp(escaped, "gi"), newColor));
   }, [html, onChange]);
-
-  const changeCount = useMemo(() => {
-    // rough indicator
-    return allColors.length + textSegments.length;
-  }, [allColors, textSegments]);
 
   return (
     <div
@@ -129,7 +139,7 @@ export const HtmlVisualEditor = ({
         border: "1px solid hsl(var(--border-default))",
       }}
     >
-      {/* ── Header ── */}
+      {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-3"
         style={{ borderBottom: "1px solid hsl(var(--border-subtle))" }}
@@ -152,7 +162,7 @@ export const HtmlVisualEditor = ({
         </button>
       </div>
 
-      {/* ── Tabs ── */}
+      {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab}>
         <div className="px-4 pt-3">
           <TabsList
@@ -207,7 +217,7 @@ export const HtmlVisualEditor = ({
           </TabsList>
         </div>
 
-        {/* ─── TEXT TAB ─── */}
+        {/* TEXT TAB */}
         <TabsContent value="text" className="px-4 pb-4 mt-0">
           {textSegments.length === 0 ? (
             <div className="py-8 text-center">
@@ -221,10 +231,11 @@ export const HtmlVisualEditor = ({
                 const Icon = meta.icon;
                 const isHeading = seg.tag.startsWith("h");
                 const isCta = seg.tag === "button" || seg.tag === "a";
+                const localValue = textEdits[seg.text] ?? seg.text;
 
                 return (
                   <div
-                    key={i}
+                    key={`${seg.tag}-${i}`}
                     className="group rounded-md p-2.5 transition-colors hover:bg-surface-2"
                     style={{ border: "1px solid transparent" }}
                   >
@@ -242,8 +253,9 @@ export const HtmlVisualEditor = ({
                     </div>
                     {seg.text.length > 80 ? (
                       <Textarea
-                        defaultValue={seg.text}
-                        onBlur={(e) => updateText(seg.text, e.target.value)}
+                        value={localValue}
+                        onChange={(e) => setTextEdits(prev => ({ ...prev, [seg.text]: e.target.value }))}
+                        onBlur={() => updateText(seg, localValue)}
                         rows={3}
                         className="text-[12px] leading-relaxed resize-none border-0 p-0 min-h-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                         style={{
@@ -256,8 +268,10 @@ export const HtmlVisualEditor = ({
                       />
                     ) : (
                       <input
-                        defaultValue={seg.text}
-                        onBlur={(e) => updateText(seg.text, e.target.value)}
+                        value={localValue}
+                        onChange={(e) => setTextEdits(prev => ({ ...prev, [seg.text]: e.target.value }))}
+                        onBlur={() => updateText(seg, localValue)}
+                        onKeyDown={(e) => { if (e.key === "Enter") updateText(seg, localValue); }}
                         className="w-full bg-transparent border-0 outline-none p-0"
                         style={{
                           color: isCta ? "hsl(var(--accent))" : "hsl(var(--text-primary))",
@@ -275,7 +289,7 @@ export const HtmlVisualEditor = ({
           )}
         </TabsContent>
 
-        {/* ─── COLORS TAB ─── */}
+        {/* COLORS TAB */}
         <TabsContent value="colors" className="px-4 pb-4 mt-0">
           {allColors.length === 0 ? (
             <div className="py-8 text-center">
@@ -284,7 +298,6 @@ export const HtmlVisualEditor = ({
             </div>
           ) : (
             <div className="space-y-4 max-h-[340px] overflow-y-auto pr-1 mt-3">
-              {/* Solid colors */}
               {solidColors.length > 0 && (
                 <div>
                   <span
@@ -305,8 +318,6 @@ export const HtmlVisualEditor = ({
                   </div>
                 </div>
               )}
-
-              {/* Alpha/transparent colors */}
               {alphaColors.length > 0 && (
                 <div>
                   <span
@@ -332,7 +343,7 @@ export const HtmlVisualEditor = ({
           )}
         </TabsContent>
 
-        {/* ─── CODE TAB ─── */}
+        {/* CODE TAB */}
         <TabsContent value="code" className="px-4 pb-4 mt-0">
           <div className="mt-3">
             <Textarea
@@ -352,7 +363,7 @@ export const HtmlVisualEditor = ({
         </TabsContent>
       </Tabs>
 
-      {/* ── Footer actions ── */}
+      {/* Footer */}
       <div
         className="flex items-center justify-between px-4 py-3"
         style={{ borderTop: "1px solid hsl(var(--border-subtle))" }}
@@ -405,7 +416,6 @@ function ColorSwatch({
       className="flex items-center gap-2.5 p-2 rounded-md transition-colors hover:bg-surface-2 group"
       style={{ border: "1px solid hsl(var(--border-subtle))" }}
     >
-      {/* Swatch with optional checkerboard */}
       <label className="relative flex-shrink-0 cursor-pointer">
         <div
           className="w-7 h-7 rounded-md"
@@ -415,10 +425,7 @@ function ColorSwatch({
             border: "1px solid hsl(var(--border-strong))",
           }}
         >
-          <div
-            className="w-full h-full rounded-md"
-            style={{ background: color }}
-          />
+          <div className="w-full h-full rounded-md" style={{ background: color }} />
         </div>
         <input
           type="color"
@@ -430,8 +437,6 @@ function ColorSwatch({
           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
         />
       </label>
-
-      {/* Value + count */}
       <div className="flex-1 min-w-0">
         {editing ? (
           <input
