@@ -8,6 +8,24 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// ─── Brazilian / Instagram-native context ────────────────────
+const CONTEXT_BRASIL_INSTAGRAM = `
+## CONTEXTO OBRIGATÓRIO
+- Público: Brasil. Linguagem nativa de Instagram BR.
+- Tom: coloquial-profissional. Evitar anglicismos desnecessários, usar gírias brasileiras quando natural (ex: "bora", "dá match", "vibe", "rolê").
+- Referência cultural: memes BR, trends do Reels/TikTok BR, estética brasileira (diversidade, cor, calor, naturalidade).
+- Formatos validados 2025-2026: carrossel educativo (engajamento 3x feed), Reels <15s (82% completion), stories com enquete/slider (resposta 2x), post-lista com número ímpar (CTR +22%).
+- Métricas de referência: CTR médio Reels 1.87%, engagement rate carrossel 1.92%, story com sticker interativo = 2x resposta.
+- Horários de pico BR: 12h-14h e 19h-21h (GMT-3).
+
+## FORMATOS PERSUASIVOS VALIDADOS
+- Carrossel educativo: slide 1 = gancho impossível de ignorar, slides do meio = valor tangível, último = CTA claro
+- Reels hook-first: primeiros 0.5s decidem. Texto grande + movimento.
+- Post feed estático: imagem forte + caption curta. Menos é mais.
+- Story interativo: enquete, quiz, slider — nunca só imagem passiva.
+- Antes/depois: prova visual direta. Funciona em todos os nichos BR.
+`;
+
 // ─── Creative agent visual guidelines ────────────────────────
 const HTML_CREATIVE_RULES = `
 ## REGRAS VISUAIS OBRIGATÓRIAS
@@ -24,6 +42,8 @@ const HTML_CREATIVE_RULES = `
 - Slides do meio: 1 ponto por slide, máx 3 linhas de texto. Visual consistente (mesma paleta, mesma tipografia).
 - Último slide: CTA único e claro.
 - O usuário deve entender a proposta lendo apenas slide 1 e o último.
+
+${CONTEXT_BRASIL_INSTAGRAM}
 `;
 
 const IMAGE_CREATIVE_RULES = `
@@ -36,6 +56,13 @@ const IMAGE_CREATIVE_RULES = `
 - Para produto: demonstração real em uso, não packshot isolado
 - Cores dessaturadas + highlight quente para tom cinematográfico
 - Evitar imagens genéricas de banco de imagens — buscar autenticidade
+
+## CONTEXTO BRASIL
+- Pessoas brasileiras diversas (tom de pele, cabelo, contexto urbano/rural BR)
+- Cenários brasileiros quando relevante: cidade, praia, escritório BR, apartamento BR
+- Luz natural tropical: dourada, quente, alta exposição
+- Estética Instagram BR: saturação moderada, filtro warm, vibe acessível
+- Evitar estética "americana/europeia genérica" — buscar autenticidade brasileira
 `;
 
 // ─── Claude helper (text/HTML) ───────────────────────────────
@@ -100,18 +127,18 @@ async function callTextAI(systemPrompt: string, userPrompt: string, useClaude: b
 }
 
 // ─── Generate optimized image prompt ─────────────────────────
-async function generateImagePrompt(template: string, context: Record<string, any>, useClaude: boolean, anthropicKey: string, lovableKey: string): Promise<string> {
-  const filled = fillTemplate(template, context);
+async function generateImagePrompt(basePrompt: string, useClaude: boolean, anthropicKey: string, lovableKey: string): Promise<string> {
   const res = await callTextAI(
-    `Você é um especialista em prompts para geração de imagem. Receba um rascunho de prompt e melhore-o para gerar a melhor imagem possível.
+    `Você é um especialista em prompts para geração de imagem para Instagram Brasil.
 
 ${IMAGE_CREATIVE_RULES}
 
+Receba um rascunho de prompt e otimize-o para gerar a melhor imagem possível, mantendo o contexto brasileiro e a estética Instagram BR.
 Retorne APENAS o prompt otimizado em inglês, sem explicação.`,
-    `Rascunho de prompt: "${filled}"\n\nOtimize este prompt para geração de imagem seguindo as diretrizes visuais validadas:`,
+    `Rascunho de prompt: "${basePrompt}"\n\nOtimize este prompt para geração de imagem seguindo as diretrizes visuais validadas:`,
     useClaude, anthropicKey, lovableKey,
   );
-  return res.trim() || filled;
+  return res.trim() || basePrompt;
 }
 
 // ─── Nano Banana (image generation via Lovable AI) ───────────
@@ -214,7 +241,7 @@ serve(async (req) => {
     });
   }
 
-  const { asset_id, template_id, copy_id, activation_id, render_config, use_claude } = body;
+  const { asset_id, template_id, copy_id, activation_id, render_config, use_claude, custom_image_prompt } = body;
   const useClaude = !!use_claude;
   if (!asset_id || !template_id || !copy_id || !activation_id) {
     return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -271,6 +298,17 @@ serve(async (req) => {
       return parts;
     };
 
+    // Helper: get final image prompt (custom or auto-generated)
+    const getImagePrompt = async (templatePrompt: string, ctx: Record<string, any>): Promise<string> => {
+      // If user provided a custom prompt, optimize it but use it as base
+      if (custom_image_prompt && custom_image_prompt.trim()) {
+        return generateImagePrompt(custom_image_prompt.trim(), useClaude, anthropicKey, lovableKey);
+      }
+      // Otherwise fill template and optimize
+      const filled = fillTemplate(templatePrompt, ctx);
+      return generateImagePrompt(filled, useClaude, anthropicKey, lovableKey);
+    };
+
     // ─── Branch by generation_type ────────────────────────────
     if (template.generation_type === "html_only") {
       const carouselInstruction = template.category === "carousel"
@@ -307,10 +345,9 @@ serve(async (req) => {
       const maxSlides = Math.min(slideParts.length, template.slides_count_max || 5);
 
       for (let i = 0; i < maxSlides; i++) {
-        const optimizedPrompt = await generateImagePrompt(
+        const optimizedPrompt = await getImagePrompt(
           template.image_prompt_template || "",
           { ...context, slide_content: slideParts[i] },
-          useClaude, anthropicKey, lovableKey,
         );
         const imageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
         await saveRender(i, { image_url: imageUrl });
@@ -320,10 +357,9 @@ serve(async (req) => {
       }
 
     } else if (template.generation_type === "html_and_image") {
-      const optimizedPrompt = await generateImagePrompt(
+      const optimizedPrompt = await getImagePrompt(
         template.image_prompt_template || "",
         context,
-        useClaude, anthropicKey, lovableKey,
       );
       const bgImageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
 

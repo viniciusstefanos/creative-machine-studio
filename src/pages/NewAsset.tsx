@@ -4,9 +4,10 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Check, ChevronRight, Loader2, Sparkles, Layout, Image, Layers } from "lucide-react";
+import { Check, ChevronRight, Loader2, Sparkles, Layout, Image, Layers, Eye, Pencil } from "lucide-react";
 
 interface EditableField {
   label: string;
@@ -25,6 +26,10 @@ const categoryIcon = (cat: string) => {
   }
 };
 
+/** Fill {{key}} placeholders in a template string */
+const fillTemplate = (tpl: string, ctx: Record<string, any>): string =>
+  tpl.replace(/\{\{(\w+)\}\}/g, (_, key) => ctx[key] || "");
+
 const NewAsset = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -41,13 +46,26 @@ const NewAsset = () => {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [useClaude, setUseClaude] = useState(false);
 
+  // Image prompt review state
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [brief, setBrief] = useState<any>(null);
+
+  const templateUsesImage = selectedTemplate?.generation_type === "image_only" || selectedTemplate?.generation_type === "html_and_image";
+
+  // Total steps: 5 if template uses image (includes prompt review), otherwise 4
+  const totalSteps = templateUsesImage ? 5 : 4;
+  const stepLabels = templateUsesImage
+    ? ["Selecionar Copy", "Selecionar Template", "Configurar", "Prompt de Imagem", "Gerar"]
+    : ["Selecionar Copy", "Selecionar Template", "Configurar", "Gerar"];
+
   useEffect(() => {
     if (!id) return;
     const fetchData = async () => {
-      const [copiesRes, templatesRes, actRes] = await Promise.all([
+      const [copiesRes, templatesRes, actRes, briefRes] = await Promise.all([
         supabase.from("copies").select("*").eq("activation_id", id).eq("status", "approved").order("created_at", { ascending: false }),
         supabase.from("asset_templates").select("*").eq("active", true).order("category"),
         supabase.from("activations").select("*, clients(name)").eq("id", id).single(),
+        supabase.from("briefs").select("*").eq("activation_id", id).maybeSingle(),
       ]);
       setCopies(copiesRes.data || []);
       setTemplates(templatesRes.data || []);
@@ -55,6 +73,7 @@ const NewAsset = () => {
         setActivation(actRes.data);
         setClientName((actRes.data as any).clients?.name || "");
       }
+      setBrief(briefRes.data);
       setLoading(false);
     };
     fetchData();
@@ -72,6 +91,31 @@ const NewAsset = () => {
     });
     setRenderConfig(defaults);
   }, [selectedTemplate]);
+
+  // Build image prompt when entering the prompt review step
+  const buildImagePrompt = () => {
+    if (!selectedTemplate || !selectedCopy) return "";
+    const copy = copies.find((c) => c.id === selectedCopy);
+    if (!copy) return "";
+    const context: Record<string, any> = {
+      hook: copy.hook || "",
+      body: copy.body || "",
+      cta: copy.cta || "",
+      full_copy: copy.full_copy || `${copy.hook || ""}\n${copy.body || ""}\n${copy.cta || ""}`,
+      objectives: brief?.objectives || "",
+      target_audience: brief?.target_audience || "",
+      tone_of_voice: brief?.tone_of_voice || "",
+      ...renderConfig,
+    };
+    const tpl = selectedTemplate.image_prompt_template || "";
+    return fillTemplate(tpl, context);
+  };
+
+  // When moving to prompt review step, pre-fill the prompt
+  const goToPromptStep = () => {
+    setImagePrompt(buildImagePrompt());
+    setStep(4); // prompt review is always step 4 when image is used
+  };
 
   const handleGenerate = async () => {
     if (!selectedCopy || !selectedTemplate || !id) return;
@@ -105,6 +149,7 @@ const NewAsset = () => {
           template_id: selectedTemplate.id,
           render_config: renderConfig,
           use_claude: useClaude,
+          ...(templateUsesImage && imagePrompt ? { custom_image_prompt: imagePrompt } : {}),
         },
       })
       .catch((err) => console.error("generate error:", err));
@@ -120,11 +165,14 @@ const NewAsset = () => {
     );
   }
 
-  const stepLabels = ["Selecionar Copy", "Selecionar Template", "Configurar", "Gerar"];
   const categories = [...new Set(templates.map((t) => t.category))];
   const filteredTemplates = categoryFilter
     ? templates.filter((t) => t.category === categoryFilter)
     : templates;
+
+  // Determine which step content to show
+  const confirmStep = totalSteps; // last step is always confirm
+  const promptStep = templateUsesImage ? 4 : -1; // -1 = doesn't exist
 
   return (
     <AppLayout
@@ -211,8 +259,6 @@ const NewAsset = () => {
           <div className="section-label--ruled mb-4">
             <SectionLabel>Templates Disponíveis</SectionLabel>
           </div>
-
-          {/* Category filters */}
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => setCategoryFilter(null)}
@@ -238,7 +284,6 @@ const NewAsset = () => {
               </button>
             ))}
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {filteredTemplates.map((t) => (
               <button
@@ -249,7 +294,6 @@ const NewAsset = () => {
                 }`}
                 style={{ padding: 0 }}
               >
-                {/* Thumbnail */}
                 <div
                   className="flex items-center justify-center bg-surface-2 border-b border-line-subtle"
                   style={{ maxHeight: 160, aspectRatio: t.aspect_ratio === "9:16" ? "9/16" : "1/1" }}
@@ -282,9 +326,7 @@ const NewAsset = () => {
           <div className="section-label--ruled mb-4">
             <SectionLabel>Configurar Template</SectionLabel>
           </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Template info */}
             <div className="card-base">
               <p className="text-heading mb-1">{selectedTemplate.name}</p>
               <p className="text-caption mb-3">{selectedTemplate.description}</p>
@@ -305,8 +347,6 @@ const NewAsset = () => {
                 )}
               </div>
             </div>
-
-            {/* Editable fields */}
             {selectedTemplate.editable_fields && Object.keys(selectedTemplate.editable_fields).length > 0 && (
               <div className="card-base space-y-4">
                 <span className="text-mono-label">Personalização</span>
@@ -353,18 +393,79 @@ const NewAsset = () => {
               </div>
             )}
           </div>
-
           <div className="flex gap-3 mt-6">
             <Button variant="ghost" onClick={() => setStep(2)}>← Voltar</Button>
-            <Button onClick={() => setStep(4)}>
+            <Button onClick={() => templateUsesImage ? goToPromptStep() : setStep(4)}>
               Continuar <ChevronRight size={14} className="ml-1" />
             </Button>
           </div>
         </div>
       )}
 
-      {/* Step 4: Confirm & Generate */}
-      {step === 4 && (
+      {/* Step 4 (conditional): Image Prompt Review */}
+      {step === promptStep && templateUsesImage && (
+        <div>
+          <div className="section-label--ruled mb-4">
+            <SectionLabel>Prompt de Imagem</SectionLabel>
+          </div>
+          <div className="card-base space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-heading mb-1">Validar prompt de geração</p>
+                <p className="text-caption">
+                  Este prompt será enviado à IA para gerar a imagem. Edite livremente antes de confirmar.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Eye size={16} className="text-txt-ghost" />
+                <Pencil size={16} className="text-txt-ghost" />
+              </div>
+            </div>
+
+            <div>
+              <label className="field-label">Prompt base (do template)</label>
+              <p className="text-caption mb-2 text-txt-ghost">
+                {selectedTemplate?.image_prompt_template || "Sem template definido"}
+              </p>
+            </div>
+
+            <div>
+              <label className="field-label">Prompt preenchido (editável)</label>
+              <Textarea
+                value={imagePrompt}
+                onChange={(e) => setImagePrompt(e.target.value)}
+                rows={8}
+                className="bg-surface-1 border-line text-body font-mono text-sm"
+                placeholder="Descreva a imagem que deseja gerar..."
+              />
+              <p className="text-caption mt-2">
+                💡 A IA vai otimizar este prompt antes de gerar a imagem. Foque na intenção visual — contexto brasileiro, estética Instagram, autenticidade.
+              </p>
+            </div>
+
+            <div className="card-base !bg-surface-2 !border-line-subtle">
+              <p className="text-mono-label mb-2">Dicas para bons prompts</p>
+              <ul className="text-caption space-y-1 list-disc list-inside">
+                <li>Descreva o cenário e a pessoa (se houver) em contexto real brasileiro</li>
+                <li>Prefira estilo UGC/autêntico em vez de estúdio polido</li>
+                <li>Mencione iluminação (ex: "luz natural dourada", "tungsten warm")</li>
+                <li>Indique enquadramento: close, meio corpo, plano aberto</li>
+                <li>Use referências sensoriais: texturas, cores, atmosfera</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-6">
+            <Button variant="ghost" onClick={() => setStep(3)}>← Voltar</Button>
+            <Button onClick={() => setStep(confirmStep)}>
+              Continuar <ChevronRight size={14} className="ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Final Step: Confirm & Generate */}
+      {step === confirmStep && (
         <div>
           <div className="section-label--ruled mb-4">
             <SectionLabel>Confirmar e Gerar</SectionLabel>
@@ -383,6 +484,12 @@ const NewAsset = () => {
                   {selectedTemplate?.name} ({selectedTemplate?.width_px}×{selectedTemplate?.height_px}px)
                 </p>
               </div>
+              {templateUsesImage && imagePrompt && (
+                <div>
+                  <span className="text-mono-label">Prompt de imagem</span>
+                  <p className="text-caption mt-1 line-clamp-3 font-mono">{imagePrompt}</p>
+                </div>
+              )}
               {Object.keys(renderConfig).length > 0 && (
                 <div>
                   <span className="text-mono-label">Configurações</span>
@@ -398,7 +505,7 @@ const NewAsset = () => {
             </div>
 
             <div className="flex gap-3 mt-6 items-center pt-4 border-t border-line-subtle">
-              <Button variant="ghost" onClick={() => setStep(3)}>← Voltar</Button>
+              <Button variant="ghost" onClick={() => setStep(templateUsesImage ? promptStep : 3)}>← Voltar</Button>
 
               {/* Claude toggle */}
               <button
