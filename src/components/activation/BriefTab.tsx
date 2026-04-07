@@ -223,7 +223,7 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
         />
       </div>
 
-
+      <div>
         <label className="field-label">Referências (URLs)</label>
         <div className="flex flex-wrap gap-2 mb-2">
           {form.references_urls.map((url, i) => (
