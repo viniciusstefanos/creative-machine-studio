@@ -401,6 +401,14 @@ const AssetDetail = () => {
                 <Image size={14} /> Regerar imagem
               </Button>
             )}
+            {copy && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => {
+                setEditCopy({ hook: copy.hook || "", body: copy.body || "", cta: copy.cta || "" });
+                setEditMode("copy");
+              }}>
+                <Type size={14} /> Ajustar copy
+              </Button>
+            )}
           </div>
         )}
 
