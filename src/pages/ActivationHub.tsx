@@ -128,30 +128,15 @@ const ActivationHub = () => {
       {/* Activation Header */}
       <div className="mb-6">
         <div className="flex items-center gap-4 mb-2">
-          <h1
-            className="text-2xl font-bold"
-            style={{ fontFamily: "'Syne', sans-serif", color: "var(--text-primary)" }}
-          >
-            {activation.name}
-          </h1>
+          <h1 className="text-display-lg">{activation.name}</h1>
           <StatusBadge status={activation.status} />
         </div>
         <div className="flex items-center gap-4">
-          <span
-            className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded"
-            style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              background: "var(--bg-surface3)",
-              color: "var(--text-secondary)",
-            }}
-          >
+          <span className="text-mono px-2 py-0.5 rounded bg-surface-3 text-txt-secondary">
             {activation.type}
           </span>
           {activation.budget && (
-            <span
-              className="text-xs"
-              style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}
-            >
+            <span className="text-mono text-txt-muted">
               R$ {Number(activation.budget).toLocaleString("pt-BR")}
             </span>
           )}
