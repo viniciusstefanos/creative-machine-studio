@@ -206,30 +206,7 @@ export const BriefFilesSection = ({
         </div>
       )}
 
-      {/* Category selector + drop zone */}
-      <div className="flex items-center gap-2 mb-1">
-        <label className="text-[10px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
-          Categoria do próximo arquivo:
-        </label>
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="text-xs px-2 py-1 rounded"
-          style={{
-            background: "hsl(var(--bg-surface2))",
-            color: "hsl(var(--text-primary))",
-            border: "1px solid hsl(var(--border-default))",
-            fontFamily: "'DM Sans'",
-            borderRadius: 6,
-          }}
-        >
-          {FILE_CATEGORIES.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* Drop zone */}
 
       <label
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
