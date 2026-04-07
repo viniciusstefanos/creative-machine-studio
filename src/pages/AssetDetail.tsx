@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Check, X, RefreshCw, Calendar, Loader2, ChevronLeft, ChevronRight,
-  Pencil, Image, Wand2, Save, RotateCcw, ArrowLeft
+  Pencil, Image, Wand2, Save, RotateCcw, ArrowLeft, Type
 } from "lucide-react";
 
 const AssetDetail = () => {
@@ -37,11 +37,12 @@ const AssetDetail = () => {
   const nextAsset = currentAssetIndex < siblingAssets.length - 1 ? siblingAssets[currentAssetIndex + 1] : null;
 
   // Editing state
-  const [editMode, setEditMode] = useState<"none" | "html" | "refine" | "image">("none");
+  const [editMode, setEditMode] = useState<"none" | "html" | "refine" | "image" | "copy">("none");
   const [editHtml, setEditHtml] = useState("");
   const [refineInstruction, setRefineInstruction] = useState("");
   const [imagePrompt, setImagePrompt] = useState("");
   const [editLoading, setEditLoading] = useState(false);
+  const [editCopy, setEditCopy] = useState<{ hook: string; body: string; cta: string }>({ hook: "", body: "", cta: "" });
 
   const fetchAsset = useCallback(async () => {
     if (!assetId) return;
@@ -58,7 +59,7 @@ const AssetDetail = () => {
         if (tplRes.data) setTemplate(tplRes.data);
       }
       if (data.copy_id) {
-        const cpRes = await supabase.from("copies").select("hook, channel, type").eq("id", data.copy_id).single();
+        const cpRes = await supabase.from("copies").select("id, hook, body, cta, channel, type, full_copy").eq("id", data.copy_id).single();
         if (cpRes.data) setCopy(cpRes.data);
       }
       const { data: renderData } = await supabase
@@ -400,6 +401,14 @@ const AssetDetail = () => {
                 <Image size={14} /> Regerar imagem
               </Button>
             )}
+            {copy && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => {
+                setEditCopy({ hook: copy.hook || "", body: copy.body || "", cta: copy.cta || "" });
+                setEditMode("copy");
+              }}>
+                <Type size={14} /> Ajustar copy
+              </Button>
+            )}
           </div>
         )}
 
@@ -477,6 +486,75 @@ const AssetDetail = () => {
               {editLoading ? <Loader2 size={14} className="animate-spin" /> : <Image size={14} />}
               Gerar nova imagem
             </Button>
+          </div>
+        )}
+
+        {/* Copy edit */}
+        {editMode === "copy" && copy && (
+          <div className="card-base space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-label">Ajustar copy</span>
+              <Button variant="ghost" size="sm" onClick={() => setEditMode("none")}>
+                <X size={14} />
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <div>
+                <label className="text-mono-label mb-1 block">Hook</label>
+                <Textarea
+                  value={editCopy.hook}
+                  onChange={(e) => setEditCopy(prev => ({ ...prev, hook: e.target.value }))}
+                  className="text-sm min-h-[60px]"
+                  placeholder="Gancho principal..."
+                />
+              </div>
+              <div>
+                <label className="text-mono-label mb-1 block">Corpo</label>
+                <Textarea
+                  value={editCopy.body}
+                  onChange={(e) => setEditCopy(prev => ({ ...prev, body: e.target.value }))}
+                  className="text-sm min-h-[80px]"
+                  placeholder="Corpo do texto..."
+                />
+              </div>
+              <div>
+                <label className="text-mono-label mb-1 block">CTA</label>
+                <Textarea
+                  value={editCopy.cta}
+                  onChange={(e) => setEditCopy(prev => ({ ...prev, cta: e.target.value }))}
+                  className="text-sm min-h-[40px]"
+                  placeholder="Call to action..."
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" className="gap-2" onClick={async () => {
+                if (!copy?.id) return;
+                setEditLoading(true);
+                const { error } = await supabase.from("copies").update({
+                  hook: editCopy.hook,
+                  body: editCopy.body,
+                  cta: editCopy.cta,
+                  full_copy: `${editCopy.hook}\n\n${editCopy.body}\n\n${editCopy.cta}`.trim(),
+                }).eq("id", copy.id);
+                if (error) {
+                  toast.error("Falha ao salvar copy");
+                } else {
+                  setCopy((prev: any) => ({ ...prev, hook: editCopy.hook, body: editCopy.body, cta: editCopy.cta }));
+                  toast.success("Copy atualizado ✓");
+                  setEditMode("none");
+                }
+                setEditLoading(false);
+              }} disabled={editLoading}>
+                {editLoading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                Salvar copy
+              </Button>
+              <Button variant="ghost" size="sm" className="gap-2" onClick={() => {
+                setEditCopy({ hook: copy.hook || "", body: copy.body || "", cta: copy.cta || "" });
+              }}>
+                <RotateCcw size={14} /> Restaurar
+              </Button>
+            </div>
           </div>
         )}
       </div>
