@@ -416,31 +416,16 @@ const AssetDetail = () => {
           </div>
         )}
 
-        {/* HTML direct edit */}
+        {/* HTML visual edit */}
         {editMode === "html" && (
-          <div className="card-base space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-label">Editar HTML do slide {currentSlide + 1}</span>
-              <Button variant="ghost" size="sm" onClick={() => setEditMode("none")}>
-                <X size={14} />
-              </Button>
-            </div>
-            <Textarea
-              value={editHtml}
-              onChange={(e) => setEditHtml(e.target.value)}
-              className="font-mono text-xs min-h-[200px]"
-              placeholder="HTML do slide..."
-            />
-            <div className="flex gap-2">
-              <Button size="sm" className="gap-2" onClick={saveHtmlEdit} disabled={editLoading}>
-                {editLoading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                Salvar
-              </Button>
-              <Button variant="ghost" size="sm" className="gap-2" onClick={() => { setEditHtml(currentRender.html_content); }}>
-                <RotateCcw size={14} /> Restaurar
-              </Button>
-            </div>
-          </div>
+          <HtmlVisualEditor
+            html={editHtml}
+            onChange={setEditHtml}
+            onSave={saveHtmlEdit}
+            onClose={() => setEditMode("none")}
+            onRestore={() => setEditHtml(currentRender.html_content)}
+            loading={editLoading}
+          />
         )}
 
         {/* AI refine */}
