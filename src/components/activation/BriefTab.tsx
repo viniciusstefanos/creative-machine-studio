@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { FileDrop } from "@/components/ui/FileDrop";
+import { BriefVisualIdentity } from "@/components/activation/BriefVisualIdentity";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
@@ -22,6 +23,9 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
     objectives: "",
     extra_context: "",
     references_urls: [] as string[],
+    brand_colors: "",
+    typography: "",
+    visual_style: "",
   });
   const [refInput, setRefInput] = useState("");
   const [extractedHighlight, setExtractedHighlight] = useState<Record<string, boolean>>({});
@@ -41,6 +45,9 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
           objectives: data.objectives || "",
           extra_context: data.extra_context || "",
           references_urls: data.references_urls || [],
+          brand_colors: (data as any).brand_colors || "",
+          typography: (data as any).typography || "",
+          visual_style: (data as any).visual_style || "",
         });
         if (data.source_file_url) {
           const parts = data.source_file_url.split("/");
@@ -199,6 +206,20 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
           rows={3}
           className={`${getHighlightClass("extra_context")} field-textarea`}
           placeholder="Informações extras relevantes..."
+        />
+      </div>
+
+      {/* Identidade Visual */}
+      <div
+        className="pt-6 mt-2"
+        style={{ borderTop: "1px solid hsl(var(--border-subtle))" }}
+      >
+        <BriefVisualIdentity
+          brandColors={form.brand_colors}
+          typography={form.typography}
+          visualStyle={form.visual_style}
+          onChange={(field, value) => setForm({ ...form, [field]: value })}
+          highlightClass={getHighlightClass}
         />
       </div>
 

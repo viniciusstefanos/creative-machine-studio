@@ -389,6 +389,7 @@ export type Database = {
       briefs: {
         Row: {
           activation_id: string
+          brand_colors: string | null
           extra_context: string | null
           id: string
           objectives: string | null
@@ -396,10 +397,13 @@ export type Database = {
           source_file_url: string | null
           target_audience: string | null
           tone_of_voice: string | null
+          typography: string | null
           updated_at: string | null
+          visual_style: string | null
         }
         Insert: {
           activation_id: string
+          brand_colors?: string | null
           extra_context?: string | null
           id?: string
           objectives?: string | null
@@ -407,10 +411,13 @@ export type Database = {
           source_file_url?: string | null
           target_audience?: string | null
           tone_of_voice?: string | null
+          typography?: string | null
           updated_at?: string | null
+          visual_style?: string | null
         }
         Update: {
           activation_id?: string
+          brand_colors?: string | null
           extra_context?: string | null
           id?: string
           objectives?: string | null
@@ -418,7 +425,9 @@ export type Database = {
           source_file_url?: string | null
           target_audience?: string | null
           tone_of_voice?: string | null
+          typography?: string | null
           updated_at?: string | null
+          visual_style?: string | null
         }
         Relationships: [
           {
