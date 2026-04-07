@@ -30,7 +30,7 @@ export const BriefVisualIdentity = ({
         />
         <span
           className="text-[10px] mt-1 block"
-          style={{ color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
+          style={{ color: "hsl(var(--text-muted))", fontFamily: "'JetBrains Mono', monospace" }}
         >
           Inclua códigos hex, nomes das cores e regras de uso (dominante, suporte, acento/CTA)
         </span>
@@ -47,7 +47,7 @@ export const BriefVisualIdentity = ({
         />
         <span
           className="text-[10px] mt-1 block"
-          style={{ color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
+          style={{ color: "hsl(var(--text-muted))", fontFamily: "'JetBrains Mono', monospace" }}
         >
           Fontes, pesos, hierarquia (headline, sub, corpo, CTA)
         </span>
@@ -64,7 +64,7 @@ export const BriefVisualIdentity = ({
         />
         <span
           className="text-[10px] mt-1 block"
-          style={{ color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}
+          style={{ color: "hsl(var(--text-muted))", fontFamily: "'JetBrains Mono', monospace" }}
         >
           Direção visual, mood, referências estéticas, o que evitar
         </span>

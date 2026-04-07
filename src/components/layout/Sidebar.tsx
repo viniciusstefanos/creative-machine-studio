@@ -56,14 +56,14 @@ export const Sidebar = () => {
       <div className="px-5 py-6 flex items-center justify-between">
         <h1
           className="text-lg font-bold tracking-tight"
-          style={{ fontFamily: "'Syne', sans-serif", color: "var(--accent)" }}
+          style={{ fontFamily: "'Syne', sans-serif", color: "hsl(var(--accent))" }}
         >
           Máquina Criativa
         </h1>
         <button
           onClick={() => setMobileOpen(false)}
           className="md:hidden p-1"
-          style={{ color: "var(--text-muted)" }}
+          style={{ color: "hsl(var(--text-muted))" }}
         >
           <X size={20} />
         </button>
@@ -84,8 +84,8 @@ export const Sidebar = () => {
               className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150 relative"
               style={{
                 fontFamily: "'DM Sans', sans-serif",
-                background: isActive ? "var(--bg-surface3)" : "transparent",
-                color: isActive ? "var(--text-primary)" : "var(--text-muted)",
+                background: isActive ? "hsl(var(--bg-surface3))" : "transparent",
+                color: isActive ? "hsl(var(--text-primary))" : "hsl(var(--text-muted))",
               }}
             >
               <item.icon size={18} />
@@ -94,8 +94,8 @@ export const Sidebar = () => {
                 <span
                   className="absolute right-3 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                   style={{
-                    background: "var(--status-rejected)",
-                    color: "var(--text-primary)",
+                    background: "hsl(var(--status-rejected))",
+                    color: "hsl(var(--text-primary))",
                     fontFamily: "'JetBrains Mono', monospace",
                   }}
                 >
@@ -107,14 +107,14 @@ export const Sidebar = () => {
         })}
 
         {/* Settings section */}
-        <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--border-subtle)" }}>
+        <div className="mt-4 pt-4" style={{ borderTop: "1px solid hsl(var(--border-subtle))" }}>
           <NavLink
             to="/settings/team"
             className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150"
             style={{
               fontFamily: "'DM Sans', sans-serif",
-              background: location.pathname.startsWith("/settings") ? "var(--bg-surface3)" : "transparent",
-              color: location.pathname.startsWith("/settings") ? "var(--text-primary)" : "var(--text-muted)",
+              background: location.pathname.startsWith("/settings") ? "hsl(var(--bg-surface3))" : "transparent",
+              color: location.pathname.startsWith("/settings") ? "hsl(var(--text-primary))" : "hsl(var(--text-muted))",
             }}
           >
             <Settings size={18} />
@@ -129,8 +129,8 @@ export const Sidebar = () => {
                   className="block px-3 py-1.5 rounded-md text-xs transition-all duration-150"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
-                    color: location.pathname === item.to ? "var(--text-primary)" : "var(--text-muted)",
-                    background: location.pathname === item.to ? "var(--bg-surface3)" : "transparent",
+                    color: location.pathname === item.to ? "hsl(var(--text-primary))" : "hsl(var(--text-muted))",
+                    background: location.pathname === item.to ? "hsl(var(--bg-surface3))" : "transparent",
                   }}
                 >
                   {item.label}
@@ -144,27 +144,27 @@ export const Sidebar = () => {
       {/* User Footer */}
       <div
         className="px-4 py-4 flex items-center gap-3"
-        style={{ borderTop: "1px solid var(--border-subtle)" }}
+        style={{ borderTop: "1px solid hsl(var(--border-subtle))" }}
       >
         {profile?.avatar_url ? (
           <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
         ) : (
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-            style={{ background: "var(--bg-surface3)", color: "var(--text-secondary)" }}
+            style={{ background: "hsl(var(--bg-surface3))", color: "hsl(var(--text-secondary))" }}
           >
             {user?.email?.[0]?.toUpperCase() || "?"}
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-xs truncate" style={{ color: "var(--text-primary)", fontFamily: "'DM Sans', sans-serif" }}>
+          <p className="text-xs truncate" style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans', sans-serif" }}>
             {profile?.full_name || user?.email || "Usuário"}
           </p>
-          <p className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--accent)" }}>
+          <p className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--accent))" }}>
             {profile?.role || "team"}
           </p>
         </div>
-        <button onClick={signOut} className="p-1.5 rounded transition-all duration-150" style={{ color: "var(--text-muted)" }} title="Sair">
+        <button onClick={signOut} className="p-1.5 rounded transition-all duration-150" style={{ color: "hsl(var(--text-muted))" }} title="Sair">
           <LogOut size={16} />
         </button>
       </div>
@@ -177,7 +177,7 @@ export const Sidebar = () => {
       <button
         onClick={() => setMobileOpen(true)}
         className="fixed top-4 left-4 z-50 p-2 rounded-md md:hidden"
-        style={{ background: "var(--bg-surface2)", color: "var(--text-primary)" }}
+        style={{ background: "hsl(var(--bg-surface2))", color: "hsl(var(--text-primary))" }}
       >
         <Menu size={20} />
       </button>
@@ -198,8 +198,8 @@ export const Sidebar = () => {
         }`}
         style={{
           width: 220,
-          background: "var(--bg-surface1)",
-          borderRight: "1px solid var(--border-subtle)",
+          background: "hsl(var(--bg-surface1))",
+          borderRight: "1px solid hsl(var(--border-subtle))",
         }}
       >
         {sidebarContent}

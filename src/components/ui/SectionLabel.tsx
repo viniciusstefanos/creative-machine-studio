@@ -9,7 +9,7 @@ export const SectionLabel = ({ children }: SectionLabelProps) => (
     className="text-[9px] uppercase tracking-[4px] font-medium"
     style={{
       fontFamily: "'JetBrains Mono', monospace",
-      color: "var(--accent)",
+      color: "hsl(var(--accent))",
     }}
   >
     {children}

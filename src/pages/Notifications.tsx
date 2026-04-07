@@ -47,14 +47,14 @@ const Notifications = () => {
   return (
     <AppLayout breadcrumbs={[{ label: "Notificações" }]}>
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold" style={{ fontFamily: "'Syne', sans-serif", color: "var(--text-primary)" }}>
+        <h1 className="text-2xl font-bold" style={{ fontFamily: "'Syne', sans-serif", color: "hsl(var(--text-primary))" }}>
           Notificações
         </h1>
         {notifications.some((n) => !n.read) && (
           <button
             onClick={markAllAsRead}
             className="text-xs font-medium px-3 py-2 rounded-md transition-all duration-150"
-            style={{ background: "var(--bg-surface2)", border: "1px solid var(--border-strong)", color: "var(--text-secondary)", fontFamily: "'DM Sans'", borderRadius: 6 }}
+            style={{ background: "hsl(var(--bg-surface2))", border: "1px solid hsl(var(--border-strong))", color: "hsl(var(--text-secondary))", fontFamily: "'DM Sans'", borderRadius: 6 }}
           >
             Marcar tudo como lido
           </button>
@@ -62,11 +62,11 @@ const Notifications = () => {
       </div>
 
       {loading ? (
-        <div className="text-sm" style={{ color: "var(--text-muted)" }}>Carregando...</div>
+        <div className="text-sm" style={{ color: "hsl(var(--text-muted))" }}>Carregando...</div>
       ) : notifications.length === 0 ? (
-        <div className="p-12 rounded-lg text-center" style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
-          <Bell size={40} className="mx-auto mb-4" style={{ color: "var(--text-muted)" }} />
-          <p className="text-sm" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>Nenhuma notificação</p>
+        <div className="p-12 rounded-lg text-center" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid hsl(var(--border-default))", borderRadius: 8 }}>
+          <Bell size={40} className="mx-auto mb-4" style={{ color: "hsl(var(--text-muted))" }} />
+          <p className="text-sm" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>Nenhuma notificação</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -78,27 +78,27 @@ const Notifications = () => {
                 onClick={() => !notif.read && markAsRead(notif.id)}
                 className="flex items-start gap-3 p-4 rounded-lg cursor-pointer transition-all duration-150"
                 style={{
-                  background: notif.read ? "var(--bg-base)" : "var(--bg-surface1)",
-                  border: `1px solid ${notif.read ? "var(--border-subtle)" : "var(--border-default)"}`,
+                  background: notif.read ? "hsl(var(--bg-base))" : "hsl(var(--bg-surface1))",
+                  border: `1px solid ${notif.read ? "hsl(var(--border-subtle))" : "hsl(var(--border-default))"}`,
                   borderRadius: 8,
                   opacity: notif.read ? 0.7 : 1,
                 }}
               >
-                <div className="p-2 rounded" style={{ background: "var(--bg-surface3)" }}>
-                  <Icon size={16} style={{ color: notif.read ? "var(--text-muted)" : "var(--accent)" }} />
+                <div className="p-2 rounded" style={{ background: "hsl(var(--bg-surface3))" }}>
+                  <Icon size={16} style={{ color: notif.read ? "hsl(var(--text-muted))" : "hsl(var(--accent))" }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm" style={{ color: "var(--text-primary)", fontFamily: "'DM Sans'" }}>
+                  <p className="text-sm" style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}>
                     {notif.message || "Notificação"}
                   </p>
-                  <p className="text-[10px] mt-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>
+                  <p className="text-[10px] mt-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
                     {new Date(notif.created_at).toLocaleDateString("pt-BR", {
                       day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
                     })}
                   </p>
                 </div>
                 {!notif.read && (
-                  <span className="w-2 h-2 rounded-full mt-2 shrink-0" style={{ background: "var(--accent)" }} />
+                  <span className="w-2 h-2 rounded-full mt-2 shrink-0" style={{ background: "hsl(var(--accent))" }} />
                 )}
               </div>
             );

@@ -64,14 +64,14 @@ export const UtmTab = ({ activationId, landingPageUrl }: UtmTabProps) => {
   };
 
   const inputStyle = {
-    background: "var(--bg-base)",
-    border: "1px solid var(--border-strong)",
-    color: "var(--text-primary)",
+    background: "hsl(var(--bg-base))",
+    border: "1px solid hsl(var(--border-strong))",
+    color: "hsl(var(--text-primary))",
     fontFamily: "'DM Sans', sans-serif",
     borderRadius: 6,
   };
 
-  if (loading) return <div className="text-sm" style={{ color: "var(--text-muted)" }}>Carregando...</div>;
+  if (loading) return <div className="text-sm" style={{ color: "hsl(var(--text-muted))" }}>Carregando...</div>;
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -86,7 +86,7 @@ export const UtmTab = ({ activationId, landingPageUrl }: UtmTabProps) => {
           { key: "utm_term", label: "Term", placeholder: "sapatos+femininos" },
         ].map((field) => (
           <div key={field.key}>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: "hsl(var(--text-secondary))", fontFamily: "'DM Sans'" }}>
               {field.label}
             </label>
             <input
@@ -102,15 +102,15 @@ export const UtmTab = ({ activationId, landingPageUrl }: UtmTabProps) => {
 
       {/* Generated URL */}
       <div>
-        <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>
+        <label className="block text-xs font-medium mb-1.5" style={{ color: "hsl(var(--text-secondary))", fontFamily: "'DM Sans'" }}>
           URL gerada
         </label>
         <div
           className="p-3 rounded-md text-xs break-all"
           style={{
-            background: "var(--bg-base)",
-            border: "1px solid var(--border-default)",
-            color: "var(--accent)",
+            background: "hsl(var(--bg-base))",
+            border: "1px solid hsl(var(--border-default))",
+            color: "hsl(var(--accent))",
             fontFamily: "'JetBrains Mono', monospace",
             borderRadius: 6,
           }}
@@ -123,7 +123,7 @@ export const UtmTab = ({ activationId, landingPageUrl }: UtmTabProps) => {
         onClick={handleSave}
         disabled={saving}
         className="px-6 py-2.5 text-sm font-medium rounded-md transition-all duration-150 disabled:opacity-50"
-        style={{ background: "var(--accent)", color: "var(--text-inverse)", fontFamily: "'DM Sans'", borderRadius: 6 }}
+        style={{ background: "hsl(var(--accent))", color: "hsl(var(--text-inverse))", fontFamily: "'DM Sans'", borderRadius: 6 }}
       >
         {saving ? "Salvando..." : "Salvar UTMs"}
       </button>
