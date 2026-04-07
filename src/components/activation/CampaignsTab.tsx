@@ -92,7 +92,7 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
     }
   };
 
-  if (loading) return <div className="text-sm" style={{ color: "hsl(var(--text-muted)" }}>Carregando...</div>;
+  if (loading) return <div className="text-sm" style={{ color: "hsl(var(--text-muted))" }}>Carregando...</div>;
 
   return (
     <div>
@@ -120,10 +120,10 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
       )}
 
       {campaigns.length === 0 ? (
-        <div className="p-8 rounded-lg text-center" style={{ background: "hsl(var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
-          <Megaphone size={32} className="mx-auto mb-3" style={{ color: "hsl(var(--text-muted)" }} />
-          <p className="text-sm mb-1" style={{ color: "hsl(var(--text-muted)", fontFamily: "'DM Sans'" }}>Nenhuma campanha de ads</p>
-          <p className="text-[10px]" style={{ color: "hsl(var(--text-muted)", fontFamily: "'DM Sans'" }}>
+        <div className="p-8 rounded-lg text-center" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid var(--border-default)", borderRadius: 8 }}>
+          <Megaphone size={32} className="mx-auto mb-3" style={{ color: "hsl(var(--text-muted))" }} />
+          <p className="text-sm mb-1" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>Nenhuma campanha de ads</p>
+          <p className="text-[10px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
             Crie uma campanha para subir suas peças aprovadas ao Meta Ads
           </p>
         </div>
@@ -137,7 +137,7 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
               <div
                 key={campaign.id}
                 className="rounded-lg overflow-hidden"
-                style={{ background: "hsl(var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}
+                style={{ background: "hsl(var(--bg-surface1))", border: "1px solid var(--border-default)", borderRadius: 8 }}
               >
                 {/* Campaign header */}
                 <button
@@ -146,26 +146,26 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
                   className="w-full flex items-center justify-between p-4 text-left"
                 >
                   <div className="flex items-center gap-3">
-                    {isExpanded ? <ChevronDown size={14} style={{ color: "hsl(var(--text-muted)" }} /> : <ChevronRight size={14} style={{ color: "hsl(var(--text-muted)" }} />}
+                    {isExpanded ? <ChevronDown size={14} style={{ color: "hsl(var(--text-muted))" }} /> : <ChevronRight size={14} style={{ color: "hsl(var(--text-muted))" }} />}
                     <div>
-                      <p className="text-sm font-medium" style={{ color: "hsl(var(--text-primary)", fontFamily: "'DM Sans'" }}>
+                      <p className="text-sm font-medium" style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}>
                         {campaign.name || "Campanha sem nome"}
                       </p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted)" }}>
+                        <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
                           {campaign.platform} · {campaign.objective || "—"}
                         </span>
                         {campaign.daily_budget_cents && (
-                          <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted)" }}>
+                          <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
                             R$ {(campaign.daily_budget_cents / 100).toFixed(2)}/dia
                           </span>
                         )}
                         {campaign.budget && !campaign.daily_budget_cents && (
-                          <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted)" }}>
+                          <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
                             R$ {Number(campaign.budget).toLocaleString("pt-BR")}
                           </span>
                         )}
-                        <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted)" }}>
+                        <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
                           {campCreatives.length} anúncio(s)
                         </span>
                       </div>
@@ -183,17 +183,17 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
                     <div className="flex items-center justify-between py-3">
                       <div className="flex items-center gap-4">
                         {campaign.start_date && (
-                          <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted)" }}>
+                          <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
                             Início: {campaign.start_date}
                           </span>
                         )}
                         {campaign.end_date && (
-                          <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted)" }}>
+                          <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
                             Fim: {campaign.end_date}
                           </span>
                         )}
                         {campaign.platform_campaign_id && (
-                          <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted)" }}>
+                          <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
                             ID: {campaign.platform_campaign_id}
                           </span>
                         )}
@@ -203,7 +203,7 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
                           variant="ghost"
                           size="sm"
                           className="text-[10px] gap-1 h-7"
-                          style={{ color: "hsl(var(--text-muted)", fontFamily: "'DM Sans'" }}
+                          style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}
                           onClick={(e) => { e.stopPropagation(); syncStatus(campaign); }}
                           disabled={syncing === campaign.id}
                         >
@@ -215,11 +215,11 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
 
                     {/* Adset info */}
                     {campaign.adset_name && (
-                      <div className="mb-3 p-2 rounded" style={{ background: "hsl(var(--bg-surface2)" }}>
-                        <p className="text-[10px] uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted)" }}>
+                      <div className="mb-3 p-2 rounded" style={{ background: "hsl(var(--bg-surface2))" }}>
+                        <p className="text-[10px] uppercase tracking-wider mb-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
                           Conjunto de Anúncios
                         </p>
-                        <p className="text-xs" style={{ color: "hsl(var(--text-primary)", fontFamily: "'DM Sans'" }}>
+                        <p className="text-xs" style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}>
                           {campaign.adset_name}
                         </p>
                       </div>
@@ -228,21 +228,21 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
                     {/* Creatives list */}
                     {campCreatives.length > 0 ? (
                       <div className="space-y-2">
-                        <p className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted)" }}>
+                        <p className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
                           Anúncios ({campCreatives.length})
                         </p>
                         {campCreatives.map(creative => (
                           <div
                             key={creative.id}
                             className="flex items-center justify-between p-2 rounded"
-                            style={{ background: "hsl(var(--bg-surface2)" }}
+                            style={{ background: "hsl(var(--bg-surface2))" }}
                           >
                             <div>
-                              <p className="text-xs" style={{ color: "hsl(var(--text-primary)", fontFamily: "'DM Sans'" }}>
+                              <p className="text-xs" style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}>
                                 {creative.name || "Anúncio"}
                               </p>
                               {creative.caption && (
-                                <p className="text-[10px] truncate max-w-[300px] mt-0.5" style={{ color: "hsl(var(--text-muted)", fontFamily: "'DM Sans'" }}>
+                                <p className="text-[10px] truncate max-w-[300px] mt-0.5" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
                                   {creative.caption.substring(0, 60)}...
                                 </p>
                               )}
@@ -264,7 +264,7 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-[10px]" style={{ color: "hsl(var(--text-muted)", fontFamily: "'DM Sans'" }}>
+                      <p className="text-[10px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
                         Nenhum anúncio vinculado
                       </p>
                     )}

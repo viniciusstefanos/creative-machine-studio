@@ -63,7 +63,7 @@ export const Sidebar = () => {
         <button
           onClick={() => setMobileOpen(false)}
           className="md:hidden p-1"
-          style={{ color: "hsl(var(--text-muted)" }}
+          style={{ color: "hsl(var(--text-muted))" }}
         >
           <X size={20} />
         </button>
@@ -85,7 +85,7 @@ export const Sidebar = () => {
               style={{
                 fontFamily: "'DM Sans', sans-serif",
                 background: isActive ? "var(--bg-surface3)" : "transparent",
-                color: isActive ? "var(--text-primary)" : "hsl(var(--text-muted)",
+                color: isActive ? "var(--text-primary)" : "hsl(var(--text-muted))",
               }}
             >
               <item.icon size={18} />
@@ -94,8 +94,8 @@ export const Sidebar = () => {
                 <span
                   className="absolute right-3 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                   style={{
-                    background: "hsl(var(--status-rejected)",
-                    color: "hsl(var(--text-primary)",
+                    background: "hsl(var(--status-rejected))",
+                    color: "hsl(var(--text-primary))",
                     fontFamily: "'JetBrains Mono', monospace",
                   }}
                 >
@@ -114,7 +114,7 @@ export const Sidebar = () => {
             style={{
               fontFamily: "'DM Sans', sans-serif",
               background: location.pathname.startsWith("/settings") ? "var(--bg-surface3)" : "transparent",
-              color: location.pathname.startsWith("/settings") ? "var(--text-primary)" : "hsl(var(--text-muted)",
+              color: location.pathname.startsWith("/settings") ? "var(--text-primary)" : "hsl(var(--text-muted))",
             }}
           >
             <Settings size={18} />
@@ -129,7 +129,7 @@ export const Sidebar = () => {
                   className="block px-3 py-1.5 rounded-md text-xs transition-all duration-150"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
-                    color: location.pathname === item.to ? "var(--text-primary)" : "hsl(var(--text-muted)",
+                    color: location.pathname === item.to ? "var(--text-primary)" : "hsl(var(--text-muted))",
                     background: location.pathname === item.to ? "var(--bg-surface3)" : "transparent",
                   }}
                 >
@@ -151,20 +151,20 @@ export const Sidebar = () => {
         ) : (
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-            style={{ background: "hsl(var(--bg-surface3)", color: "hsl(var(--text-secondary)" }}
+            style={{ background: "hsl(var(--bg-surface3))", color: "hsl(var(--text-secondary))" }}
           >
             {user?.email?.[0]?.toUpperCase() || "?"}
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-xs truncate" style={{ color: "hsl(var(--text-primary)", fontFamily: "'DM Sans', sans-serif" }}>
+          <p className="text-xs truncate" style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans', sans-serif" }}>
             {profile?.full_name || user?.email || "Usuário"}
           </p>
           <p className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--accent))" }}>
             {profile?.role || "team"}
           </p>
         </div>
-        <button onClick={signOut} className="p-1.5 rounded transition-all duration-150" style={{ color: "hsl(var(--text-muted)" }} title="Sair">
+        <button onClick={signOut} className="p-1.5 rounded transition-all duration-150" style={{ color: "hsl(var(--text-muted))" }} title="Sair">
           <LogOut size={16} />
         </button>
       </div>
@@ -177,7 +177,7 @@ export const Sidebar = () => {
       <button
         onClick={() => setMobileOpen(true)}
         className="fixed top-4 left-4 z-50 p-2 rounded-md md:hidden"
-        style={{ background: "hsl(var(--bg-surface2)", color: "hsl(var(--text-primary)" }}
+        style={{ background: "hsl(var(--bg-surface2))", color: "hsl(var(--text-primary))" }}
       >
         <Menu size={20} />
       </button>
@@ -198,7 +198,7 @@ export const Sidebar = () => {
         }`}
         style={{
           width: 220,
-          background: "hsl(var(--bg-surface1)",
+          background: "hsl(var(--bg-surface1))",
           borderRight: "1px solid var(--border-subtle)",
         }}
       >

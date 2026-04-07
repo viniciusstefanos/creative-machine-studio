@@ -37,12 +37,12 @@ const Login = () => {
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4"
-      style={{ background: "hsl(var(--bg-base)" }}
+      style={{ background: "hsl(var(--bg-base))" }}
     >
       <div
         className="w-full max-w-[380px] p-8 rounded-lg"
         style={{
-          background: "hsl(var(--bg-surface1)",
+          background: "hsl(var(--bg-surface1))",
           border: "1px solid var(--border-default)",
         }}
       >
@@ -58,7 +58,7 @@ const Login = () => {
             className="mt-2 text-xs uppercase tracking-[4px]"
             style={{
               fontFamily: "'JetBrains Mono', monospace",
-              color: "hsl(var(--text-muted)",
+              color: "hsl(var(--text-muted))",
             }}
           >
             Estúdio de produção
@@ -70,8 +70,8 @@ const Login = () => {
           <div
             className="mb-4 p-3 rounded-md text-xs"
             style={{
-              background: "hsl(var(--status-rejected)",
-              color: "hsl(var(--text-primary)",
+              background: "hsl(var(--status-rejected))",
+              color: "hsl(var(--text-primary))",
               fontFamily: "'DM Sans', sans-serif",
               opacity: 0.9,
             }}
@@ -87,7 +87,7 @@ const Login = () => {
           className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-md text-sm font-medium transition-all duration-150 disabled:opacity-50"
           style={{
             background: "hsl(var(--accent))",
-            color: "hsl(var(--text-inverse)",
+            color: "hsl(var(--text-inverse))",
             fontFamily: "'DM Sans', sans-serif",
             borderRadius: "6px",
           }}
@@ -118,7 +118,7 @@ const Login = () => {
           className="mt-8 text-center text-[10px]"
           style={{
             fontFamily: "'JetBrains Mono', monospace",
-            color: "hsl(var(--text-muted)",
+            color: "hsl(var(--text-muted))",
           }}
         >
           Acesso restrito à equipe interna

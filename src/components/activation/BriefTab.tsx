@@ -108,7 +108,7 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
     return "field-input";
   };
 
-  if (loading) return <div className="text-sm" style={{ color: "hsl(var(--text-muted)" }}>Carregando...</div>;
+  if (loading) return <div className="text-sm" style={{ color: "hsl(var(--text-muted))" }}>Carregando...</div>;
 
   return (
     <div className="max-w-2xl space-y-6">
