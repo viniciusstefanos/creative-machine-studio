@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { Calendar, Send, Loader2, Plus, Trash2, Pencil, Image } from "lucide-react";
+import { renderHtmlToPng, uploadPng } from "@/lib/renderPng";
 
 interface ScheduleTabProps {
   activationId: string;
@@ -61,13 +62,57 @@ export const ScheduleTab = ({ activationId, assetsApproved }: ScheduleTabProps) 
         if (copy) caption = copy.full_copy || [copy.hook, copy.body, copy.cta].filter(Boolean).join("\n\n");
       }
 
+      // Render HTML art to PNG before publishing
+      let publishImageUrl = post.assets?.image_url;
+      if (post.asset_id) {
+        const { data: renders } = await supabase
+          .from("asset_template_renders")
+          .select("id, html_content, png_url, slide_index, image_url")
+          .eq("asset_id", post.asset_id)
+          .order("slide_index", { ascending: true });
+
+        if (renders && renders.length > 0) {
+          // Use first slide (or single render) for single post
+          const render = renders[0];
+          if (render.png_url) {
+            publishImageUrl = render.png_url;
+          } else if (render.html_content) {
+            // Fetch asset dimensions from template
+            const { data: assetData } = await supabase
+              .from("assets")
+              .select("template_id")
+              .eq("id", post.asset_id)
+              .single();
+            let w = 1080, h = 1350;
+            if (assetData?.template_id) {
+              const { data: tpl } = await supabase
+                .from("asset_templates")
+                .select("width_px, height_px")
+                .eq("id", assetData.template_id)
+                .single();
+              if (tpl) { w = tpl.width_px; h = tpl.height_px; }
+            }
+            toast({ title: "Renderizando arte..." });
+            const dataUrl = await renderHtmlToPng(render.html_content, w, h);
+            const uploaded = await uploadPng(post.asset_id, render.slide_index || 0, dataUrl);
+            if (uploaded) {
+              publishImageUrl = uploaded;
+              // Save png_url for future use
+              await supabase.from("asset_template_renders")
+                .update({ png_url: uploaded })
+                .eq("id", render.id);
+            }
+          }
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke("meta-publish", {
         body: {
           action: "publish_post",
           scheduled_post_id: post.id,
           instagram_page_id: metaAccount.instagram_page_id,
           page_access_token: metaAccount.page_access_token || undefined,
-          image_url: post.assets?.image_url,
+          image_url: publishImageUrl,
           caption,
         },
       });
