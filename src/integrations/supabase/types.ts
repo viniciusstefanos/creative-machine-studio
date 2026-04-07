@@ -427,6 +427,53 @@ export type Database = {
           },
         ]
       }
+      client_meta_accounts: {
+        Row: {
+          ad_account_id: string | null
+          ad_account_name: string | null
+          client_id: string
+          created_at: string | null
+          id: string
+          instagram_page_id: string | null
+          instagram_username: string | null
+          page_access_token: string | null
+          platform: string
+          updated_at: string | null
+        }
+        Insert: {
+          ad_account_id?: string | null
+          ad_account_name?: string | null
+          client_id: string
+          created_at?: string | null
+          id?: string
+          instagram_page_id?: string | null
+          instagram_username?: string | null
+          page_access_token?: string | null
+          platform?: string
+          updated_at?: string | null
+        }
+        Update: {
+          ad_account_id?: string | null
+          ad_account_name?: string | null
+          client_id?: string
+          created_at?: string | null
+          id?: string
+          instagram_page_id?: string | null
+          instagram_username?: string | null
+          page_access_token?: string | null
+          platform?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_meta_accounts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           contact_email: string | null
