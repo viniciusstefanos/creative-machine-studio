@@ -42,13 +42,17 @@ export const SchedulePostDialog = ({
   useEffect(() => {
     if (!open) return;
     const load = async () => {
+      // Fetch approved assets + the preselected asset (which may not be approved yet)
       const { data } = await supabase
         .from("assets")
-        .select("id, category, image_url, copy_id, template_id, asset_templates(name)")
+        .select("id, category, image_url, copy_id, template_id, status, asset_templates(name)")
         .eq("activation_id", activationId)
-        .eq("status", "approved")
         .order("created_at", { ascending: false });
-      setAssets(data || []);
+      // Show approved + preselected asset
+      const filtered = (data || []).filter(
+        (a) => a.status === "approved" || a.id === preselectedAssetId || a.id === editingPost?.asset_id
+      );
+      setAssets(filtered);
 
       if (editingPost) {
         setSelectedAssetId(editingPost.asset_id || "");
