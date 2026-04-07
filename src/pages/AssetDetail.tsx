@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Check, X, RefreshCw, Calendar, Loader2, ChevronLeft, ChevronRight,
-  Pencil, Image, Wand2, Save, RotateCcw, ArrowLeft
+  Pencil, Image, Wand2, Save, RotateCcw, ArrowLeft, Type
 } from "lucide-react";
 
 const AssetDetail = () => {
