@@ -59,7 +59,20 @@ Deno.serve(async (req) => {
 
         const token = meta.page_access_token || META_ACCESS_TOKEN;
         const caption = post.caption || "";
-        const imageUrl = post.assets?.image_url;
+
+        // Try to get rendered PNG first, fallback to raw image_url
+        let imageUrl = post.assets?.image_url;
+        if (post.asset_id) {
+          const { data: renders } = await supabase
+            .from("asset_template_renders")
+            .select("png_url, image_url")
+            .eq("asset_id", post.asset_id)
+            .order("slide_index", { ascending: true })
+            .limit(1);
+          if (renders?.[0]?.png_url) {
+            imageUrl = renders[0].png_url;
+          }
+        }
         if (!imageUrl) continue;
 
         // Create media container
