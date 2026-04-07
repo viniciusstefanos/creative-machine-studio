@@ -19,6 +19,7 @@ import Notifications from "./pages/Notifications.tsx";
 import SettingsTeam from "./pages/SettingsTeam.tsx";
 import SettingsFormats from "./pages/SettingsFormats.tsx";
 import SettingsTemplates from "./pages/SettingsTemplates.tsx";
+import BatchAssets from "./pages/BatchAssets.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/activations/:id/copies/:copyId" element={<P><CopyDetail /></P>} />
             <Route path="/activations/:id/assets" element={<P><ActivationHub /></P>} />
             <Route path="/activations/:id/assets/new" element={<P><NewAsset /></P>} />
+            <Route path="/activations/:id/assets/batch" element={<P><BatchAssets /></P>} />
             <Route path="/activations/:id/assets/:assetId" element={<P><AssetDetail /></P>} />
             <Route path="/activations/:id/ad-campaigns" element={<P><ActivationHub /></P>} />
             <Route path="/activations/:id/utm" element={<P><ActivationHub /></P>} />
