@@ -25,6 +25,12 @@ Deno.serve(async (req) => {
     const { action } = body;
     const token = body.page_access_token || META_ACCESS_TOKEN;
 
+    // Ensure ad_account_id has act_ prefix
+    const ensureActPrefix = (id: string | undefined) => {
+      if (!id) return id;
+      return id.startsWith("act_") ? id : `act_${id}`;
+    };
+
     // ─── Get ad accounts ───
     if (action === "get_ad_accounts") {
       const res = await fetch(`${META_GRAPH_URL}/me/adaccounts?fields=id,name,account_status,currency&access_token=${token}`);
@@ -37,7 +43,8 @@ Deno.serve(async (req) => {
 
     // ─── Create campaign ───
     if (action === "create_campaign") {
-      const { ad_account_id, name, objective, status: campStatus, daily_budget, activation_id } = body;
+      const { name, objective, status: campStatus, daily_budget, activation_id } = body;
+      const ad_account_id = ensureActPrefix(body.ad_account_id);
 
       const res = await fetch(`${META_GRAPH_URL}/${ad_account_id}/campaigns`, {
         method: "POST",
@@ -80,8 +87,9 @@ Deno.serve(async (req) => {
 
     // ─── Create ad set ───
     if (action === "create_adset") {
+      const ad_account_id = ensureActPrefix(body.ad_account_id);
       const {
-        ad_account_id, campaign_id, name,
+        campaign_id, name,
         daily_budget: budget,
         targeting, optimization_goal,
         start_date, end_date,
@@ -138,8 +146,9 @@ Deno.serve(async (req) => {
 
     // ─── Create ad creative + ad ───
     if (action === "create_ad") {
+      const ad_account_id = ensureActPrefix(body.ad_account_id);
       const {
-        ad_account_id, adset_id, name, image_url, caption, link,
+        adset_id, name, image_url, caption, link,
         instagram_page_id, db_campaign_id, asset_id,
       } = body;
 
