@@ -116,36 +116,57 @@ export type Database = {
       ad_campaigns: {
         Row: {
           activation_id: string
+          ad_account_id: string | null
+          adset_name: string | null
           budget: number | null
           created_at: string | null
+          daily_budget_cents: number | null
+          end_date: string | null
           id: string
           name: string | null
           objective: string | null
           platform: string | null
+          platform_adset_id: string | null
           platform_campaign_id: string | null
+          start_date: string | null
           status: string | null
+          targeting: Json | null
         }
         Insert: {
           activation_id: string
+          ad_account_id?: string | null
+          adset_name?: string | null
           budget?: number | null
           created_at?: string | null
+          daily_budget_cents?: number | null
+          end_date?: string | null
           id?: string
           name?: string | null
           objective?: string | null
           platform?: string | null
+          platform_adset_id?: string | null
           platform_campaign_id?: string | null
+          start_date?: string | null
           status?: string | null
+          targeting?: Json | null
         }
         Update: {
           activation_id?: string
+          ad_account_id?: string | null
+          adset_name?: string | null
           budget?: number | null
           created_at?: string | null
+          daily_budget_cents?: number | null
+          end_date?: string | null
           id?: string
           name?: string | null
           objective?: string | null
           platform?: string | null
+          platform_adset_id?: string | null
           platform_campaign_id?: string | null
+          start_date?: string | null
           status?: string | null
+          targeting?: Json | null
         }
         Relationships: [
           {
@@ -153,6 +174,60 @@ export type Database = {
             columns: ["activation_id"]
             isOneToOne: false
             referencedRelation: "activations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_creatives: {
+        Row: {
+          asset_id: string | null
+          campaign_id: string
+          caption: string | null
+          created_at: string | null
+          id: string
+          link: string | null
+          name: string | null
+          platform_ad_id: string | null
+          platform_creative_id: string | null
+          status: string | null
+        }
+        Insert: {
+          asset_id?: string | null
+          campaign_id: string
+          caption?: string | null
+          created_at?: string | null
+          id?: string
+          link?: string | null
+          name?: string | null
+          platform_ad_id?: string | null
+          platform_creative_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          asset_id?: string | null
+          campaign_id?: string
+          caption?: string | null
+          created_at?: string | null
+          id?: string
+          link?: string | null
+          name?: string | null
+          platform_ad_id?: string | null
+          platform_creative_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_creatives_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_creatives_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns"
             referencedColumns: ["id"]
           },
         ]
