@@ -158,11 +158,30 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Fetch brief files for full context
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+    const { data: briefFiles } = await supabase
+      .from("brief_files")
+      .select("category, raw_text, file_name")
+      .eq("activation_id", activation_id)
+      .not("raw_text", "is", null);
+
+    const filesContext = briefFiles?.length
+      ? "\n\n## DOCUMENTOS DE REFERÊNCIA COMPLETOS\n" +
+        briefFiles.map((f: any) => `### [${f.category}] ${f.file_name}\n${(f.raw_text || "").slice(0, 8000)}`).join("\n\n")
+      : "";
+
     const userPrompt = `BRIEF DA ATIVAÇÃO: "${activation_name}"
 - Objetivos: ${brief.objectives || "Não especificado"}
 - Público-alvo: ${brief.target_audience || "Não especificado"}
 - Tom de voz: ${brief.tone_of_voice || "Não especificado"}
 - Contexto extra: ${brief.extra_context || "Nenhum"}
+- Cores da marca: ${brief.brand_colors || "Não especificado"}
+- Tipografia: ${brief.typography || "Não especificado"}
+- Estilo visual: ${brief.visual_style || "Não especificado"}
+${filesContext}
 
 CANAIS: ${(channels || ["instagram"]).join(", ")}
 ETAPAS DO FUNIL: ${(funnel_stages || ["top", "mid", "bottom"]).join(", ")}
