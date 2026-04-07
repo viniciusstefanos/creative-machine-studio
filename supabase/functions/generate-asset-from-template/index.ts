@@ -51,8 +51,8 @@ O HTML gerado DEVE seguir estas regras pixel-a-pixel:
 - NUNCA use unidades relativas (%, vh, vw) para o container raiz — use px absoluto
 
 ### SAFE ZONES E PADDING
-- Para 4:5 (1080×1350): padding: 120px 80px (zona segura lateral 14px mín, usar 80px para respiro)
-- Para 9:16 (1080×1920): padding-top: 250px, padding-bottom: 300px, padding-left: 96px, padding-right: 96px (evitar UI do sistema, botões nativos)
+- Para 4:5 (1080×1350): padding: 135px 80px — SANGRIA OBRIGATÓRIA de 135px acima e abaixo. Nenhum texto, logo ou elemento crítico nos primeiros 135px superiores ou nos últimos 135px inferiores. Isso garante visibilidade no grid 3:4 e no "ver mais".
+- Para 9:16 (1080×1920): padding-top: 250px, padding-bottom: 340px, padding-left: 96px, padding-right: 96px — safe zones em pixels absolutos para evitar UI do sistema (câmera, botões nativos, barra de swipe)
 - Para 1:1 (1080×1080): padding: 100px 80px
 - NENHUM texto ou elemento importante pode ficar fora dessas safe zones
 - O conteúdo deve estar centralizado verticalmente DENTRO da safe zone
