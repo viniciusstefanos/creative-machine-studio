@@ -151,33 +151,49 @@ Deno.serve(async (req) => {
       const {
         adset_id, name, image_url, caption, link,
         instagram_page_id, db_campaign_id, asset_id,
+        page_id,
       } = body;
 
-      // Upload image to Meta
-      const imgRes = await fetch(`${META_GRAPH_URL}/${ad_account_id}/adimages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: image_url, access_token: token }),
-      });
-      const imgData = await imgRes.json();
-      if (!imgRes.ok) throw new Error(`Upload ad image failed [${imgRes.status}]: ${JSON.stringify(imgData)}`);
+      const effectivePageId = page_id || instagram_page_id;
 
-      const imageHash = Object.values(imgData.images as Record<string, { hash: string }>)[0]?.hash;
+      // Try uploading image hash first; if that fails (missing capability), fall back to image_url
+      let imageHash: string | null = null;
+      try {
+        const imgRes = await fetch(`${META_GRAPH_URL}/${ad_account_id}/adimages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: image_url, access_token: token }),
+        });
+        const imgData = await imgRes.json();
+        if (imgRes.ok && imgData.images) {
+          imageHash = Object.values(imgData.images as Record<string, { hash: string }>)[0]?.hash || null;
+        } else {
+          console.warn("adimages upload failed, falling back to image_url:", JSON.stringify(imgData));
+        }
+      } catch (e) {
+        console.warn("adimages upload exception, falling back to image_url:", e);
+      }
 
-      // Create creative
+      // Build creative payload — use hash if available, otherwise picture URL
+      const linkData: Record<string, unknown> = {
+        message: caption,
+        link: link || "https://example.com",
+      };
+      if (imageHash) {
+        linkData.image_hash = imageHash;
+      } else {
+        linkData.picture = image_url;
+      }
+
       const creativeRes = await fetch(`${META_GRAPH_URL}/${ad_account_id}/adcreatives`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: `Creative - ${name}`,
           object_story_spec: {
-            page_id: instagram_page_id,
-            instagram_actor_id: instagram_page_id,
-            link_data: {
-              image_hash: imageHash,
-              message: caption,
-              link: link || "https://example.com",
-            },
+            page_id: effectivePageId,
+            instagram_actor_id: instagram_page_id || undefined,
+            link_data: linkData,
           },
           access_token: token,
         }),
