@@ -44,10 +44,19 @@ export const SchedulePostDialog = ({
     const load = async () => {
       const { data } = await supabase
         .from("assets")
-        .select("id, category, image_url, copy_id, template_id, status, asset_templates(name)")
+        .select("id, category, image_url, copy_id, template_id, status, version, asset_templates(name)")
         .eq("activation_id", activationId)
-        .in("status", ["approved", "review", "generating", "done"])
+        .eq("status", "approved")
         .order("created_at", { ascending: false });
+      // Also include the preselected/editing asset even if not approved
+      if (preselectedAssetId && !(data || []).find((a) => a.id === preselectedAssetId)) {
+        const { data: extra } = await supabase
+          .from("assets")
+          .select("id, category, image_url, copy_id, template_id, status, version, asset_templates(name)")
+          .eq("id", preselectedAssetId)
+          .maybeSingle();
+        if (extra) data?.push(extra);
+      }
       setAssets(data || []);
 
       if (editingPost) {
