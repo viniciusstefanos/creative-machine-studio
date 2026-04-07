@@ -37,11 +37,12 @@ const AssetDetail = () => {
   const nextAsset = currentAssetIndex < siblingAssets.length - 1 ? siblingAssets[currentAssetIndex + 1] : null;
 
   // Editing state
-  const [editMode, setEditMode] = useState<"none" | "html" | "refine" | "image">("none");
+  const [editMode, setEditMode] = useState<"none" | "html" | "refine" | "image" | "copy">("none");
   const [editHtml, setEditHtml] = useState("");
   const [refineInstruction, setRefineInstruction] = useState("");
   const [imagePrompt, setImagePrompt] = useState("");
   const [editLoading, setEditLoading] = useState(false);
+  const [editCopy, setEditCopy] = useState<{ hook: string; body: string; cta: string }>({ hook: "", body: "", cta: "" });
 
   const fetchAsset = useCallback(async () => {
     if (!assetId) return;
