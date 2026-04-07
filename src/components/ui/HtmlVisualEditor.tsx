@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,16 +43,21 @@ function extractColors(html: string): { value: string; count: number; isSolid: b
 
 /* ── Text extraction ── */
 interface TextSegment {
-  text: string;
+  /** Display text (HTML tags stripped) */
+  displayText: string;
+  /** Raw inner HTML between the tags (may contain nested tags) */
+  innerHtml: string;
   tag: string;
+  /** The opening tag with attributes, e.g. `<h1 style="...">` */
+  openTag: string;
+  /** The closing tag, e.g. `</h1>` */
+  closeTag: string;
   priority: number;
-  /** The full match string for precise replacement */
-  fullMatch: string;
 }
 
 function extractTextSegments(html: string): TextSegment[] {
   const segments: TextSegment[] = [];
-  const regex = /<(h[1-6]|p|span|div|a|button|li|td|th|strong|em|b|i|label|figcaption)([^>]*)>([\s\S]*?)<\/\1>/gi;
+  const regex = /<(h[1-6]|p|span|div|a|button|li|td|th|strong|em|b|i|label|figcaption)(\s[^>]*)?>([^]*?)<\/\1>/gi;
   const priorities: Record<string, number> = {
     h1: 0, h2: 1, h3: 2, h4: 3, button: 4, a: 5,
     p: 6, span: 7, strong: 8, b: 8, em: 9, div: 10,
@@ -60,19 +65,23 @@ function extractTextSegments(html: string): TextSegment[] {
   };
   let match;
   while ((match = regex.exec(html)) !== null) {
-    const innerText = match[3].replace(/<[^>]*>/g, "").trim();
-    if (innerText.length > 0 && innerText.length < 500) {
+    const innerHtml = match[3];
+    const displayText = innerHtml.replace(/<[^>]*>/g, "").trim();
+    if (displayText.length > 0 && displayText.length < 500) {
+      const tagName = match[1].toLowerCase();
       segments.push({
-        text: innerText,
-        tag: match[1].toLowerCase(),
-        priority: priorities[match[1].toLowerCase()] ?? 10,
-        fullMatch: match[0],
+        displayText,
+        innerHtml,
+        tag: tagName,
+        openTag: `<${match[1]}${match[2] || ""}>`,
+        closeTag: `</${match[1]}>`,
+        priority: priorities[tagName] ?? 10,
       });
     }
   }
   const seen = new Set<string>();
   return segments
-    .filter(s => { if (seen.has(s.text)) return false; seen.add(s.text); return true; })
+    .filter(s => { if (seen.has(s.displayText)) return false; seen.add(s.displayText); return true; })
     .sort((a, b) => a.priority - b.priority);
 }
 
@@ -100,7 +109,7 @@ export const HtmlVisualEditor = ({
   html, onChange, onSave, onClose, onRestore, loading,
 }: HtmlVisualEditorProps) => {
   const [tab, setTab] = useState("text");
-  // Local text edits keyed by original text
+  // Local edits: keyed by innerHtml (the exact content between tags)
   const [textEdits, setTextEdits] = useState<Record<string, string>>({});
 
   const allColors = useMemo(() => extractColors(html), [html]);
@@ -108,19 +117,35 @@ export const HtmlVisualEditor = ({
   const alphaColors = useMemo(() => allColors.filter(c => !c.isSolid), [allColors]);
   const textSegments = useMemo(() => extractTextSegments(html), [html]);
 
-  /** Safe text replacement: only replaces text content within tags, not attributes */
+  /**
+   * Replace text by finding the exact `openTag + innerHtml + closeTag` in the HTML
+   * and swapping the innerHtml portion with newText.
+   */
   const updateText = useCallback((seg: TextSegment, newText: string) => {
-    if (seg.text === newText) return;
-    // Replace the inner text within the full matched tag
-    const newFullMatch = seg.fullMatch.replace(seg.text, newText);
-    const newHtml = html.replace(seg.fullMatch, newFullMatch);
-    if (newHtml !== html) {
+    if (newText === seg.displayText) return;
+
+    // Build the exact string to find in the HTML
+    const needle = seg.openTag + seg.innerHtml + seg.closeTag;
+    const idx = html.indexOf(needle);
+    if (idx === -1) {
+      // Fallback: try replacing just the innerHtml within the context of the tag
+      const simpleNeedle = seg.innerHtml;
+      const simpleIdx = html.indexOf(simpleNeedle);
+      if (simpleIdx !== -1) {
+        const newHtml = html.substring(0, simpleIdx) + newText + html.substring(simpleIdx + simpleNeedle.length);
+        onChange(newHtml);
+      }
+    } else {
+      // Replace the inner content, keep the tags
+      const replacement = seg.openTag + newText + seg.closeTag;
+      const newHtml = html.substring(0, idx) + replacement + html.substring(idx + needle.length);
       onChange(newHtml);
     }
+
     // Clear local edit
     setTextEdits(prev => {
       const next = { ...prev };
-      delete next[seg.text];
+      delete next[seg.innerHtml];
       return next;
     });
   }, [html, onChange]);
@@ -231,7 +256,8 @@ export const HtmlVisualEditor = ({
                 const Icon = meta.icon;
                 const isHeading = seg.tag.startsWith("h");
                 const isCta = seg.tag === "button" || seg.tag === "a";
-                const localValue = textEdits[seg.text] ?? seg.text;
+                // Use innerHtml as key; display the stripped text for editing
+                const localValue = textEdits[seg.innerHtml] ?? seg.displayText;
 
                 return (
                   <div
@@ -251,10 +277,10 @@ export const HtmlVisualEditor = ({
                         {meta.label}
                       </span>
                     </div>
-                    {seg.text.length > 80 ? (
+                    {seg.displayText.length > 80 ? (
                       <Textarea
                         value={localValue}
-                        onChange={(e) => setTextEdits(prev => ({ ...prev, [seg.text]: e.target.value }))}
+                        onChange={(e) => setTextEdits(prev => ({ ...prev, [seg.innerHtml]: e.target.value }))}
                         onBlur={() => updateText(seg, localValue)}
                         rows={3}
                         className="text-[12px] leading-relaxed resize-none border-0 p-0 min-h-0 focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -269,9 +295,9 @@ export const HtmlVisualEditor = ({
                     ) : (
                       <input
                         value={localValue}
-                        onChange={(e) => setTextEdits(prev => ({ ...prev, [seg.text]: e.target.value }))}
+                        onChange={(e) => setTextEdits(prev => ({ ...prev, [seg.innerHtml]: e.target.value }))}
                         onBlur={() => updateText(seg, localValue)}
-                        onKeyDown={(e) => { if (e.key === "Enter") updateText(seg, localValue); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); updateText(seg, localValue); } }}
                         className="w-full bg-transparent border-0 outline-none p-0"
                         style={{
                           color: isCta ? "hsl(var(--accent))" : "hsl(var(--text-primary))",
