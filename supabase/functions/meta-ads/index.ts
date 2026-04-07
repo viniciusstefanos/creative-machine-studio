@@ -115,6 +115,7 @@ Deno.serve(async (req) => {
         daily_budget: budget || 2000,
         billing_event: "IMPRESSIONS",
         optimization_goal: optimization_goal || "REACH",
+        bid_strategy: "LOWEST_COST_WITHOUT_CAP",
         targeting: targetingObj,
         status: "PAUSED",
         access_token: token,
