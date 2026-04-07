@@ -158,7 +158,10 @@ export const SchedulePostDialog = ({
                       ) : (
                         <Image size={14} className="text-txt-ghost" />
                       )}
-                      {a.category || (a as any).asset_templates?.name || a.id.slice(0, 8)}
+                      {(a as any).asset_templates?.name || a.category || a.id.slice(0, 8)}
+                      {a.status && a.status !== "approved" && (
+                        <span className="text-[10px] text-caption ml-1">({a.status})</span>
+                      )}
                     </span>
                   </SelectItem>
                 ))}
