@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Check, X, RefreshCw, Calendar, Loader2, ChevronLeft, ChevronRight,
-  Pencil, Image, Wand2, Save, RotateCcw, ArrowLeft, Type
+  Pencil, Image, Wand2, Save, RotateCcw, ArrowLeft, Type, Layers
 } from "lucide-react";
 import { HtmlVisualEditor } from "@/components/ui/HtmlVisualEditor";
 
@@ -44,6 +44,7 @@ const AssetDetail = () => {
   const [imagePrompt, setImagePrompt] = useState("");
   const [editLoading, setEditLoading] = useState(false);
   const [editCopy, setEditCopy] = useState<{ hook: string; body: string; cta: string }>({ hook: "", body: "", cta: "" });
+  const [syncingCopy, setSyncingCopy] = useState(false);
 
   const fetchAsset = useCallback(async () => {
     if (!assetId) return;
@@ -393,7 +394,7 @@ const AssetDetail = () => {
             {hasHtml && (
               <>
                 <Button variant="outline" size="sm" className="gap-2" onClick={startHtmlEdit}>
-                  <Pencil size={14} /> Editar HTML
+                  <Pencil size={14} /> Editar design
                 </Button>
                 <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditMode("refine")}>
                   <Wand2 size={14} /> Refinar com IA
@@ -410,7 +411,7 @@ const AssetDetail = () => {
                 setEditCopy({ hook: copy.hook || "", body: copy.body || "", cta: copy.cta || "" });
                 setEditMode("copy");
               }}>
-                <Type size={14} /> Ajustar copy
+                <Type size={14} /> Editar textos
               </Button>
             )}
           </div>
@@ -463,7 +464,7 @@ const AssetDetail = () => {
               </Button>
             </div>
             <p className="text-body-sm text-txt-muted">
-              Descreva a imagem que deseja. Será gerada com Nano Banana (IA de imagem).
+              Descreva a imagem que deseja. Será gerada com IA.
             </p>
             <Textarea
               value={imagePrompt}
@@ -478,67 +479,140 @@ const AssetDetail = () => {
           </div>
         )}
 
-        {/* Copy edit */}
+        {/* Copy / text edit — carousel-aware */}
         {editMode === "copy" && copy && (
-          <div className="card-base space-y-3">
+          <div className="card-base space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-label">Ajustar copy</span>
+              <div className="flex items-center gap-2">
+                <Type size={14} className="text-accent" />
+                <span className="text-label">Editar textos</span>
+              </div>
               <Button variant="ghost" size="sm" onClick={() => setEditMode("none")}>
                 <X size={14} />
               </Button>
             </div>
-            <div className="space-y-2">
+
+            {hasMultipleSlides && (
+              <div
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-xs"
+                style={{ background: "hsl(var(--surface-3))", color: "hsl(var(--text-secondary))" }}
+              >
+                <Layers size={12} />
+                <span>Carrossel com {renders.length} slides. Edite os textos aqui e aplique em todos os slides.</span>
+              </div>
+            )}
+
+            <div className="space-y-3">
               <div>
-                <label className="text-mono-label mb-1 block">Hook</label>
+                <label className="text-mono-label mb-1.5 block text-xs" style={{ color: "hsl(var(--text-muted))" }}>
+                  Hook / Título
+                </label>
                 <Textarea
                   value={editCopy.hook}
                   onChange={(e) => setEditCopy(prev => ({ ...prev, hook: e.target.value }))}
-                  className="text-sm min-h-[60px]"
-                  placeholder="Gancho principal..."
+                  className="text-sm min-h-[50px] font-medium"
+                  placeholder="Gancho principal que prende a atenção..."
                 />
               </div>
               <div>
-                <label className="text-mono-label mb-1 block">Corpo</label>
+                <label className="text-mono-label mb-1.5 block text-xs" style={{ color: "hsl(var(--text-muted))" }}>
+                  Corpo
+                </label>
                 <Textarea
                   value={editCopy.body}
                   onChange={(e) => setEditCopy(prev => ({ ...prev, body: e.target.value }))}
-                  className="text-sm min-h-[80px]"
-                  placeholder="Corpo do texto..."
+                  className="text-sm min-h-[70px]"
+                  placeholder="Desenvolvimento do conteúdo..."
                 />
               </div>
               <div>
-                <label className="text-mono-label mb-1 block">CTA</label>
+                <label className="text-mono-label mb-1.5 block text-xs" style={{ color: "hsl(var(--text-muted))" }}>
+                  CTA
+                </label>
                 <Textarea
                   value={editCopy.cta}
                   onChange={(e) => setEditCopy(prev => ({ ...prev, cta: e.target.value }))}
-                  className="text-sm min-h-[40px]"
-                  placeholder="Call to action..."
+                  className="text-sm min-h-[36px]"
+                  rows={1}
+                  placeholder="Ex: Saiba mais, Compre agora..."
                 />
               </div>
             </div>
-            <div className="flex gap-2">
+
+            <div
+              className="flex flex-wrap gap-2 pt-2"
+              style={{ borderTop: "1px solid hsl(var(--border-subtle))" }}
+            >
               <Button size="sm" className="gap-2" onClick={async () => {
                 if (!copy?.id) return;
                 setEditLoading(true);
+                const fullCopy = [editCopy.hook, editCopy.body, editCopy.cta].filter(Boolean).join("\n\n");
                 const { error } = await supabase.from("copies").update({
                   hook: editCopy.hook,
                   body: editCopy.body,
                   cta: editCopy.cta,
-                  full_copy: `${editCopy.hook}\n\n${editCopy.body}\n\n${editCopy.cta}`.trim(),
+                  full_copy: fullCopy,
                 }).eq("id", copy.id);
                 if (error) {
                   toast.error("Falha ao salvar copy");
                 } else {
-                  setCopy((prev: any) => ({ ...prev, hook: editCopy.hook, body: editCopy.body, cta: editCopy.cta }));
-                  toast.success("Copy atualizado ✓");
+                  setCopy((prev: any) => ({ ...prev, hook: editCopy.hook, body: editCopy.body, cta: editCopy.cta, full_copy: fullCopy }));
+                  toast.success("Copy salvo ✓");
                   setEditMode("none");
                 }
                 setEditLoading(false);
               }} disabled={editLoading}>
-                {editLoading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {editLoading && !syncingCopy ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 Salvar copy
               </Button>
-              <Button variant="ghost" size="sm" className="gap-2" onClick={() => {
+
+              {hasHtml && (
+                <Button size="sm" variant="outline" className="gap-2" onClick={async () => {
+                  if (!copy?.id) return;
+                  setSyncingCopy(true);
+                  setEditLoading(true);
+                  // Save copy first
+                  const fullCopy = [editCopy.hook, editCopy.body, editCopy.cta].filter(Boolean).join("\n\n");
+                  await supabase.from("copies").update({
+                    hook: editCopy.hook, body: editCopy.body, cta: editCopy.cta, full_copy: fullCopy,
+                  }).eq("id", copy.id);
+                  setCopy((prev: any) => ({ ...prev, hook: editCopy.hook, body: editCopy.body, cta: editCopy.cta, full_copy: fullCopy }));
+
+                  // Apply to all renders via AI refine
+                  const instruction = `Atualize os textos da peça para refletir a nova copy: Hook="${editCopy.hook}", Corpo="${editCopy.body}", CTA="${editCopy.cta}". Mantenha o layout, cores e design exatamente como estão. Apenas troque os textos.`;
+                  let hadError = false;
+                  for (const render of renders) {
+                    if (!render.html_content) continue;
+                    const { data, error } = await supabase.functions.invoke("edit-asset-render", {
+                      body: {
+                        render_id: render.id,
+                        asset_id: assetId,
+                        action: "refine_html",
+                        html_content: instruction,
+                        use_claude: asset?.render_config?.use_claude,
+                      },
+                    });
+                    if (!error && data?.html_content) {
+                      setRenders(prev => prev.map(r => r.id === render.id ? { ...r, html_content: data.html_content, png_url: null } : r));
+                    } else {
+                      hadError = true;
+                    }
+                  }
+                  if (hadError) {
+                    toast.error("Alguns slides não foram atualizados");
+                  } else {
+                    toast.success("Copy salvo e aplicado ao design ✓");
+                  }
+                  setEditMode("none");
+                  setEditLoading(false);
+                  setSyncingCopy(false);
+                }} disabled={editLoading}>
+                  {syncingCopy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
+                  Salvar e aplicar no design
+                </Button>
+              )}
+
+              <Button variant="ghost" size="sm" className="gap-2 ml-auto" onClick={() => {
                 setEditCopy({ hook: copy.hook || "", body: copy.body || "", cta: copy.cta || "" });
               }}>
                 <RotateCcw size={14} /> Restaurar
