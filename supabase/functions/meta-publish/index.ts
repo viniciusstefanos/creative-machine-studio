@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { action, scheduled_post_id, instagram_page_id, page_access_token, image_url, caption } = await req.json();
+    const { action, scheduled_post_id, instagram_page_id, page_access_token, image_url, caption, images } = await req.json();
 
     // Use page-specific token if available, otherwise use main token
     const token = page_access_token || META_ACCESS_TOKEN;
