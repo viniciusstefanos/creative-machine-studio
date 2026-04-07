@@ -82,8 +82,8 @@ Deno.serve(async (req) => {
     }
 
     if (action === "publish_carousel") {
-      const { images, caption: carouselCaption } = await req.json();
-      
+      const carouselImages = images || [];
+      const carouselCaption = caption || "";
       // Create containers for each image
       const containerIds = [];
       for (const img of images) {
