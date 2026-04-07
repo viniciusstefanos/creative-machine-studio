@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
       const carouselCaption = caption || "";
       // Create containers for each image
       const containerIds = [];
-      for (const img of images) {
+      for (const img of carouselImages) {
         const res = await fetch(`${META_GRAPH_URL}/${instagram_page_id}/media`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
