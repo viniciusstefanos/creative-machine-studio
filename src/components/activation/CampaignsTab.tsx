@@ -20,6 +20,7 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [landingPageUrl, setLandingPageUrl] = useState<string | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [activationSlug, setActivationSlug] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -57,10 +58,11 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
     // Fetch landing page url
     const { data: activation } = await supabase
       .from("activations")
-      .select("landing_page_url")
+      .select("landing_page_url, slug")
       .eq("id", activationId)
       .single();
     setLandingPageUrl(activation?.landing_page_url || null);
+    setActivationSlug(activation?.slug || null);
 
     setLoading(false);
   };
@@ -97,7 +99,14 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <SectionLabel>Campanhas de Ads</SectionLabel>
+        <SectionLabel>
+          Campanhas de Ads
+          {activationSlug && (
+            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded" style={{ background: "hsl(var(--accent) / 0.15)", color: "hsl(var(--accent))", fontFamily: "'JetBrains Mono', monospace" }}>
+              {activationSlug}
+            </span>
+          )}
+        </SectionLabel>
         <Button
           size="sm"
           className="text-xs gap-1.5"

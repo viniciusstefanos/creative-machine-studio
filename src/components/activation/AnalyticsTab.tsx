@@ -12,20 +12,47 @@ interface AnalyticsTabProps {
 export const AnalyticsTab = ({ activationId }: AnalyticsTabProps) => {
   const [metrics, setMetrics] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activationSlug, setActivationSlug] = useState<string | null>(null);
+  const [slugInput, setSlugInput] = useState("");
+  const [slugConfirmed, setSlugConfirmed] = useState(false);
+  const [slugError, setSlugError] = useState(false);
 
   useEffect(() => {
-    const fetch = async () => {
-      const { data } = await supabase
-        .from("metrics")
-        .select("*")
-        .eq("activation_id", activationId)
-        .order("date", { ascending: false })
-        .limit(30);
-      setMetrics(data || []);
-      setLoading(false);
-    };
-    fetch();
+    supabase
+      .from("activations")
+      .select("slug")
+      .eq("id", activationId)
+      .single()
+      .then(({ data }) => {
+        setActivationSlug(data?.slug || null);
+        if (!data?.slug) {
+          // No slug set → skip gate
+          setSlugConfirmed(true);
+          fetchMetrics();
+        }
+        setLoading(false);
+      });
   }, [activationId]);
+
+  const fetchMetrics = async () => {
+    const { data } = await supabase
+      .from("metrics")
+      .select("*")
+      .eq("activation_id", activationId)
+      .order("date", { ascending: false })
+      .limit(30);
+    setMetrics(data || []);
+  };
+
+  const handleSlugConfirm = () => {
+    if (slugInput.toUpperCase().trim() === activationSlug?.toUpperCase()) {
+      setSlugConfirmed(true);
+      setSlugError(false);
+      fetchMetrics();
+    } else {
+      setSlugError(true);
+    }
+  };
 
   const totals = metrics.reduce(
     (acc, m) => ({
@@ -60,6 +87,43 @@ export const AnalyticsTab = ({ activationId }: AnalyticsTabProps) => {
   };
 
   if (loading) return <p className="text-caption">Carregando...</p>;
+
+  if (activationSlug && !slugConfirmed) {
+    return (
+      <div className="max-w-sm mx-auto mt-8">
+        <div className="p-6 rounded-lg text-center" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid hsl(var(--border-default))", borderRadius: 8 }}>
+          <TrendingUp size={28} className="mx-auto mb-3" style={{ color: "hsl(var(--accent))" }} />
+          <p className="text-sm mb-1" style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}>
+            Informe a sigla da ativação
+          </p>
+          <p className="text-[10px] mb-4" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
+            Para acessar as métricas, digite a sigla que identifica esta ativação.
+          </p>
+          <input
+            value={slugInput}
+            onChange={(e) => { setSlugInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")); setSlugError(false); }}
+            className="field-input text-center mb-3"
+            placeholder="Ex: BF26"
+            style={{ textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "2px", maxWidth: 160, margin: "0 auto 12px auto", display: "block" }}
+            onKeyDown={(e) => e.key === "Enter" && handleSlugConfirm()}
+          />
+          {slugError && (
+            <p className="text-[10px] mb-2" style={{ color: "hsl(var(--status-rejected))", fontFamily: "'DM Sans'" }}>
+              Sigla incorreta. Tente novamente.
+            </p>
+          )}
+          <Button
+            size="sm"
+            onClick={handleSlugConfirm}
+            className="text-xs"
+            style={{ background: "hsl(var(--accent))", color: "hsl(var(--accent-foreground))", fontFamily: "'DM Sans'" }}
+          >
+            Confirmar
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

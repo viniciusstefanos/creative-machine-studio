@@ -1,0 +1,1 @@
+ALTER TABLE public.activations ADD COLUMN IF NOT EXISTS slug text;
