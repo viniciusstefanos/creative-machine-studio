@@ -23,6 +23,9 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
     objectives: "",
     extra_context: "",
     references_urls: [] as string[],
+    brand_colors: "",
+    typography: "",
+    visual_style: "",
   });
   const [refInput, setRefInput] = useState("");
   const [extractedHighlight, setExtractedHighlight] = useState<Record<string, boolean>>({});
@@ -42,6 +45,9 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
           objectives: data.objectives || "",
           extra_context: data.extra_context || "",
           references_urls: data.references_urls || [],
+          brand_colors: (data as any).brand_colors || "",
+          typography: (data as any).typography || "",
+          visual_style: (data as any).visual_style || "",
         });
         if (data.source_file_url) {
           const parts = data.source_file_url.split("/");
