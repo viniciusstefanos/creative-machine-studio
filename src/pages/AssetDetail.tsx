@@ -472,6 +472,24 @@ const AssetDetail = () => {
         { label: `Peça v${asset.version || 1}` },
       ]}
     >
+      {/* Back button + workflow */}
+      <div className="flex items-center gap-3 mb-4">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/activations/${id}/assets`)}>
+          <ArrowLeft size={16} />
+        </Button>
+        <h1 className="text-display-md">Peça v{asset.version || 1}</h1>
+        <StatusBadge status={asset.status} />
+      </div>
+
+      <NextStepBar
+        activationId={id!}
+        currentStep="assets"
+        briefDone={workflowData.briefDone}
+        copiesApproved={workflowData.copiesApproved}
+        assetsApproved={workflowData.assetsApproved}
+        scheduledCount={workflowData.scheduledCount}
+      />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Preview + Edit */}
         <div className="lg:col-span-2">
