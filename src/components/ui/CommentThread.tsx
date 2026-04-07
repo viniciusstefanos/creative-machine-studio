@@ -87,7 +87,7 @@ export const CommentThread = ({ entityType, entityId }: CommentThreadProps) => {
               <div
                 className="p-3 rounded-lg"
                 style={{
-                  background: comment.resolved ? "var(--bg-base)" : "hsl(var(--bg-surface1))",
+                  background: comment.resolved ? "hsl(var(--bg-base))" : "hsl(var(--bg-surface1))",
                   border: "1px solid var(--border-default)",
                   borderRadius: 8,
                   opacity: comment.resolved ? 0.6 : 1,

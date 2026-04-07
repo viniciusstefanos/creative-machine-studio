@@ -97,7 +97,7 @@ export const WorkflowProgress = ({
                 style={{
                   width: 24,
                   background: isDone || isActive
-                    ? "var(--accent)"
+                    ? "hsl(var(--accent))"
                     : "hsl(var(--border-default))",
                 }}
               />
@@ -110,7 +110,7 @@ export const WorkflowProgress = ({
               style={{
                 cursor: isLocked ? "not-allowed" : "pointer",
                 opacity: isLocked ? 0.35 : 1,
-                background: activeTab === step.key ? "var(--bg-surface3)" : "transparent",
+                background: activeTab === step.key ? "hsl(var(--bg-surface3))" : "transparent",
               }}
               onClick={(e) => isLocked && e.preventDefault()}
             >
@@ -119,7 +119,7 @@ export const WorkflowProgress = ({
                 className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{
                   background: isDone
-                    ? "var(--accent)"
+                    ? "hsl(var(--accent))"
                     : isActive
                     ? "color-mix(in srgb, var(--accent) 15%, transparent)"
                     : "hsl(var(--bg-surface2))",
@@ -129,9 +129,9 @@ export const WorkflowProgress = ({
                     ? "1px solid var(--accent)"
                     : "1px solid var(--border-default)",
                   color: isDone
-                    ? "var(--text-inverse)"
+                    ? "hsl(var(--text-inverse))"
                     : isActive
-                    ? "var(--accent)"
+                    ? "hsl(var(--accent))"
                     : "hsl(var(--text-muted))",
                 }}
               >
@@ -144,7 +144,7 @@ export const WorkflowProgress = ({
                   className="text-xs font-medium block truncate"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
-                    color: isDone || isActive ? "var(--text-primary)" : "hsl(var(--text-muted))",
+                    color: isDone || isActive ? "hsl(var(--text-primary))" : "hsl(var(--text-muted))",
                   }}
                 >
                   {step.label}
@@ -155,9 +155,9 @@ export const WorkflowProgress = ({
                     style={{
                       fontFamily: "'JetBrains Mono', monospace",
                       color: isDone
-                        ? "var(--accent)"
+                        ? "hsl(var(--accent))"
                         : isActive
-                        ? "var(--text-secondary)"
+                        ? "hsl(var(--text-secondary))"
                         : "hsl(var(--text-ghost))",
                     }}
                   >

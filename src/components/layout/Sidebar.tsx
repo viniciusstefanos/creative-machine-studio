@@ -84,8 +84,8 @@ export const Sidebar = () => {
               className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150 relative"
               style={{
                 fontFamily: "'DM Sans', sans-serif",
-                background: isActive ? "var(--bg-surface3)" : "transparent",
-                color: isActive ? "var(--text-primary)" : "hsl(var(--text-muted))",
+                background: isActive ? "hsl(var(--bg-surface3))" : "transparent",
+                color: isActive ? "hsl(var(--text-primary))" : "hsl(var(--text-muted))",
               }}
             >
               <item.icon size={18} />
@@ -113,8 +113,8 @@ export const Sidebar = () => {
             className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150"
             style={{
               fontFamily: "'DM Sans', sans-serif",
-              background: location.pathname.startsWith("/settings") ? "var(--bg-surface3)" : "transparent",
-              color: location.pathname.startsWith("/settings") ? "var(--text-primary)" : "hsl(var(--text-muted))",
+              background: location.pathname.startsWith("/settings") ? "hsl(var(--bg-surface3))" : "transparent",
+              color: location.pathname.startsWith("/settings") ? "hsl(var(--text-primary))" : "hsl(var(--text-muted))",
             }}
           >
             <Settings size={18} />
@@ -129,8 +129,8 @@ export const Sidebar = () => {
                   className="block px-3 py-1.5 rounded-md text-xs transition-all duration-150"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
-                    color: location.pathname === item.to ? "var(--text-primary)" : "hsl(var(--text-muted))",
-                    background: location.pathname === item.to ? "var(--bg-surface3)" : "transparent",
+                    color: location.pathname === item.to ? "hsl(var(--text-primary))" : "hsl(var(--text-muted))",
+                    background: location.pathname === item.to ? "hsl(var(--bg-surface3))" : "transparent",
                   }}
                 >
                   {item.label}

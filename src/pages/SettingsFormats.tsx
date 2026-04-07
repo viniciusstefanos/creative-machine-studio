@@ -138,7 +138,7 @@ const SettingsFormats = () => {
                       className="px-2 py-1 text-[10px] font-medium rounded transition-all duration-150"
                       style={{
                         background: f.active ? "color-mix(in srgb, var(--status-approved) 15%, transparent)" : "hsl(var(--bg-surface3))",
-                        color: f.active ? "var(--status-approved)" : "hsl(var(--text-muted))",
+                        color: f.active ? "hsl(var(--status-approved))" : "hsl(var(--text-muted))",
                         fontFamily: "'JetBrains Mono', monospace",
                         borderRadius: 6,
                       }}

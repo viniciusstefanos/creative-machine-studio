@@ -52,12 +52,12 @@ export const FileDrop = ({ accept = ".pdf,.docx", onFile, uploading, fileName, o
       onDrop={handleDrop}
       className="flex flex-col items-center justify-center gap-2 p-6 rounded-lg cursor-pointer transition-all duration-150"
       style={{
-        background: dragOver ? "var(--bg-surface3)" : "hsl(var(--bg-surface1))",
-        border: `1px dashed ${dragOver ? "var(--accent)" : "hsl(var(--border-strong))"}`,
+        background: dragOver ? "hsl(var(--bg-surface3))" : "hsl(var(--bg-surface1))",
+        border: `1px dashed ${dragOver ? "hsl(var(--accent))" : "hsl(var(--border-strong))"}`,
         borderRadius: 8,
       }}
     >
-      <Upload size={24} style={{ color: dragOver ? "var(--accent)" : "hsl(var(--text-muted))" }} />
+      <Upload size={24} style={{ color: dragOver ? "hsl(var(--accent))" : "hsl(var(--text-muted))" }} />
       <p className="text-xs text-center" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
         Arraste um arquivo PDF ou DOCX aqui, ou clique para selecionar
       </p>

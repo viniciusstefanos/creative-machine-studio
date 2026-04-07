@@ -78,14 +78,14 @@ const Notifications = () => {
                 onClick={() => !notif.read && markAsRead(notif.id)}
                 className="flex items-start gap-3 p-4 rounded-lg cursor-pointer transition-all duration-150"
                 style={{
-                  background: notif.read ? "var(--bg-base)" : "hsl(var(--bg-surface1))",
-                  border: `1px solid ${notif.read ? "var(--border-subtle)" : "hsl(var(--border-default))"}`,
+                  background: notif.read ? "hsl(var(--bg-base))" : "hsl(var(--bg-surface1))",
+                  border: `1px solid ${notif.read ? "hsl(var(--border-subtle))" : "hsl(var(--border-default))"}`,
                   borderRadius: 8,
                   opacity: notif.read ? 0.7 : 1,
                 }}
               >
                 <div className="p-2 rounded" style={{ background: "hsl(var(--bg-surface3))" }}>
-                  <Icon size={16} style={{ color: notif.read ? "var(--text-muted)" : "hsl(var(--accent))" }} />
+                  <Icon size={16} style={{ color: notif.read ? "hsl(var(--text-muted))" : "hsl(var(--accent))" }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm" style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}>
