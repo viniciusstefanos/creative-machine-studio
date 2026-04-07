@@ -88,6 +88,20 @@ const AssetDetail = () => {
 
   useEffect(() => { fetchAsset(); }, [fetchAsset]);
 
+  // Fetch sibling assets for prev/next navigation
+  useEffect(() => {
+    if (!id) return;
+    const fetchSiblings = async () => {
+      const { data } = await supabase
+        .from("assets")
+        .select("id, status, version, category, image_url")
+        .eq("activation_id", id)
+        .order("created_at", { ascending: false });
+      setSiblingAssets(data || []);
+    };
+    fetchSiblings();
+  }, [id]);
+
   useEffect(() => {
     if (asset?.status !== "generating") return;
     const interval = setInterval(async () => {
