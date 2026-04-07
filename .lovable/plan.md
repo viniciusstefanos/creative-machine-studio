@@ -1,56 +1,56 @@
 
 
-# Incorporar Instruções do Agente Criativo nos Prompts de IA
+# Refatorar UX e Hierarquia Visual — Templates e Peças
 
-## O que será feito
+## Problemas Identificados
 
-Incorporar o documento `agente_criacao_conteudo.md` como system prompt / contexto base nas duas edge functions que usam IA para gerar conteúdo:
-
-1. **`generate-copies`** — geração de copies de marketing
-2. **`generate-asset-from-template`** — geração de HTML e prompts de imagem
-
-O documento contém regras criativas validadas (hooks, estrutura de carrossel, CTA, métricas de referência, etc.) que devem guiar a IA na produção de conteúdo mais estratégico e profissional.
-
----
+1. **Inline styles em vez de classes do design system**: `NewAsset`, `AssetDetail` e `SettingsTemplates` usam `style={{ fontFamily: "'JetBrains Mono'", color: "var(--text-muted)" }}` em vez das classes CSS já definidas (`field-label`, `text-mono-label`, `card-base`, `text-display-lg`, etc.)
+2. **Emojis como thumbnails**: SettingsTemplates usa 🎠/🖼️/📐 — visual amador
+3. **Hierarquia visual fraca**: tudo parece igual peso — falta distinção clara entre título, section labels, metadados e conteúdo
+4. **Cards sem padrão**: não usam `card-base` / `card-interactive`
+5. **Labels de campo sem `field-label`**: usam inline mono styles
+6. **Stepper genérico**: sem hierarquia clara de progresso
 
 ## Alterações
 
-### 1. Edge Function `generate-copies/index.ts`
+### 1. `NewAsset.tsx` — Refatorar para classes do design system
 
-Substituir o system prompt genérico atual por um prompt rico baseado no documento:
+- Título: `text-display-lg` em vez de inline Syne
+- Stepper: usar `text-mono-label` para labels, `card-base` para containers
+- Step 1 (copies): cards com `card-base card-interactive`, metadata em `text-mono-label`
+- Step 2 (templates): cards com thumbnail melhor (ícone SVG ou sigla estilizada em vez de emoji), `card-base card-interactive`
+- Step 3 (config): labels com `field-label`, inputs com `field-input`
+- Step 4 (confirm): metadados em `text-mono-label`, card em `card-base`
+- Remover todos os `style={{...}}` redundantes — usar as classes CSS existentes
 
-- **Identidade**: copywriter de performance + diretor criativo (não apenas redator)
-- **Regras de hook**: incorporar os 6 tipos validados (curiosidade, contrarian, prova social, problema direto, antes/depois, urgência)
-- **Estrutura por formato**: post feed vs carrossel vs story vs ad — cada um com regras específicas
-- **Funil**: instruções claras por etapa (topo = hook emocional, meio = interativo, fundo = prova + CTA direto)
-- **Anti-patterns**: nunca começar com nome da marca, nunca CTA genérico, nunca copy que serve para qualquer marca
-- **Especificidade > generalidade**: detalhes sensoriais e concretos
-- **CTA fecha o loop do hook**
-- **Máx 2 linhas de texto visível** em peças visuais
-- **Métricas de referência** como contexto (CTR 1.87% Reels, etc.)
+### 2. `SettingsTemplates.tsx` — Hierarquia visual
 
-O prompt será uma constante `CREATIVE_AGENT_SYSTEM_PROMPT` no topo do arquivo (~800 chars resumidos das regras mais impactantes).
+- Título: `text-display-lg`
+- Cards: `card-base` com hover via `card-interactive`
+- Substituir emojis por ícones Lucide (Layout, Image, Layers para carousel)
+- Badges de tipo/dimensão: usar `text-mono` com background sutil
+- Ações (toggle/delete): agrupar melhor, separar visualmente do conteúdo
+- Section labels: usar `section-label--ruled` para separar categorias
 
-### 2. Edge Function `generate-asset-from-template/index.ts`
+### 3. `AssetDetail.tsx` — Sidebar metadata
 
-Enriquecer os prompts de geração de HTML e otimização de imagem:
+- Labels: `text-mono-label` em vez de inline JetBrains Mono 10px
+- Valores: `text-body` ou `text-mono` conforme tipo
+- Cards: `card-base`
+- Botões de ação: manter com Button component, remover inline styles
 
-- **HTML generation**: adicionar regras de hierarquia visual (máx 2 linhas texto, safe zone 15-85% em 9:16, contraste obrigatório, nunca começar com logo)
-- **Image prompt optimization**: incorporar diretrizes visuais (UGC-style > polido, rosto na câmera +35% conversão, lo-fi/analog como tendência, lifestyle > produto isolado)
-- **Carrossel**: slide 1 = gancho (não título de relatório), slides do meio = 1 ponto por slide (máx 3 linhas), último = CTA
+### Princípios aplicados
 
-### 3. Salvar documento como memória do projeto
-
-Copiar `agente_criacao_conteudo.md` para `mem://features/creative-agent` para referência futura e consistência entre sessões.
-
----
+- Nunca `style={{fontFamily: "'JetBrains Mono'"}}` — usar `text-mono-label` ou `field-label`
+- Nunca `style={{background: "var(--bg-surface1)"}}` — usar `card-base`
+- Hierarquia: `text-display-lg` > `SectionLabel` (ruled) > `text-heading` > `text-body` > `text-mono-label`
+- Espaçamento: `space-y-5` para form sections, `gap-3` para grids de cards
 
 ## Arquivos modificados
 
 | Arquivo | Ação |
 |---------|------|
-| `supabase/functions/generate-copies/index.ts` | System prompt enriquecido com regras criativas |
-| `supabase/functions/generate-asset-from-template/index.ts` | Prompts de HTML e imagem com diretrizes visuais |
-| `mem://features/creative-agent` | Novo — referência do documento |
-| `mem://index.md` | Atualizar com link para novo memory |
+| `src/pages/NewAsset.tsx` | Refatorar para classes CSS do design system |
+| `src/pages/AssetDetail.tsx` | Refatorar sidebar metadata |
+| `src/pages/SettingsTemplates.tsx` | Refatorar cards e hierarquia |
 
