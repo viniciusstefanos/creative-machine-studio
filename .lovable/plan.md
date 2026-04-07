@@ -1,50 +1,74 @@
 
 
-# Revisar Templates + Adicionar Previews + Regra de Sangria 135px
+# Campanhas Meta Ads — Planejar, Criar e Subir
 
-## Problemas encontrados nos templates
+## Estado atual
 
-Após revisar os 13 templates contra as specs do relatório Instagram 2026:
+Já existe:
+- Tabela `ad_campaigns` no banco (name, platform, objective, budget, status, platform_campaign_id, activation_id)
+- Edge function `meta-ads` com actions: `get_ad_accounts`, `create_campaign`, `create_adset`, `create_ad`
+- `CampaignsTab` na aba "Campanhas" — lista campanhas, mas sem ação de criar
+- `MetaAccountSettings` no cliente — configura instagram_page_id e ad_account_id
+- Peças aprovadas com renders PNG prontas para upload
 
-### Erros críticos de dimensão/prompt
-1. **Post Feed — Imagem + Texto** (`feed-image-text`): system_prompt diz "1080x1080px" mas a tabela tem 1080x1350. Prompt desatualizado e genérico demais.
-2. **Story — Texto sobre Gradiente** (`story-gradient-text`): prompt muito curto, sem menção a safe zones (250px topo, 340px base).
-3. **Story Interativo** (`story-interativo`): safe zones dizem "15% topo, 20% base" — correto seria 250px e 340px conforme spec.
-4. **Reels Cover** (`reels-cover`): safe zone diz "15% superior e 20% inferior" — deveria ser 250px e 340px em pixels.
-5. **Carrossel Estilo Twitter** (`carousel-twitter-style`): prompt genérico, sem regras de safe zone ou sangria.
-
-### Regra de sangria 135px (feed 4:5)
-Para todos os templates 1080x1350 (feed/carrossel), o conteúdo deve respeitar 135px de margem superior e inferior. Isso garante que o conteúdo não seja cortado pelo "ver mais" e pelo preview do grid (que agora é 3:4).
-
-O `HTML_CREATIVE_RULES` já tem "padding: 120px 80px" para 4:5 — precisa ser atualizado para **135px vertical**.
+Falta: UI completa para criar campanha, conjunto de anúncios e vincular peças aprovadas como ads.
 
 ## Plano de implementação
 
-### 1. Atualizar `HTML_CREATIVE_RULES` no edge function
-- Mudar safe zone 4:5 de `padding: 120px 80px` para `padding: 135px 80px`
-- Adicionar nota explícita: "Para 1080x1350: sangria de 135px acima e abaixo — nenhum conteúdo crítico nessa faixa"
+### 1. Expandir tabela `ad_campaigns` (migration)
+Adicionar campos para suportar a hierarquia completa:
+- `ad_account_id text` — conta de anúncio usada
+- `platform_adset_id text` — ID do adset no Meta
+- `adset_name text`
+- `daily_budget_cents integer` — orçamento diário em centavos
+- `targeting jsonb` — segmentação (países, idade, interesses)
+- `start_date date`, `end_date date`
 
-### 2. Migration SQL para corrigir templates
-Atualizar `system_prompt` dos seguintes templates:
+### 2. Criar tabela `ad_creatives` (migration)
+Para rastrear cada anúncio individual vinculado a uma peça:
+- `id uuid PK`
+- `campaign_id uuid` → ad_campaigns
+- `asset_id uuid` → assets
+- `name text`
+- `caption text`
+- `link text`
+- `platform_ad_id text`
+- `platform_creative_id text`
+- `status text default 'draft'`
+- `created_at timestamptz`
 
-- **feed-image-text**: corrigir "1080x1080px" → "1080x1350px", adicionar regras de safe zone e sangria 135px
-- **story-gradient-text**: expandir prompt com safe zones 250px/340px e regras visuais
-- **story-interativo**: corrigir safe zones para 250px/340px em pixels
-- **reels-cover**: corrigir safe zones para 250px/340px em pixels
-- **carousel-twitter-style**: adicionar regras de safe zone e sangria 135px
-- **Todos os carrosseis 1080x1350**: mencionar sangria 135px explicitamente nos prompts
+RLS: authenticated can CRUD.
 
-### 3. Adicionar preview HTML nos cards de template (`SettingsTemplates.tsx`)
-Cada card de template mostrará uma miniatura visual representativa:
+### 3. Reformular `CampaignsTab` — UI completa
 
-- Renderizar um mini-preview estático em HTML/CSS no espaço de thumbnail (100px de altura)
-- Mostrar um esquema visual simplificado do layout (wireframe): retângulo com linhas representando headline, body, CTA, proporção correta
-- Usar as cores do template (fundo escuro, accent) para dar identidade
-- Mostrar dimensão e proporção visualmente (ex: retângulo 4:5 ou 9:16 proporcional)
-- Para carrosséis, mostrar múltiplos mini-cards lado a lado
+**Estado vazio**: botão "Criar Campanha"
 
-### Arquivos modificados
-- `supabase/functions/generate-asset-from-template/index.ts` — atualizar `HTML_CREATIVE_RULES` (sangria 135px)
-- Migration SQL — atualizar `system_prompt` de 6 templates
-- `src/pages/SettingsTemplates.tsx` — adicionar previews visuais nos cards
+**Wizard em 3 passos** (dialog/sheet):
+
+1. **Campanha** — nome, objetivo (dropdown: OUTCOME_ENGAGEMENT, OUTCOME_TRAFFIC, OUTCOME_AWARENESS, OUTCOME_LEADS, OUTCOME_SALES), orçamento diário, datas
+2. **Segmentação** — países (default BR), faixa etária, gênero, interesses (campo texto livre por enquanto)
+3. **Anúncios** — selecionar peças aprovadas da ativação (grid com thumbnails), cada uma vira um ad. Caption pré-populado com a copy associada, link pré-populado com landing_page_url da ativação
+
+Ao confirmar:
+- Chama `meta-ads` → `create_campaign`
+- Chama `meta-ads` → `create_adset`
+- Para cada peça selecionada, chama `meta-ads` → `create_ad` (usando png_url do render)
+- Salva tudo no banco (ad_campaigns + ad_creatives)
+
+**Lista de campanhas**: card expandível mostrando adset + lista de ads com status e link para a peça
+
+### 4. Atualizar edge function `meta-ads`
+- Aceitar `start_date`/`end_date` no create_adset (campos `start_time`, `end_time` da API Meta)
+- Aceitar `age_min`, `age_max`, `genders`, `interests` no targeting
+- Usar `page_access_token` do `client_meta_accounts` quando disponível (buscar via activation → client)
+- Nova action `get_campaign_status` — buscar status atualizado de campaign + adset + ads no Meta
+
+### 5. Buscar credenciais Meta automaticamente
+Ao abrir CampaignsTab, buscar `client_meta_accounts` via activation → client_id para usar `ad_account_id` e `page_access_token` sem o usuário precisar informar novamente.
+
+## Arquivos modificados
+- **Migration SQL** — expandir `ad_campaigns`, criar `ad_creatives`
+- **`src/components/activation/CampaignsTab.tsx`** — refazer com wizard de criação + lista detalhada
+- **`src/components/activation/CreateCampaignWizard.tsx`** — novo componente (wizard 3 passos)
+- **`supabase/functions/meta-ads/index.ts`** — aceitar targeting detalhado, datas, nova action de status
 
