@@ -105,14 +105,14 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
 
   const startEditName = (asset: any) => {
     setEditingName(asset.id);
-    setNameValue(asset.category || "");
+    setNameValue(asset.name || asset.category || "");
   };
 
   const saveName = async (id: string) => {
     setSavingName(true);
     const { error } = await supabase
       .from("assets")
-      .update({ category: nameValue })
+      .update({ name: nameValue } as any)
       .eq("id", id);
     if (error) {
       toast({
@@ -122,7 +122,7 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
       });
     } else {
       setAssets((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, category: nameValue } : a))
+        prev.map((a) => (a.id === id ? { ...a, name: nameValue } : a))
       );
       toast({ title: "Nome atualizado" });
     }
@@ -132,8 +132,8 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
 
   const getDisplayName = (asset: any) => {
     return (
+      asset.name ||
       asset.category ||
-      (asset as any).asset_formats?.name ||
       `Peça v${asset.version}`
     );
   };
