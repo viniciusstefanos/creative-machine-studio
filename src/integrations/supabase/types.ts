@@ -308,6 +308,7 @@ export type Database = {
           html_content: string | null
           id: string
           image_url: string | null
+          name: string | null
           render_config: Json | null
           status: string | null
           tags: string[] | null
@@ -327,6 +328,7 @@ export type Database = {
           html_content?: string | null
           id?: string
           image_url?: string | null
+          name?: string | null
           render_config?: Json | null
           status?: string | null
           tags?: string[] | null
@@ -346,6 +348,7 @@ export type Database = {
           html_content?: string | null
           id?: string
           image_url?: string | null
+          name?: string | null
           render_config?: Json | null
           status?: string | null
           tags?: string[] | null
