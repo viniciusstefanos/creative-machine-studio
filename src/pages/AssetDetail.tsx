@@ -61,6 +61,21 @@ const AssetDetail = () => {
         .eq("asset_id", assetId)
         .order("slide_index");
       setRenders(renderData || []);
+
+      // Fetch workflow data
+      const actId = data.activation_id;
+      const [briefRes, copiesApprovedRes, assetsApprovedRes, scheduledRes] = await Promise.all([
+        supabase.from("briefs").select("objectives").eq("activation_id", actId).single(),
+        supabase.from("copies").select("id", { count: "exact" }).eq("activation_id", actId).eq("status", "approved"),
+        supabase.from("assets").select("id", { count: "exact" }).eq("activation_id", actId).eq("status", "approved"),
+        supabase.from("scheduled_posts").select("id", { count: "exact" }).eq("activation_id", actId),
+      ]);
+      setWorkflowData({
+        briefDone: !!(briefRes.data?.objectives),
+        copiesApproved: copiesApprovedRes.count || 0,
+        assetsApproved: assetsApprovedRes.count || 0,
+        scheduledCount: scheduledRes.count || 0,
+      });
     }
     setLoading(false);
   }, [assetId]);
