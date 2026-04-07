@@ -37,6 +37,7 @@ export const MetaAccountSettings = ({ clientId }: MetaAccountSettingsProps) => {
           instagram_username: data.instagram_username || "",
           ad_account_id: data.ad_account_id || "",
           ad_account_name: data.ad_account_name || "",
+          facebook_page_id: data.facebook_page_id || "",
         });
       }
       setLoading(false);
