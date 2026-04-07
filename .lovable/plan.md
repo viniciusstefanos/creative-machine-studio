@@ -1,86 +1,102 @@
 
 
-# Plano de Melhoria — Navegacao e UX entre Etapas
+# Escala, Volume e Análise de Dados — Plano de Evolução
 
-## Problemas Identificados
+## O que falta hoje
 
-### 1. Navegacao sem retorno claro
-- `AssetDetail` nao tem botao "Voltar" para a lista de pecas. O usuario fica preso.
-- `CopyDetail` tem botao voltar mas usa inline styles inconsistentes.
-- Apos gerar peca (`NewAsset`), o usuario e redirecionado para `AssetDetail` mas nao consegue voltar facilmente ao hub.
-
-### 2. Fluxo morto apos acoes
-- Apos **aprovar** um copy em `CopyDetail`, nada acontece — o usuario fica na mesma tela sem orientacao do proximo passo ("Agora crie pecas").
-- Apos **aprovar** uma peca em `AssetDetail`, ha botao "Agendar" mas nenhuma indicacao visual de progresso.
-- Apos **rejeitar** um copy, nao ha link para voltar e gerar nova versao.
-
-### 3. WorkflowProgress desconectado
-- O `WorkflowProgress` aparece no hub mas desaparece ao entrar em `CopyDetail` ou `AssetDetail`. O usuario perde nocao de onde esta no fluxo.
-- Tabs no hub usam `hsl(var(--text-primary))` enquanto o WorkflowProgress usa `var(--text-primary)` — mistura de formatos CSS.
-
-### 4. Empty states sem direcao
-- `AssetsTab` e `ScheduleTab` mostram links para etapa anterior mas sem contexto de progresso geral.
-- `CopiesTab` empty state nao menciona quantos copies a IA vai gerar.
-
-### 5. Inconsistencia de design system
-- `CopiesTab`, `AssetsTab`, `ScheduleTab` usam inline `style={{...}}` em vez das classes CSS do design system (`card-base`, `field-label`, `text-mono-label`, etc.) — ja corrigido em `NewAsset` e `SettingsTemplates` mas nao propagado.
-- `CopyDetail` usa `hsl(var(--...))` em muitos lugares — deveria usar classes.
-
-### 6. Mobile: stepper do NewAsset nao responsivo
-- Labels do stepper quebram em telas pequenas. Nao ha versao compacta.
+O app atual é 1:1 — um copy gera uma peça, uma peça é aprovada individualmente. Não existe:
+- Criação em massa / matriz generativa
+- Dashboard analítico real (métricas são placeholder "—")
+- Visão de volume/escala por cliente ou período
+- Comparação de performance entre criativos
 
 ---
 
-## Alteracoes Propostas
+## Funcionalidades Propostas
 
-### A. Adicionar "Next Step Bar" contextual (todas as paginas de detalhe)
+### 1. Matriz Generativa (Batch Creation)
 
-Componente `NextStepBar` — barra fixa no topo ou abaixo do header que mostra:
-- Onde o usuario esta no workflow (mini breadcrumb visual)
-- Acao principal sugerida ("Proximo: criar pecas", "Proximo: agendar")
-- Botao para avancar para proxima etapa
+Nova página `/activations/:id/assets/batch` com interface de matriz:
+- **Eixo X**: copies aprovados (selecionar múltiplos)
+- **Eixo Y**: templates (selecionar múltiplos)
+- Cada célula da matriz = uma peça a ser gerada
+- Checkbox para selecionar/deselecionar combinações
+- Botão "Gerar N peças" que dispara todas em paralelo
+- Progress bar mostrando quantas foram geradas vs total
 
-Aparece em: `CopyDetail` (apos aprovar), `AssetDetail` (apos aprovar), `NewAsset` (no final).
+Exemplo: 3 copies × 4 templates = 12 peças geradas de uma vez.
 
-### B. Botao "Voltar" consistente em todas as paginas de detalhe
+Nova edge function `batch-generate-assets` que recebe array de `{copy_id, template_id, render_config}` e processa em sequência (para não estourar rate limits da API).
 
-- `AssetDetail`: adicionar botao voltar para `/activations/{id}/assets`
-- Padronizar estilo usando `Button variant="ghost"` com icone `ArrowLeft`
+### 2. Dashboard Analítico Real
 
-### C. Toasts com acao apos aprovar/rejeitar
+Refatorar `Index.tsx` (Dashboard) e `AnalyticsTab.tsx`:
 
-- Aprovar copy: toast com botao "Criar peca →"
-- Aprovar peca: toast com botao "Agendar →"  
-- Rejeitar: toast com botao "Voltar para lista"
+**Dashboard global** (`/`):
+- Cards de resumo: total de peças geradas, aprovadas, rejeitadas, publicadas (queries reais ao DB)
+- Gráfico de volume por semana (últimas 8 semanas) — barras empilhadas por status
+- Taxa de aprovação (aprovadas / total geradas)
+- Top 3 templates mais usados
+- Top 3 copies com melhor engagement (quando métricas existirem)
 
-### D. Migrar tabs do hub para classes do design system
+**Analytics por ativação** (tab Métricas):
+- Gráfico de linha temporal com métricas por dia
+- Comparativo entre peças: engagement por peça (bar chart)
+- CPR (custo por resultado) por peça
+- Card de "melhor peça" (maior engagement)
 
-- `CopiesTab`: substituir inline styles por `card-base`, `card-interactive`, `field-label`, `text-mono-label`
-- `AssetsTab`: idem
-- `ScheduleTab`: idem
-- `CopyDetail`: substituir `hsl(var(--...))` por classes CSS existentes
+Usar `recharts` para gráficos (já é dependência comum com shadcn).
 
-### E. Stepper responsivo no NewAsset
+### 3. Visão de Volume por Cliente
 
-- Em mobile: mostrar apenas step atual + numero / total
-- Esconder labels, manter apenas circulos numerados
+Em `ClientDetail.tsx`, adicionar seção de resumo:
+- Total de ativações ativas
+- Total de peças geradas / aprovadas / publicadas
+- Volume por mês (sparkline simples)
 
-### F. WorkflowProgress mini nas paginas de detalhe
+### 4. Exportação de Relatório
 
-- Adicionar versao compacta (apenas circulos + linha) no header de `CopyDetail` e `AssetDetail` para manter contexto de progresso
+Botão "Exportar relatório" no dashboard e na AnalyticsTab:
+- Gera CSV com métricas consolidadas
+- Colunas: ativação, peça, template, status, likes, comments, shares, saves, spend, CPR, data
 
 ---
 
-## Arquivos modificados
+## Detalhes Técnicos
 
-| Arquivo | Acao |
+### Novos arquivos
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `src/pages/BatchAssets.tsx` | Página da matriz generativa |
+| `supabase/functions/batch-generate-assets/index.ts` | Edge function para geração em lote |
+| `src/components/dashboard/VolumeChart.tsx` | Gráfico de volume semanal |
+| `src/components/dashboard/StatsCards.tsx` | Cards de resumo com dados reais |
+| `src/components/dashboard/TemplateRanking.tsx` | Ranking de templates |
+| `src/components/activation/PerformanceChart.tsx` | Gráfico de performance por peça |
+
+### Arquivos modificados
+
+| Arquivo | Ação |
 |---------|------|
-| `src/components/activation/NextStepBar.tsx` | Novo — barra contextual de proximo passo |
-| `src/pages/AssetDetail.tsx` | Botao voltar + NextStepBar + toasts com acao |
-| `src/pages/CopyDetail.tsx` | NextStepBar + toasts com acao + migrar para classes CSS |
-| `src/pages/NewAsset.tsx` | Stepper responsivo mobile |
-| `src/components/activation/CopiesTab.tsx` | Migrar inline styles para classes do design system |
-| `src/components/activation/AssetsTab.tsx` | Migrar inline styles para classes do design system |
-| `src/components/activation/ScheduleTab.tsx` | Migrar inline styles para classes do design system |
-| `src/components/activation/WorkflowProgress.tsx` | Extrair versao compacta para uso em paginas de detalhe |
+| `src/pages/Index.tsx` | Refatorar com queries reais + gráficos |
+| `src/components/activation/AnalyticsTab.tsx` | Adicionar gráficos + comparativo |
+| `src/pages/ClientDetail.tsx` | Seção de volume/resumo |
+| `src/components/activation/AssetsTab.tsx` | Botão "Gerar em lote" |
+| `src/App.tsx` | Rota `/activations/:id/assets/batch` |
+| `src/components/layout/Sidebar.tsx` | (inalterado) |
+| `package.json` | Adicionar `recharts` |
+
+### Migration SQL
+
+Nenhuma nova tabela necessária — as queries de dashboard usam as tabelas existentes (`assets`, `copies`, `metrics`, `activations`) com agregações.
+
+### Ordem de implementação
+
+1. Instalar `recharts` + criar componentes de gráfico
+2. Refatorar Dashboard com dados reais
+3. Refatorar AnalyticsTab com gráficos
+4. Implementar Matriz Generativa (página + edge function)
+5. Adicionar resumo de volume no ClientDetail
+6. Exportação CSV
 
