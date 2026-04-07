@@ -231,7 +231,7 @@ const AssetDetail = () => {
     if (error || !data?.image_url) {
       toast.error("Falha ao gerar imagem");
     } else {
-      setRenders(prev => prev.map((r, i) => i === currentSlide ? { ...r, image_url: data.image_url } : r));
+      setRenders(prev => prev.map((r, i) => i === currentSlide ? { ...r, image_url: data.image_url, png_url: null } : r));
       toast.success("Imagem regenerada ✓");
       setImagePrompt("");
       setEditMode("none");
