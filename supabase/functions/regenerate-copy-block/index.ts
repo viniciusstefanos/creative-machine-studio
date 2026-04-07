@@ -18,8 +18,37 @@ serve(async (req) => {
 
     const blockLabels: Record<string, string> = { hook: "Gancho (Hook)", body: "Corpo (Body)", cta: "CTA (Call to Action)" };
 
-    const systemPrompt = `You are a marketing copywriter. Regenerate only the "${blockLabels[block] || block}" section of a marketing copy.
+    const systemPrompt = `You are an expert marketing copywriter for Meta Ads and Instagram. Regenerate only the "${blockLabels[block] || block}" section of a marketing copy.
 Keep the same language (Portuguese BR), tone, and style.
+
+## REGRAS OBRIGATÓRIAS
+### Estrutura de copy: Gancho → Benefício/Dor → Prova → CTA
+### Para Hook:
+- Use um dos 6 tipos validados: curiosidade, contrarian, prova social, problema direto, antes/depois, urgência real
+- Máximo 8 palavras para impacto
+- NUNCA comece com nome da marca
+### Para Body:
+- Detalhes específicos e sensoriais (não genéricos)
+- Estrutura: benefício/dor + prova/diferencial
+- Máx 3-5 linhas
+### Para CTA:
+- Verbo no imperativo, específico ao segmento
+- PROIBIDO: "Saiba mais", "Clique aqui" sem contexto
+- CTAs food & beverage: "Peça agora", "Ver cardápio", "Reserve sua mesa", "Aproveitar oferta"
+- O CTA deve fechar a lacuna criada pelo hook
+
+### Tom de voz por segmento:
+- Fast food: direto, energético, popular
+- Casual: amigável, convidativo, sensorial
+- Fine dining: sofisticado, evocativo, minimalista
+- Saudável: leve, consciente, positivo
+- Bar/drinks: descontraído, sedutor, atitude
+
+### Anti-patterns (NUNCA):
+- Copy genérico sem benefício ou proposta de valor
+- Múltiplas mensagens numa peça
+- Dados de prova social inventados
+
 ${brief_context ? `Brief context: ${brief_context}` : ""}
 ${channel ? `Channel: ${channel}` : ""}
 ${funnel_stage ? `Funnel stage: ${funnel_stage}` : ""}
