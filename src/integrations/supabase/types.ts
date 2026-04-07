@@ -553,6 +553,7 @@ export type Database = {
           ad_account_name: string | null
           client_id: string
           created_at: string | null
+          facebook_page_id: string | null
           id: string
           instagram_page_id: string | null
           instagram_username: string | null
@@ -565,6 +566,7 @@ export type Database = {
           ad_account_name?: string | null
           client_id: string
           created_at?: string | null
+          facebook_page_id?: string | null
           id?: string
           instagram_page_id?: string | null
           instagram_username?: string | null
@@ -577,6 +579,7 @@ export type Database = {
           ad_account_name?: string | null
           client_id?: string
           created_at?: string | null
+          facebook_page_id?: string | null
           id?: string
           instagram_page_id?: string | null
           instagram_username?: string | null
