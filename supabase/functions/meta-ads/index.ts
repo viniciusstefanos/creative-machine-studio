@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
     if (action === "create_ad") {
       const ad_account_id = ensureActPrefix(body.ad_account_id);
       const {
-        adset_id, name, image_url, caption, link,
+        adset_id, name, image_url, image_urls, caption, link,
         instagram_page_id, db_campaign_id, asset_id,
         facebook_page_id,
       } = body;
@@ -161,41 +161,62 @@ Deno.serve(async (req) => {
         throw new Error("facebook_page_id is required to create an ad creative. Configure it in the client's Meta settings.");
       }
 
-      // Try uploading image hash first; if that fails (missing capability), fall back to image_url
-      let imageHash: string | null = null;
-      try {
-        const imgRes = await fetch(`${META_GRAPH_URL}/${ad_account_id}/adimages`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: image_url, access_token: token }),
-        });
-        const imgData = await imgRes.json();
-        if (imgRes.ok && imgData.images) {
-          imageHash = Object.values(imgData.images as Record<string, { hash: string }>)[0]?.hash || null;
-        } else {
-          console.warn("adimages upload failed, falling back to image_url:", JSON.stringify(imgData));
-        }
-      } catch (e) {
-        console.warn("adimages upload exception, falling back to image_url:", e);
+      const normalizedImageUrls = Array.isArray(image_urls)
+        ? image_urls.map((url) => String(url).trim()).filter(Boolean)
+        : [];
+      const creativeImageUrls = normalizedImageUrls.length > 0
+        ? normalizedImageUrls
+        : [String(image_url || "").trim()].filter(Boolean);
+
+      if (creativeImageUrls.length === 0) {
+        throw new Error("At least one image URL is required to create an ad creative.");
       }
 
-      // Build creative payload — use hash if available, otherwise picture URL
+      const uploadImageHash = async (url: string) => {
+        try {
+          const imgRes = await fetch(`${META_GRAPH_URL}/${ad_account_id}/adimages`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url, access_token: token }),
+          });
+          const imgData = await imgRes.json();
+          if (imgRes.ok && imgData.images) {
+            return Object.values(imgData.images as Record<string, { hash: string }>)[0]?.hash || null;
+          }
+          console.warn("adimages upload failed, falling back to direct image URL:", JSON.stringify(imgData));
+          return null;
+        } catch (e) {
+          console.warn("adimages upload exception, falling back to direct image URL:", e);
+          return null;
+        }
+      };
+
+      const buildAttachment = async (url: string) => {
+        const imageHash = await uploadImageHash(url);
+        const attachment: Record<string, unknown> = { link: link || "https://example.com" };
+        if (imageHash) {
+          attachment.image_hash = imageHash;
+        } else {
+          attachment.picture = url;
+        }
+        return attachment;
+      };
+
+      const attachments = [] as Record<string, unknown>[];
+      for (const url of creativeImageUrls) {
+        attachments.push(await buildAttachment(url));
+      }
+
       const linkData: Record<string, unknown> = {
         message: caption,
         link: link || "https://example.com",
       };
-      if (imageHash) {
-        linkData.image_hash = imageHash;
-      } else {
-        linkData.picture = image_url;
-      }
 
-      const storySpec: Record<string, unknown> = {
-        page_id: fbPageId,
-        link_data: linkData,
-      };
-      if (igActorId) {
-        storySpec.instagram_actor_id = igActorId;
+      if (attachments.length > 1) {
+        linkData.child_attachments = attachments;
+        linkData.multi_share_optimized = false;
+      } else {
+        Object.assign(linkData, attachments[0]);
       }
 
       const createCreative = async (includeInstagramActor: boolean) => {

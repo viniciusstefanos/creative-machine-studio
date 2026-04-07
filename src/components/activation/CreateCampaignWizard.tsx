@@ -38,6 +38,9 @@ interface ApprovedAsset {
   copy?: { hook: string | null; full_copy: string | null };
 }
 
+const sortRenders = (renders: { png_url: string | null; slide_index: number }[]) =>
+  [...renders].sort((a, b) => (a.slide_index ?? 0) - (b.slide_index ?? 0));
+
 export const CreateCampaignWizard = ({
   open, onOpenChange, activationId, metaAccount, landingPageUrl, onCreated,
 }: CreateCampaignWizardProps) => {
@@ -87,8 +90,7 @@ export const CreateCampaignWizard = ({
     const { data: renders } = await supabase
       .from("asset_template_renders")
       .select("asset_id, png_url, slide_index")
-      .in("asset_id", assetIds)
-      .eq("slide_index", 0);
+      .in("asset_id", assetIds);
 
     // Fetch copies
     const copyIds = assets.filter(a => a.copy_id).map(a => a.copy_id!);
@@ -105,7 +107,11 @@ export const CreateCampaignWizard = ({
 
     const enriched: ApprovedAsset[] = assets.map(a => ({
       ...a,
-      renders: (renders || []).filter(r => r.asset_id === a.id).map(r => ({ png_url: r.png_url, slide_index: r.slide_index ?? 0 })),
+      renders: sortRenders(
+        (renders || [])
+          .filter(r => r.asset_id === a.id)
+          .map(r => ({ png_url: r.png_url, slide_index: r.slide_index ?? 0 }))
+      ),
       copy: a.copy_id ? copiesMap[a.copy_id] : undefined,
     }));
 
@@ -192,8 +198,11 @@ export const CreateCampaignWizard = ({
       let successCount = 0;
 
       for (const asset of selectedAssets) {
-        const imageUrl = asset.renders[0]?.png_url;
-        if (!imageUrl) continue;
+        const imageUrls = sortRenders(asset.renders)
+          .map(render => render.png_url)
+          .filter((url): url is string => Boolean(url));
+
+        if (imageUrls.length === 0) continue;
 
         try {
           const { data: adRes, error: adErr } = await supabase.functions.invoke("meta-ads", {
@@ -202,7 +211,8 @@ export const CreateCampaignWizard = ({
               ad_account_id: metaAccount.ad_account_id,
               adset_id: adsetId,
               name: asset.name || `Ad ${successCount + 1}`,
-              image_url: imageUrl,
+              image_url: imageUrls[0],
+              image_urls: imageUrls,
               caption: asset.copy?.full_copy || asset.copy?.hook || "",
               link: landingPageUrl || "https://example.com",
               instagram_page_id: metaAccount.instagram_page_id,
@@ -440,7 +450,7 @@ export const CreateCampaignWizard = ({
               <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-1">
                 {approvedAssets.map(asset => {
                   const selected = selectedAssetIds.has(asset.id);
-                  const thumbUrl = asset.renders[0]?.png_url;
+                  const thumbUrl = sortRenders(asset.renders)[0]?.png_url;
                   return (
                     <button
                       key={asset.id}
