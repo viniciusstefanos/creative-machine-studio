@@ -1,102 +1,93 @@
 
 
-# Escala, Volume e Análise de Dados — Plano de Evolução
+# Sistemática de Agendamento de Posts no Instagram
 
-## O que falta hoje
+## Situacao Atual
 
-O app atual é 1:1 — um copy gera uma peça, uma peça é aprovada individualmente. Não existe:
-- Criação em massa / matriz generativa
-- Dashboard analítico real (métricas são placeholder "—")
-- Visão de volume/escala por cliente ou período
-- Comparação de performance entre criativos
+A tab "Agendamento" (`ScheduleTab.tsx`) existe mas e rudimentar: lista posts ja inseridos no banco e permite publicar manualmente. Nao ha como **criar** agendamentos, selecionar pecas aprovadas, definir data/hora, editar caption, ou ter visao de calendario.
 
----
+A edge function `meta-publish` ja suporta `publish_post` e `publish_carousel`. A tabela `scheduled_posts` existe com campos `scheduled_at`, `channel`, `status`, `asset_id`, `activation_id`.
 
-## Funcionalidades Propostas
+## O que sera construido
 
-### 1. Matriz Generativa (Batch Creation)
+### 1. Dialog de Agendamento (novo componente)
 
-Nova página `/activations/:id/assets/batch` com interface de matriz:
-- **Eixo X**: copies aprovados (selecionar múltiplos)
-- **Eixo Y**: templates (selecionar múltiplos)
-- Cada célula da matriz = uma peça a ser gerada
-- Checkbox para selecionar/deselecionar combinações
-- Botão "Gerar N peças" que dispara todas em paralelo
-- Progress bar mostrando quantas foram geradas vs total
+`src/components/activation/SchedulePostDialog.tsx`
 
-Exemplo: 3 copies × 4 templates = 12 peças geradas de uma vez.
+- Modal acionado por botao "Agendar post" na ScheduleTab
+- Selecao de peca: dropdown filtrando assets aprovados da ativacao (com thumbnail preview)
+- Caption: textarea pre-populada com copy associada (hook + body + cta), editavel
+- Data e hora: inputs nativos de date e time (com sugestao de melhores horarios Brasil 2026)
+- Canal: select com opcoes "Instagram Feed", "Instagram Reels", "Instagram Stories"
+- Botao "Agendar" que insere na tabela `scheduled_posts`
 
-Nova edge function `batch-generate-assets` que recebe array de `{copy_id, template_id, render_config}` e processa em sequência (para não estourar rate limits da API).
+### 2. Refatorar ScheduleTab
 
-### 2. Dashboard Analítico Real
+- Adicionar botao "Agendar post" no topo (visivel quando ha pecas aprovadas)
+- Exibir posts em cards mais ricos: thumbnail da peca, caption truncada, data/hora, canal, status
+- Acoes por post: Publicar agora, Editar agendamento, Cancelar
+- Agrupar por status: Agendados (ordenado por data) | Publicados
+- Botao "Publicar agora" chama a edge function existente
 
-Refatorar `Index.tsx` (Dashboard) e `AnalyticsTab.tsx`:
+### 3. Agendar direto do AssetDetail
 
-**Dashboard global** (`/`):
-- Cards de resumo: total de peças geradas, aprovadas, rejeitadas, publicadas (queries reais ao DB)
-- Gráfico de volume por semana (últimas 8 semanas) — barras empilhadas por status
-- Taxa de aprovação (aprovadas / total geradas)
-- Top 3 templates mais usados
-- Top 3 copies com melhor engagement (quando métricas existirem)
+- Na pagina de detalhe da peca aprovada, adicionar botao "Agendar" ao lado de "Aprovar"
+- Abre o mesmo SchedulePostDialog pre-selecionando a peca atual
 
-**Analytics por ativação** (tab Métricas):
-- Gráfico de linha temporal com métricas por dia
-- Comparativo entre peças: engagement por peça (bar chart)
-- CPR (custo por resultado) por peça
-- Card de "melhor peça" (maior engagement)
+### 4. Visao de Calendario (simples)
 
-Usar `recharts` para gráficos (já é dependência comum com shadcn).
+- Componente de mini-calendario mensal na ScheduleTab
+- Dias com posts agendados marcados com dot indicator
+- Click no dia filtra a lista para aquele dia
 
-### 3. Visão de Volume por Cliente
+### 5. Publicacao automatica (cron)
 
-Em `ClientDetail.tsx`, adicionar seção de resumo:
-- Total de ativações ativas
-- Total de peças geradas / aprovadas / publicadas
-- Volume por mês (sparkline simples)
-
-### 4. Exportação de Relatório
-
-Botão "Exportar relatório" no dashboard e na AnalyticsTab:
-- Gera CSV com métricas consolidadas
-- Colunas: ativação, peça, template, status, likes, comments, shares, saves, spend, CPR, data
+- Edge function `auto-publish-scheduled` que roda a cada 5 minutos via pg_cron
+- Busca posts com `status = 'scheduled'` e `scheduled_at <= now()`
+- Publica via Meta API e atualiza status
 
 ---
 
-## Detalhes Técnicos
+## Detalhes Tecnicos
 
-### Novos arquivos
+### Arquivos novos
 
-| Arquivo | Descrição |
+| Arquivo | Descricao |
 |---------|-----------|
-| `src/pages/BatchAssets.tsx` | Página da matriz generativa |
-| `supabase/functions/batch-generate-assets/index.ts` | Edge function para geração em lote |
-| `src/components/dashboard/VolumeChart.tsx` | Gráfico de volume semanal |
-| `src/components/dashboard/StatsCards.tsx` | Cards de resumo com dados reais |
-| `src/components/dashboard/TemplateRanking.tsx` | Ranking de templates |
-| `src/components/activation/PerformanceChart.tsx` | Gráfico de performance por peça |
+| `src/components/activation/SchedulePostDialog.tsx` | Dialog de criacao/edicao de agendamento |
+| `src/components/activation/ScheduleCalendar.tsx` | Mini calendario mensal |
+| `supabase/functions/auto-publish-scheduled/index.ts` | Cron job para publicacao automatica |
 
 ### Arquivos modificados
 
-| Arquivo | Ação |
+| Arquivo | Acao |
 |---------|------|
-| `src/pages/Index.tsx` | Refatorar com queries reais + gráficos |
-| `src/components/activation/AnalyticsTab.tsx` | Adicionar gráficos + comparativo |
-| `src/pages/ClientDetail.tsx` | Seção de volume/resumo |
-| `src/components/activation/AssetsTab.tsx` | Botão "Gerar em lote" |
-| `src/App.tsx` | Rota `/activations/:id/assets/batch` |
-| `src/components/layout/Sidebar.tsx` | (inalterado) |
-| `package.json` | Adicionar `recharts` |
+| `src/components/activation/ScheduleTab.tsx` | Refatorar com cards ricos, calendario, botao agendar |
+| `src/pages/AssetDetail.tsx` | Adicionar botao "Agendar" para pecas aprovadas |
 
 ### Migration SQL
 
-Nenhuma nova tabela necessária — as queries de dashboard usam as tabelas existentes (`assets`, `copies`, `metrics`, `activations`) com agregações.
+Adicionar coluna `caption` na tabela `scheduled_posts` para armazenar a caption editada (evitar re-fetch do copy no momento da publicacao).
 
-### Ordem de implementação
+```sql
+ALTER TABLE scheduled_posts ADD COLUMN caption text;
+```
 
-1. Instalar `recharts` + criar componentes de gráfico
-2. Refatorar Dashboard com dados reais
-3. Refatorar AnalyticsTab com gráficos
-4. Implementar Matriz Generativa (página + edge function)
-5. Adicionar resumo de volume no ClientDetail
-6. Exportação CSV
+### Cron Job (via insert tool, nao migration)
+
+```sql
+SELECT cron.schedule('auto-publish-scheduled', '*/5 * * * *', ...);
+```
+
+Chama a edge function `auto-publish-scheduled` que busca posts pendentes e publica.
+
+### Ordem de implementacao
+
+1. Migration: adicionar coluna `caption`
+2. Criar `SchedulePostDialog` (selecao de peca, caption, data/hora, canal)
+3. Refatorar `ScheduleTab` (cards ricos, acoes, agrupamento por status)
+4. Criar `ScheduleCalendar` (mini calendario com dots)
+5. Adicionar botao "Agendar" no `AssetDetail`
+6. Criar edge function `auto-publish-scheduled`
+7. Configurar cron job
 
