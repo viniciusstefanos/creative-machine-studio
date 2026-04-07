@@ -581,11 +581,19 @@ const AssetDetail = () => {
         <h1 className="text-display-md">Peça v{asset.version || 1}</h1>
         <StatusBadge status={asset.status} />
         <div className="ml-auto flex items-center gap-1">
-          {siblingAssets.length > 1 && (
-            <span className="text-mono text-txt-muted mr-2">
-              {currentAssetIndex + 1} / {siblingAssets.length}
-            </span>
-          )}
+          {siblingAssets.length > 1 && (() => {
+            const reviewCount = siblingAssets.filter(a => a.status === "review").length;
+            return (
+              <span className="text-mono text-txt-muted mr-2">
+                {currentAssetIndex + 1}/{siblingAssets.length}
+                {reviewCount > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px]" style={{ background: "hsl(var(--status-review) / 0.15)", color: "hsl(var(--status-review))" }}>
+                    {reviewCount} p/ revisar
+                  </span>
+                )}
+              </span>
+            );
+          })()}
           <Button
             variant="outline"
             size="icon"
