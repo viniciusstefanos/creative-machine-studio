@@ -156,33 +156,28 @@ const ActivationHub = () => {
       />
 
       {/* Tabs */}
-      <div
-        className="flex gap-1 mb-8 overflow-x-auto pb-1"
-        style={{ borderBottom: "1px solid var(--border-subtle)" }}
-      >
+      <div className="flex gap-1 mb-8 overflow-x-auto pb-1" style={{ borderBottom: "1px solid hsl(var(--border-subtle))" }}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key || activeTab === tab.path;
           const count = tab.key === "copies" ? counts.copies : tab.key === "assets" ? counts.assets : 0;
-
           return (
             <Link
               key={tab.key}
               to={`/activations/${id}/${tab.path}`}
-              className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all whitespace-nowrap"
+              className={`flex items-center gap-2 px-4 py-2.5 text-label whitespace-nowrap transition-all ${
+                isActive ? "text-txt-primary" : "text-txt-muted"
+              }`}
               style={{
-                fontFamily: "'DM Sans', sans-serif",
-                color: isActive ? "hsl(var(--text-primary))" : "hsl(var(--text-muted))",
                 borderBottom: isActive ? "2px solid hsl(var(--accent))" : "2px solid transparent",
               }}
             >
               {tab.label}
               {count > 0 && (
-                <span
-                  className="text-[9px] px-1.5 py-0.5 rounded-full"
+                <span className="text-mono px-1.5 py-0.5 rounded-full"
                   style={{
-                    background: "color-mix(in srgb, var(--status-review) 15%, transparent)",
-                    color: "var(--status-review)",
-                    fontFamily: "'JetBrains Mono', monospace",
+                    background: "hsl(var(--status-review) / 0.15)",
+                    color: "hsl(var(--status-review))",
+                    fontSize: 9,
                   }}
                 >
                   {count}
