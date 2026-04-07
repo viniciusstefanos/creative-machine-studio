@@ -193,7 +193,7 @@ const NewAsset = () => {
           const isDone = step > stepNum;
           return (
             <div key={label} className="flex items-center gap-2">
-              {i > 0 && <ChevronRight size={14} className="text-txt-ghost" />}
+              {i > 0 && <ChevronRight size={14} className="text-txt-ghost hidden sm:block" />}
               <button
                 className="flex items-center gap-2"
                 onClick={() => isDone && setStep(stepNum)}
@@ -201,7 +201,7 @@ const NewAsset = () => {
                 style={{ cursor: isDone ? "pointer" : "default" }}
               >
                 <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-mono ${
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-mono flex-shrink-0 ${
                     isDone
                       ? "bg-accent text-txt-inverse"
                       : isActive
@@ -211,13 +211,17 @@ const NewAsset = () => {
                 >
                   {isDone ? <Check size={14} /> : stepNum}
                 </div>
-                <span className={`text-label ${isActive ? "text-txt-primary" : "text-txt-muted"}`}>
+                <span className={`text-label hidden sm:inline ${isActive ? "text-txt-primary" : "text-txt-muted"}`}>
                   {label}
                 </span>
               </button>
             </div>
           );
         })}
+        {/* Mobile: step indicator */}
+        <span className="text-mono sm:hidden ml-auto">
+          {step} / {totalSteps}
+        </span>
       </div>
 
       {/* Step 1: Select Copy */}

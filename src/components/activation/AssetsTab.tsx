@@ -28,7 +28,7 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
     fetch();
   }, [activationId]);
 
-  if (loading) return <div className="text-sm text-txt-muted">Carregando...</div>;
+  if (loading) return <div className="text-caption">Carregando...</div>;
 
   return (
     <div>
@@ -41,14 +41,23 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
         </Link>
       </div>
       {assets.length === 0 ? (
-        <div className="p-8 rounded-lg text-center" style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
-          <Image size={32} className="mx-auto mb-3" style={{ color: "var(--text-muted)" }} />
-          <p className="text-sm mb-1" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>Nenhuma peça ainda</p>
+        <div className="empty-state card-base">
+          <Image size={32} className="text-txt-ghost" />
+          <p className="empty-state__title">Nenhuma peça ainda</p>
+          <p className="empty-state__desc">
+            {copiesApproved === 0
+              ? "Aprove copies antes de criar peças visuais."
+              : "Clique em 'Nova peça' para criar sua primeira peça visual."}
+          </p>
           {copiesApproved === 0 ? (
             <Link
               to={`/activations/${activationId}/copies`}
               className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 text-xs font-medium rounded-md transition-all"
-              style={{ background: "var(--accent)", color: "var(--text-inverse)", borderRadius: 6 }}
+              style={{
+                background: "hsl(var(--accent))",
+                color: "hsl(var(--text-inverse))",
+                borderRadius: 6,
+              }}
             >
               ← Aprovar copies primeiro
             </Link>
@@ -56,7 +65,11 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
             <Link
               to={`/activations/${activationId}/assets/new`}
               className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 text-xs font-medium rounded-md transition-all"
-              style={{ background: "var(--accent)", color: "var(--text-inverse)", borderRadius: 6 }}
+              style={{
+                background: "hsl(var(--accent))",
+                color: "hsl(var(--text-inverse))",
+                borderRadius: 6,
+              }}
             >
               <Plus size={14} /> Criar primeira peça
             </Link>
@@ -68,14 +81,14 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
             <Link
               key={asset.id}
               to={`/activations/${activationId}/assets/${asset.id}`}
-              className="p-4 rounded-lg transition-all duration-150 hover:bg-surface-2 block"
-              style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}
+              className="card-base card-interactive block overflow-hidden"
+              style={{ padding: 0 }}
             >
               {asset.image_url && (
-                <img src={asset.image_url} alt="" className="w-full h-40 object-cover rounded mb-3" />
+                <img src={asset.image_url} alt="" className="w-full h-40 object-cover" />
               )}
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>
+              <div className="p-4 flex items-center justify-between">
+                <span className="text-mono-label">
                   {(asset as any).asset_formats?.name || asset.category || "—"} · v{asset.version}
                 </span>
                 <StatusBadge status={asset.status} />

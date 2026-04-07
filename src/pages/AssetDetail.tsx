@@ -5,12 +5,13 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CommentThread } from "@/components/ui/CommentThread";
+import { NextStepBar } from "@/components/activation/NextStepBar";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Check, X, RefreshCw, Calendar, Loader2, ChevronLeft, ChevronRight,
-  Pencil, Image, Wand2, Save, RotateCcw
+  Pencil, Image, Wand2, Save, RotateCcw, ArrowLeft
 } from "lucide-react";
 
 const AssetDetail = () => {
@@ -27,6 +28,7 @@ const AssetDetail = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [renders, setRenders] = useState<any[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [workflowData, setWorkflowData] = useState({ briefDone: false, copiesApproved: 0, assetsApproved: 0, scheduledCount: 0 });
 
   // Editing state
   const [editMode, setEditMode] = useState<"none" | "html" | "refine" | "image">("none");
@@ -59,6 +61,21 @@ const AssetDetail = () => {
         .eq("asset_id", assetId)
         .order("slide_index");
       setRenders(renderData || []);
+
+      // Fetch workflow data
+      const actId = data.activation_id;
+      const [briefRes, copiesApprovedRes, assetsApprovedRes, scheduledRes] = await Promise.all([
+        supabase.from("briefs").select("objectives").eq("activation_id", actId).single(),
+        supabase.from("copies").select("id", { count: "exact" }).eq("activation_id", actId).eq("status", "approved"),
+        supabase.from("assets").select("id", { count: "exact" }).eq("activation_id", actId).eq("status", "approved"),
+        supabase.from("scheduled_posts").select("id", { count: "exact" }).eq("activation_id", actId),
+      ]);
+      setWorkflowData({
+        briefDone: !!(briefRes.data?.objectives),
+        copiesApproved: copiesApprovedRes.count || 0,
+        assetsApproved: assetsApprovedRes.count || 0,
+        scheduledCount: scheduledRes.count || 0,
+      });
     }
     setLoading(false);
   }, [assetId]);
@@ -82,13 +99,16 @@ const AssetDetail = () => {
     setActionLoading(true);
     const { error } = await supabase.from("assets").update({ status, ...extraFields }).eq("id", assetId!);
     if (error) {
-      toast({ title: "Erro", description: "Falha ao atualizar", variant: "destructive" });
+      toast.error("Falha ao atualizar");
     } else {
       setAsset((prev: any) => ({ ...prev, status, ...extraFields }));
       if (status === "approved") {
-        toast({ title: "Peça aprovada! ✓", description: "Agora você pode agendar publicação." });
+        toast.success("Peça aprovada!", {
+          description: "Agora você pode agendar publicação.",
+          action: { label: "Agendar →", onClick: () => navigate(`/activations/${id}/schedule`) },
+        });
       } else if (status === "rejected") {
-        toast({ title: "Peça rejeitada", description: "Adicione feedback e gere nova versão." });
+        toast("Peça rejeitada", { description: "Adicione feedback e gere nova versão." });
       }
     }
     setActionLoading(false);
@@ -115,7 +135,7 @@ const AssetDetail = () => {
       .single();
 
     if (error || !newAsset) {
-      toast({ title: "Erro", description: "Falha ao criar nova versão", variant: "destructive" });
+      toast.error("Falha ao criar nova versão");
       setActionLoading(false);
       return;
     }
@@ -152,10 +172,10 @@ const AssetDetail = () => {
       body: { render_id: currentRender.id, asset_id: assetId, action: "save_html", html_content: editHtml },
     });
     if (error) {
-      toast({ title: "Erro", description: "Falha ao salvar", variant: "destructive" });
+      toast.error("Falha ao salvar");
     } else {
       setRenders(prev => prev.map((r, i) => i === currentSlide ? { ...r, html_content: editHtml, png_url: null } : r));
-      toast({ title: "Salvo ✓" });
+      toast.success("Salvo ✓");
       setEditMode("none");
     }
     setEditLoading(false);
@@ -172,10 +192,10 @@ const AssetDetail = () => {
       },
     });
     if (error || !data?.html_content) {
-      toast({ title: "Erro", description: "Falha ao refinar", variant: "destructive" });
+      toast.error("Falha ao refinar");
     } else {
       setRenders(prev => prev.map((r, i) => i === currentSlide ? { ...r, html_content: data.html_content, png_url: null } : r));
-      toast({ title: "Design refinado ✓" });
+      toast.success("Design refinado ✓");
       setRefineInstruction("");
       setEditMode("none");
     }
@@ -189,10 +209,10 @@ const AssetDetail = () => {
       body: { render_id: currentRender.id, asset_id: assetId, action: "regenerate_image", image_prompt: imagePrompt },
     });
     if (error || !data?.image_url) {
-      toast({ title: "Erro", description: "Falha ao gerar imagem", variant: "destructive" });
+      toast.error("Falha ao gerar imagem");
     } else {
       setRenders(prev => prev.map((r, i) => i === currentSlide ? { ...r, image_url: data.image_url } : r));
-      toast({ title: "Imagem regenerada ✓" });
+      toast.success("Imagem regenerada ✓");
       setImagePrompt("");
       setEditMode("none");
     }
@@ -452,6 +472,24 @@ const AssetDetail = () => {
         { label: `Peça v${asset.version || 1}` },
       ]}
     >
+      {/* Back button + workflow */}
+      <div className="flex items-center gap-3 mb-4">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/activations/${id}/assets`)}>
+          <ArrowLeft size={16} />
+        </Button>
+        <h1 className="text-display-md">Peça v{asset.version || 1}</h1>
+        <StatusBadge status={asset.status} />
+      </div>
+
+      <NextStepBar
+        activationId={id!}
+        currentStep="assets"
+        briefDone={workflowData.briefDone}
+        copiesApproved={workflowData.copiesApproved}
+        assetsApproved={workflowData.assetsApproved}
+        scheduledCount={workflowData.scheduledCount}
+      />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Preview + Edit */}
         <div className="lg:col-span-2">
