@@ -160,8 +160,8 @@ export const SchedulePostDialog = ({
               </SelectTrigger>
               <SelectContent>
                 {assets.map((a) => {
-                  const label = a.category || a.id.slice(0, 8);
-                  const version = a.version ? `v${a.version}` : "";
+                  const label = (a as any).name || a.category || a.id.slice(0, 8);
+                  const version = (a as any).name ? "" : (a.version ? `v${a.version}` : "");
                   return (
                     <SelectItem key={a.id} value={a.id}>
                       <span className="flex items-center gap-2">
