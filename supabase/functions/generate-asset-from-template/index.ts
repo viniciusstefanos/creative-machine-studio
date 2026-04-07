@@ -51,32 +51,55 @@ O HTML gerado DEVE seguir estas regras pixel-a-pixel:
 - NUNCA use unidades relativas (%, vh, vw) para o container raiz — use px absoluto
 
 ### SAFE ZONES E PADDING
-- Para 4:5 (1080×1350): padding-top: 120px, padding-bottom: 120px, padding-left: 80px, padding-right: 80px
-- Para 9:16 (1080×1920): padding-top: 200px, padding-bottom: 250px, padding-left: 80px, padding-right: 80px
+- Para 4:5 (1080×1350): padding: 120px 80px (zona segura lateral 14px mín, usar 80px para respiro)
+- Para 9:16 (1080×1920): padding-top: 250px, padding-bottom: 300px, padding-left: 96px, padding-right: 96px (evitar UI do sistema, botões nativos)
 - Para 1:1 (1080×1080): padding: 100px 80px
 - NENHUM texto ou elemento importante pode ficar fora dessas safe zones
 - O conteúdo deve estar centralizado verticalmente DENTRO da safe zone
 
-### TIPOGRAFIA — TAMANHOS MÍNIMOS
-- Título/Hook: mín 64px, ideal 72-90px, font-weight 700-800
-- Subtítulo/Corpo: mín 36px, ideal 40-48px, font-weight 400-500
-- Metadado/Label: mín 28px, font-weight 500
-- CTA: mín 40px, font-weight 700
+### TIPOGRAFIA — TAMANHOS MÍNIMOS (canvas 1080px)
+- Headline: mín 60px, ideal 72-90px, font-weight 700-800, máx 8 palavras
+- Subheadline: mín 36px, ideal 40-48px, font-weight 400-500
+- Corpo/Benefícios: mín 28px, font-weight 400-500
+- CTA (botão): mín 32px, font-weight 700
+- Disclaimers/asteriscos: mín 20px
 - Número destaque: mín 100px, ideal 120-160px, font-weight 800
 - line-height: 1.2 para títulos, 1.5 para corpo
 - letter-spacing: -0.02em para títulos grandes
+- Máximo 2 famílias tipográficas por criativo (1 display + 1 corpo)
 
-### ESPAÇAMENTO ENTRE ELEMENTOS
-- Entre título e corpo: mín 40px
-- Entre corpo e CTA: mín 50px
-- Entre ícone/emoji e texto: mín 30px
-- Margem entre blocos de conteúdo: 40-60px
+### REGRA DOS 20%
+- O texto NÃO deve cobrir mais de 20% da área total do criativo (diretriz Meta)
+- Headlines: máximo 8 palavras para impacto
+- Evite parágrafos corridos — prefira bullets curtos ou frases isoladas
 
-### REGRAS VISUAIS
+### HIERARQUIA VISUAL — 3 NÍVEIS OBRIGATÓRIOS
+1. Elemento âncora (maior, mais contrastante): produto, face ou headline
+2. Elemento de suporte: subheadline, benefício chave, contexto visual
+3. CTA ou detalhe: botão, logo, preço, selos
+⚠ Se houver 4º elemento com peso visual equivalente = hierarquia quebrada. Remova ou reduza.
+
+### ESPAÇO NEGATIVO
+- Mínimo 30% da área deve ser espaço negativo para respiração visual
+- Em layouts com muito texto (promoção): comprimir até 20%, nunca menos
+
+### PROFUNDIDADE E CAMADAS — 3 PLANOS
+- Fundo: cor sólida, gradiente, textura ou foto borrada
+- Plano médio: elemento principal (produto, pessoa)
+- Primeiro plano: texto, sobreposição, selo, sombra projetada
+
+### CORES — PALETA OBRIGATÓRIA
+- Defina sempre: 1 cor dominante + 1 cor de suporte + 1 cor de acento/CTA
+- A cor de acento/CTA deve aparecer APENAS no elemento de ação — não dispersar
+- Contraste obrigatório texto/fundo: ratio mín 4.5:1 (WCAG AA)
+- Texto sobre imagem: overlay semitransparente, blur ou sombra de texto OBRIGATÓRIO
+- Nunca apenas cor para diferenciar informações (usar forma ou ícone junto)
+- Evitar: vermelho/verde, azul/violeta, verde/marrom juntos
+- Psicologia food & beverage: vermelho/laranja=apetite, verde=saudável, marrom=artesanal, amarelo=alegria, preto=premium, azul=frescor
+
+### REGRAS VISUAIS GERAIS
 - Máximo 2 linhas de texto visível por bloco principal
-- Contraste obrigatório: texto claro em fundo escuro OU texto escuro em fundo claro (ratio mín 4.5:1)
 - NUNCA começar com logo ou nome da marca — hook visual primeiro
-- Hierarquia clara: hook > corpo > CTA (tamanhos decrescentes)
 - Uma única mensagem por slide/peça
 - font-family: usar fontes system seguras: 'Inter', 'Helvetica Neue', Arial, sans-serif
 - Evitar emojis como elemento principal de design — usar com moderação
@@ -87,12 +110,33 @@ O HTML gerado DEVE seguir estas regras pixel-a-pixel:
 - Se usar imagem de fundo, aplicar overlay com opacity para garantir legibilidade
 
 ## PARA CARROSSEL
-- Slide 1: PARA O SCROLL — visual forte + texto que cria lacuna ou promete entrega. NUNCA título de relatório.
+- Card 1: gancho forte, PARA O SCROLL — visual forte + texto que cria lacuna. NUNCA título de relatório. Deve funcionar ISOLADO.
 - Slides do meio: 1 ponto por slide, máx 3 linhas de texto. Visual consistente (mesma paleta, mesma tipografia).
 - Último slide: CTA único e claro com botão visual.
+- Continuidade visual entre cards: bordas que "sangram", narrativa progressiva.
 - Todos os slides devem ter EXATAMENTE as mesmas dimensões e a mesma estrutura de padding/safe-zone.
-- Manter paleta de cores e tipografia idêntica entre slides.
 - O usuário deve entender a proposta lendo apenas slide 1 e o último.
+
+## 10 PROIBIÇÕES ABSOLUTAS (invalida o criativo)
+1. Texto ilegível por tamanho, contraste ou sobreposição
+2. Mais de 2 famílias tipográficas sem justificativa conceitual
+3. Logo cortado, distorcido ou em resolução baixa
+4. Mais de 1 CTA principal competindo por atenção
+5. Fotos pixeladas, escuras demais ou sem foco no produto
+6. Hierarquia visual ausente (tudo com mesmo peso visual)
+7. Elementos importantes fora da zona segura
+8. Copy genérico sem benefício ou proposta de valor clara
+9. Composição com 4 ou mais "focos visuais" simultâneos
+10. Uso de imagens de terceiros sem direitos confirmados
+
+## CHECKLIST FINAL ANTES DE GERAR
+- [ ] Especificações técnicas respeitadas (resolução, proporção, zona segura)
+- [ ] Hierarquia visual clara em 3 níveis ou menos
+- [ ] Headline legível em thumbnail (visualização reduzida)
+- [ ] CTA único, claro e com verbo de ação
+- [ ] Contraste texto/fundo ≥ 4.5:1
+- [ ] Elementos críticos dentro da zona segura
+- [ ] Prova social ou diferencial visível (quando aplicável)
 
 ## TEMPLATE HTML OBRIGATÓRIO
 Sempre inicie o HTML com esta estrutura base:
@@ -107,21 +151,45 @@ ${CONTEXT_BRASIL_INSTAGRAM}
 
 const IMAGE_CREATIVE_RULES = `
 ## DIRETRIZES DE IMAGEM — INSTAGRAM BRASIL 2026
-- UGC-style > polido: conteúdo que parece feito por usuário supera produções de estúdio (+35% conversão com rosto na câmera)
+
+### COMPOSIÇÃO FOTOGRÁFICA
+- Hero shot: produto centralizado, iluminação lateral ou frontal difusa
+- Lifestyle shot: produto em contexto de uso/consumo real
+- Flat lay: vista superior, organização intencional, fundo neutro ou temático
+- Evite fotos de banco genéricas — priorize fotos originais ou com edição forte de identidade
+
+### EDIÇÃO E TRATAMENTO
+- Temperatura de cor consistente com identidade da marca
+- Saturação moderada — hiper-saturação artificial reduz credibilidade
+- Sombras e luzes equilibradas: produto deve ser o ponto mais luminoso da cena
+- Profundidade de campo: foco seletivo no produto principal
+
+### PESSOAS E ROSTOS
+- Rostos aumentam taxa de parada (+35% conversão com olhar direto)
+- Expressão autêntica: sorrisos forçados ou poses corporativas reduzem conexão
+- Olhar direto para câmera: cria conexão imediata com o espectador
+
+### ESTÉTICA INSTAGRAM BR 2026
+- UGC-style > polido: conteúdo que parece feito por usuário supera produções de estúdio
 - Lo-fi/analog: grana, tungsten warm, overlay de textura (tendência validada 2026)
 - Lifestyle com pessoa em contexto real > produto isolado
 - Alto contraste no frame inicial — nunca começar com imagem escura ou neutra
 - Para produto: demonstração real em uso, não packshot isolado
-- Cores dessaturadas + highlight quente para tom cinematográfico
-- Evitar imagens genéricas de banco de imagens — buscar autenticidade
 - Proporção 4:5 (1080×1350) para feed/carrossel, 9:16 (1080×1920) para Reels/Stories
 
-## CONTEXTO BRASIL 2026
+### PSICOLOGIA DE CORES — FOOD & BEVERAGE
+- Vermelho/laranja: apetite, urgência, energia → promoções, fast food
+- Verde: natural, saudável, frescor → orgânicos, veganos, saladas
+- Marrom/terracota: artesanal, premium, quente → cafeterias, padarias, comfort food
+- Amarelo: alegria, acessibilidade → ofertas, marcas jovens
+- Preto/off-white: sofisticação, premium → fine dining, spirits, chocolate
+- Azul: confiança, frescor → bebidas, frutos do mar (cautela em alimentos)
+
+### CONTEXTO VISUAL BRASIL
 - Pessoas brasileiras diversas (tom de pele, cabelo, contexto urbano/rural BR)
 - Cenários brasileiros quando relevante: cidade, praia, escritório BR, apartamento BR
 - Luz natural tropical: dourada, quente, alta exposição
 - Estética Instagram BR: saturação moderada, filtro warm, vibe acessível
-- Evitar estética "americana/europeia genérica" — buscar autenticidade brasileira
 - Referência: trends Reels/TikTok BR, estética lo-fi, diversidade brasileira
 `;
 
