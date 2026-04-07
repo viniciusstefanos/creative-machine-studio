@@ -1,41 +1,50 @@
 
 
-# Corrigir fontes na renderização PNG + melhorar edição de texto
+# Revisar Templates + Adicionar Previews + Regra de Sangria 135px
 
-## Problemas identificados
+## Problemas encontrados nos templates
 
-### 1. Fonte diferente no PNG final
-O HTML gerado usa `font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif` mas **não importa a fonte via Google Fonts**. Na preview (iframe), o navegador do usuário pode ter Inter instalada ou carregá-la do CSS global da app. Porém, o `html2canvas` (usado em `renderPng.ts`) não renderiza web fonts que não estejam explicitamente carregadas no container — cai no fallback (Helvetica/Arial).
+Após revisar os 13 templates contra as specs do relatório Instagram 2026:
 
-**Solução**: Injetar um `<link>` do Google Fonts no HTML antes de renderizar com html2canvas, e aguardar o carregamento das fontes antes de capturar.
+### Erros críticos de dimensão/prompt
+1. **Post Feed — Imagem + Texto** (`feed-image-text`): system_prompt diz "1080x1080px" mas a tabela tem 1080x1350. Prompt desatualizado e genérico demais.
+2. **Story — Texto sobre Gradiente** (`story-gradient-text`): prompt muito curto, sem menção a safe zones (250px topo, 340px base).
+3. **Story Interativo** (`story-interativo`): safe zones dizem "15% topo, 20% base" — correto seria 250px e 340px conforme spec.
+4. **Reels Cover** (`reels-cover`): safe zone diz "15% superior e 20% inferior" — deveria ser 250px e 340px em pixels.
+5. **Carrossel Estilo Twitter** (`carousel-twitter-style`): prompt genérico, sem regras de safe zone ou sangria.
 
-### 2. Edição de texto frágil
-O `HtmlVisualEditor` usa `html.replace(oldText, newText)` — um simples string replace que:
-- Pode substituir no lugar errado se o mesmo texto aparece em atributos ou múltiplas vezes
-- Usa `defaultValue` nos inputs, então editar e voltar ao mesmo segmento não reflete o valor atual
-- Não preserva HTML interno (tags `<br>`, `<span>` dentro do texto)
+### Regra de sangria 135px (feed 4:5)
+Para todos os templates 1080x1350 (feed/carrossel), o conteúdo deve respeitar 135px de margem superior e inferior. Isso garante que o conteúdo não seja cortado pelo "ver mais" e pelo preview do grid (que agora é 3:4).
 
-**Solução**: Usar replace mais preciso (localizar dentro de tags) e trocar `defaultValue` por `value` controlado.
+O `HTML_CREATIVE_RULES` já tem "padding: 120px 80px" para 4:5 — precisa ser atualizado para **135px vertical**.
 
 ## Plano de implementação
 
-### Arquivo 1: `src/lib/renderPng.ts`
-- Antes de inserir o HTML no container, parsear o `html_content` e extrair as fontes usadas (regex em `font-family`)
-- Injetar `<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">` (e quaisquer outras fontes detectadas) como `<style>` no container
-- Usar `document.fonts.ready` para aguardar carregamento antes de chamar `html2canvas`
-- Adicionar timeout de 3s para não travar caso a fonte não carregue
+### 1. Atualizar `HTML_CREATIVE_RULES` no edge function
+- Mudar safe zone 4:5 de `padding: 120px 80px` para `padding: 135px 80px`
+- Adicionar nota explícita: "Para 1080x1350: sangria de 135px acima e abaixo — nenhum conteúdo crítico nessa faixa"
 
-### Arquivo 2: `supabase/functions/generate-asset-from-template/index.ts`
-- No HTML gerado pela IA, incluir no scaffold base um `<link>` do Google Fonts para Inter (e outras fontes usadas)
-- Isso garante que tanto a preview (iframe) quanto a renderização PNG tenham a fonte correta embarcada no próprio HTML
+### 2. Migration SQL para corrigir templates
+Atualizar `system_prompt` dos seguintes templates:
 
-### Arquivo 3: `src/components/ui/HtmlVisualEditor.tsx`
-- Trocar `defaultValue` por estado controlado (`value`) nos inputs de texto, com `onChange` atualizando estado local por segmento
-- No `updateText`: fazer replace mais seguro — localizar o texto dentro de `>...<` (conteúdo de tag) em vez de replace global
-- Adicionar debounce no onChange para não travar a UI
+- **feed-image-text**: corrigir "1080x1080px" → "1080x1350px", adicionar regras de safe zone e sangria 135px
+- **story-gradient-text**: expandir prompt com safe zones 250px/340px e regras visuais
+- **story-interativo**: corrigir safe zones para 250px/340px em pixels
+- **reels-cover**: corrigir safe zones para 250px/340px em pixels
+- **carousel-twitter-style**: adicionar regras de safe zone e sangria 135px
+- **Todos os carrosseis 1080x1350**: mencionar sangria 135px explicitamente nos prompts
+
+### 3. Adicionar preview HTML nos cards de template (`SettingsTemplates.tsx`)
+Cada card de template mostrará uma miniatura visual representativa:
+
+- Renderizar um mini-preview estático em HTML/CSS no espaço de thumbnail (100px de altura)
+- Mostrar um esquema visual simplificado do layout (wireframe): retângulo com linhas representando headline, body, CTA, proporção correta
+- Usar as cores do template (fundo escuro, accent) para dar identidade
+- Mostrar dimensão e proporção visualmente (ex: retângulo 4:5 ou 9:16 proporcional)
+- Para carrosséis, mostrar múltiplos mini-cards lado a lado
 
 ### Arquivos modificados
-- `src/lib/renderPng.ts` — injetar Google Fonts + aguardar carregamento
-- `supabase/functions/generate-asset-from-template/index.ts` — incluir `<link>` de fontes no scaffold HTML
-- `src/components/ui/HtmlVisualEditor.tsx` — inputs controlados + replace seguro
+- `supabase/functions/generate-asset-from-template/index.ts` — atualizar `HTML_CREATIVE_RULES` (sangria 135px)
+- Migration SQL — atualizar `system_prompt` de 6 templates
+- `src/pages/SettingsTemplates.tsx` — adicionar previews visuais nos cards
 
