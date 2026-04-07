@@ -42,20 +42,65 @@ const CONTEXT_BRASIL_INSTAGRAM = `
 
 // ─── Creative agent visual guidelines ────────────────────────
 const HTML_CREATIVE_RULES = `
-## REGRAS VISUAIS OBRIGATÓRIAS
-- Máximo 2 linhas de texto visível no criativo
-- Fonte grande o suficiente para leitura sem zoom em celular (mín 24px para títulos, 18px para corpo)
-- Contraste obrigatório: texto claro em fundo escuro OU texto escuro em fundo claro
-- Safe zone: nenhum texto importante nos 15% superior e inferior do frame (em 9:16)
+## REGRAS DE LAYOUT E DIMENSÕES — OBRIGATÓRIO
+O HTML gerado DEVE seguir estas regras pixel-a-pixel:
+
+### DIMENSÕES DO CONTAINER
+- O elemento raiz deve ter EXATAMENTE width e height iguais às dimensões informadas (ex: 1080x1350 para 4:5, 1080x1920 para 9:16)
+- Use box-sizing: border-box em tudo
+- NUNCA use unidades relativas (%, vh, vw) para o container raiz — use px absoluto
+
+### SAFE ZONES E PADDING
+- Para 4:5 (1080×1350): padding-top: 120px, padding-bottom: 120px, padding-left: 80px, padding-right: 80px
+- Para 9:16 (1080×1920): padding-top: 200px, padding-bottom: 250px, padding-left: 80px, padding-right: 80px
+- Para 1:1 (1080×1080): padding: 100px 80px
+- NENHUM texto ou elemento importante pode ficar fora dessas safe zones
+- O conteúdo deve estar centralizado verticalmente DENTRO da safe zone
+
+### TIPOGRAFIA — TAMANHOS MÍNIMOS
+- Título/Hook: mín 64px, ideal 72-90px, font-weight 700-800
+- Subtítulo/Corpo: mín 36px, ideal 40-48px, font-weight 400-500
+- Metadado/Label: mín 28px, font-weight 500
+- CTA: mín 40px, font-weight 700
+- Número destaque: mín 100px, ideal 120-160px, font-weight 800
+- line-height: 1.2 para títulos, 1.5 para corpo
+- letter-spacing: -0.02em para títulos grandes
+
+### ESPAÇAMENTO ENTRE ELEMENTOS
+- Entre título e corpo: mín 40px
+- Entre corpo e CTA: mín 50px
+- Entre ícone/emoji e texto: mín 30px
+- Margem entre blocos de conteúdo: 40-60px
+
+### REGRAS VISUAIS
+- Máximo 2 linhas de texto visível por bloco principal
+- Contraste obrigatório: texto claro em fundo escuro OU texto escuro em fundo claro (ratio mín 4.5:1)
 - NUNCA começar com logo ou nome da marca — hook visual primeiro
 - Hierarquia clara: hook > corpo > CTA (tamanhos decrescentes)
 - Uma única mensagem por slide/peça
+- font-family: usar fontes system seguras: 'Inter', 'Helvetica Neue', Arial, sans-serif
+- Evitar emojis como elemento principal de design — usar com moderação
+
+### BACKGROUND
+- NUNCA branco puro (#fff ou #ffffff) — usar off-white mín (#f5f5f0) ou cores com personalidade
+- Gradientes sutis são preferíveis a cores sólidas
+- Se usar imagem de fundo, aplicar overlay com opacity para garantir legibilidade
 
 ## PARA CARROSSEL
 - Slide 1: PARA O SCROLL — visual forte + texto que cria lacuna ou promete entrega. NUNCA título de relatório.
 - Slides do meio: 1 ponto por slide, máx 3 linhas de texto. Visual consistente (mesma paleta, mesma tipografia).
-- Último slide: CTA único e claro.
+- Último slide: CTA único e claro com botão visual.
+- Todos os slides devem ter EXATAMENTE as mesmas dimensões e a mesma estrutura de padding/safe-zone.
+- Manter paleta de cores e tipografia idêntica entre slides.
 - O usuário deve entender a proposta lendo apenas slide 1 e o último.
+
+## TEMPLATE HTML OBRIGATÓRIO
+Sempre inicie o HTML com esta estrutura base:
+\`\`\`
+<div style="width: {W}px; height: {H}px; box-sizing: border-box; padding: {PADDING}; background: {BG}; display: flex; flex-direction: column; justify-content: center; font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; overflow: hidden; position: relative;">
+  <!-- conteúdo aqui -->
+</div>
+\`\`\`
 
 ${CONTEXT_BRASIL_INSTAGRAM}
 `;
