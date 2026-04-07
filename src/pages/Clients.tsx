@@ -62,7 +62,7 @@ const Clients = () => {
           className="p-12 rounded-lg text-center"
           style={{
             background: "hsl(var(--bg-surface1))",
-            border: "1px solid var(--border-default)",
+            border: "1px solid hsl(var(--border-default))",
             borderRadius: 8,
           }}
         >

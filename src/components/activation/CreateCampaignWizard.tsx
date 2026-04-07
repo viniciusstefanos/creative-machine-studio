@@ -239,7 +239,7 @@ export const CreateCampaignWizard = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="max-w-xl"
-        style={{ background: "hsl(var(--bg-surface1))", border: "1px solid var(--border-default)" }}
+        style={{ background: "hsl(var(--bg-surface1))", border: "1px solid hsl(var(--border-default))" }}
       >
         <DialogHeader>
           <DialogTitle className="text-display-sm" style={{ color: "hsl(var(--text-primary))" }}>
@@ -285,7 +285,7 @@ export const CreateCampaignWizard = ({
                 value={campaignName}
                 onChange={e => setCampaignName(e.target.value)}
                 placeholder="Ex: Black Friday 2026"
-                style={{ background: "hsl(var(--bg-surface2))", border: "1px solid var(--border-default)", color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}
+                style={{ background: "hsl(var(--bg-surface2))", border: "1px solid hsl(var(--border-default))", color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}
               />
             </div>
 
@@ -319,7 +319,7 @@ export const CreateCampaignWizard = ({
                   value={dailyBudget}
                   onChange={e => setDailyBudget(e.target.value)}
                   min={1}
-                  style={{ background: "hsl(var(--bg-surface2))", border: "1px solid var(--border-default)", color: "hsl(var(--text-primary))", fontFamily: "'JetBrains Mono', monospace" }}
+                  style={{ background: "hsl(var(--bg-surface2))", border: "1px solid hsl(var(--border-default))", color: "hsl(var(--text-primary))", fontFamily: "'JetBrains Mono', monospace" }}
                 />
               </div>
               <div>
@@ -328,7 +328,7 @@ export const CreateCampaignWizard = ({
                   type="date"
                   value={startDate}
                   onChange={e => setStartDate(e.target.value)}
-                  style={{ background: "hsl(var(--bg-surface2))", border: "1px solid var(--border-default)", color: "hsl(var(--text-primary))", fontFamily: "'JetBrains Mono', monospace" }}
+                  style={{ background: "hsl(var(--bg-surface2))", border: "1px solid hsl(var(--border-default))", color: "hsl(var(--text-primary))", fontFamily: "'JetBrains Mono', monospace" }}
                 />
               </div>
               <div>
@@ -337,7 +337,7 @@ export const CreateCampaignWizard = ({
                   type="date"
                   value={endDate}
                   onChange={e => setEndDate(e.target.value)}
-                  style={{ background: "hsl(var(--bg-surface2))", border: "1px solid var(--border-default)", color: "hsl(var(--text-primary))", fontFamily: "'JetBrains Mono', monospace" }}
+                  style={{ background: "hsl(var(--bg-surface2))", border: "1px solid hsl(var(--border-default))", color: "hsl(var(--text-primary))", fontFamily: "'JetBrains Mono', monospace" }}
                 />
               </div>
             </div>
@@ -355,7 +355,7 @@ export const CreateCampaignWizard = ({
                   value={ageMin}
                   onChange={e => setAgeMin(e.target.value)}
                   min={13} max={65}
-                  style={{ background: "hsl(var(--bg-surface2))", border: "1px solid var(--border-default)", color: "hsl(var(--text-primary))", fontFamily: "'JetBrains Mono', monospace" }}
+                  style={{ background: "hsl(var(--bg-surface2))", border: "1px solid hsl(var(--border-default))", color: "hsl(var(--text-primary))", fontFamily: "'JetBrains Mono', monospace" }}
                 />
               </div>
               <div>
@@ -365,7 +365,7 @@ export const CreateCampaignWizard = ({
                   value={ageMax}
                   onChange={e => setAgeMax(e.target.value)}
                   min={13} max={65}
-                  style={{ background: "hsl(var(--bg-surface2))", border: "1px solid var(--border-default)", color: "hsl(var(--text-primary))", fontFamily: "'JetBrains Mono', monospace" }}
+                  style={{ background: "hsl(var(--bg-surface2))", border: "1px solid hsl(var(--border-default))", color: "hsl(var(--text-primary))", fontFamily: "'JetBrains Mono', monospace" }}
                 />
               </div>
             </div>
@@ -406,7 +406,7 @@ export const CreateCampaignWizard = ({
                 onChange={e => setInterests(e.target.value)}
                 placeholder="Ex: fitness, nutrição, bem-estar"
                 rows={2}
-                style={{ background: "hsl(var(--bg-surface2))", border: "1px solid var(--border-default)", color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}
+                style={{ background: "hsl(var(--bg-surface2))", border: "1px solid hsl(var(--border-default))", color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}
               />
               <p className="text-[10px] mt-1" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
                 Nota: interesses serão enviados como texto livre na segmentação
@@ -428,7 +428,7 @@ export const CreateCampaignWizard = ({
                 <span className="text-xs" style={{ color: "hsl(var(--text-muted))" }}>Carregando peças...</span>
               </div>
             ) : approvedAssets.length === 0 ? (
-              <div className="p-6 text-center rounded-lg" style={{ background: "hsl(var(--bg-surface2))", border: "1px solid var(--border-default)" }}>
+              <div className="p-6 text-center rounded-lg" style={{ background: "hsl(var(--bg-surface2))", border: "1px solid hsl(var(--border-default))" }}>
                 <ImageIcon size={24} className="mx-auto mb-2" style={{ color: "hsl(var(--text-muted))" }} />
                 <p className="text-xs" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
                   Nenhuma peça aprovada encontrada. Aprove peças antes de criar anúncios.
@@ -485,7 +485,7 @@ export const CreateCampaignWizard = ({
         )}
 
         {/* Actions */}
-        <div className="flex items-center justify-between mt-4 pt-4" style={{ borderTop: "1px solid var(--border-default)" }}>
+        <div className="flex items-center justify-between mt-4 pt-4" style={{ borderTop: "1px solid hsl(var(--border-default))" }}>
           <div>
             {step > 1 && (
               <Button

@@ -77,7 +77,7 @@ export const CommentThread = ({ entityType, entityId }: CommentThreadProps) => {
         {loading ? (
           <p className="text-xs" style={{ color: "hsl(var(--text-muted))" }}>Carregando...</p>
         ) : rootComments.length === 0 ? (
-          <div className="p-4 rounded-lg text-center" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid var(--border-default)", borderRadius: 8 }}>
+          <div className="p-4 rounded-lg text-center" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid hsl(var(--border-default))", borderRadius: 8 }}>
             <MessageSquare size={20} className="mx-auto mb-2" style={{ color: "hsl(var(--text-muted))" }} />
             <p className="text-xs" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>Nenhum comentário</p>
           </div>
@@ -88,7 +88,7 @@ export const CommentThread = ({ entityType, entityId }: CommentThreadProps) => {
                 className="p-3 rounded-lg"
                 style={{
                   background: comment.resolved ? "hsl(var(--bg-base))" : "hsl(var(--bg-surface1))",
-                  border: "1px solid var(--border-default)",
+                  border: "1px solid hsl(var(--border-default))",
                   borderRadius: 8,
                   opacity: comment.resolved ? 0.6 : 1,
                 }}
@@ -127,7 +127,7 @@ export const CommentThread = ({ entityType, entityId }: CommentThreadProps) => {
                 <div
                   key={reply.id}
                   className="ml-6 mt-2 p-3 rounded-lg"
-                  style={{ background: "hsl(var(--bg-surface2))", border: "1px solid var(--border-subtle)", borderRadius: 8 }}
+                  style={{ background: "hsl(var(--bg-surface2))", border: "1px solid hsl(var(--border-subtle))", borderRadius: 8 }}
                 >
                   <p className="text-xs" style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}>{reply.body}</p>
                   <span className="text-[9px] mt-1 block" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
@@ -144,7 +144,7 @@ export const CommentThread = ({ entityType, entityId }: CommentThreadProps) => {
                     onChange={(e) => setNewComment(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
                     className="flex-1 px-3 py-2 text-xs outline-none"
-                    style={{ background: "hsl(var(--bg-base))", border: "1px solid var(--border-strong)", color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'", borderRadius: 6 }}
+                    style={{ background: "hsl(var(--bg-base))", border: "1px solid hsl(var(--border-strong))", color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'", borderRadius: 6 }}
                     placeholder="Responder..."
                   />
                   <button
@@ -170,7 +170,7 @@ export const CommentThread = ({ entityType, entityId }: CommentThreadProps) => {
             onChange={(e) => setNewComment(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
             className="flex-1 px-3 py-2 text-xs outline-none"
-            style={{ background: "hsl(var(--bg-base))", border: "1px solid var(--border-strong)", color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'", borderRadius: 6 }}
+            style={{ background: "hsl(var(--bg-base))", border: "1px solid hsl(var(--border-strong))", color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'", borderRadius: 6 }}
             placeholder="Adicionar comentário..."
           />
           <button

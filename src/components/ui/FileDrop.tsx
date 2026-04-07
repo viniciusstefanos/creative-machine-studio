@@ -28,7 +28,7 @@ export const FileDrop = ({ accept = ".pdf,.docx", onFile, uploading, fileName, o
     return (
       <div
         className="flex items-center gap-3 p-4 rounded-lg"
-        style={{ background: "hsl(var(--bg-surface2))", border: "1px solid var(--border-default)", borderRadius: 8 }}
+        style={{ background: "hsl(var(--bg-surface2))", border: "1px solid hsl(var(--border-default))", borderRadius: 8 }}
       >
         <FileText size={18} style={{ color: "hsl(var(--accent))" }} />
         <span className="flex-1 text-sm truncate" style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}>

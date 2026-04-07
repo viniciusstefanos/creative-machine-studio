@@ -65,7 +65,7 @@ export const UtmTab = ({ activationId, landingPageUrl }: UtmTabProps) => {
 
   const inputStyle = {
     background: "hsl(var(--bg-base))",
-    border: "1px solid var(--border-strong)",
+    border: "1px solid hsl(var(--border-strong))",
     color: "hsl(var(--text-primary))",
     fontFamily: "'DM Sans', sans-serif",
     borderRadius: 6,
@@ -109,7 +109,7 @@ export const UtmTab = ({ activationId, landingPageUrl }: UtmTabProps) => {
           className="p-3 rounded-md text-xs break-all"
           style={{
             background: "hsl(var(--bg-base))",
-            border: "1px solid var(--border-default)",
+            border: "1px solid hsl(var(--border-default))",
             color: "hsl(var(--accent))",
             fontFamily: "'JetBrains Mono', monospace",
             borderRadius: 6,

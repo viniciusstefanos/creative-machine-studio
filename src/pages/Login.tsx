@@ -43,7 +43,7 @@ const Login = () => {
         className="w-full max-w-[380px] p-8 rounded-lg"
         style={{
           background: "hsl(var(--bg-surface1))",
-          border: "1px solid var(--border-default)",
+          border: "1px solid hsl(var(--border-default))",
         }}
       >
         {/* Logo */}

@@ -107,7 +107,7 @@ export const Sidebar = () => {
         })}
 
         {/* Settings section */}
-        <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--border-subtle)" }}>
+        <div className="mt-4 pt-4" style={{ borderTop: "1px solid hsl(var(--border-subtle))" }}>
           <NavLink
             to="/settings/team"
             className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150"
@@ -144,7 +144,7 @@ export const Sidebar = () => {
       {/* User Footer */}
       <div
         className="px-4 py-4 flex items-center gap-3"
-        style={{ borderTop: "1px solid var(--border-subtle)" }}
+        style={{ borderTop: "1px solid hsl(var(--border-subtle))" }}
       >
         {profile?.avatar_url ? (
           <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
@@ -199,7 +199,7 @@ export const Sidebar = () => {
         style={{
           width: 220,
           background: "hsl(var(--bg-surface1))",
-          borderRight: "1px solid var(--border-subtle)",
+          borderRight: "1px solid hsl(var(--border-subtle))",
         }}
       >
         {sidebarContent}

@@ -54,7 +54,7 @@ const Notifications = () => {
           <button
             onClick={markAllAsRead}
             className="text-xs font-medium px-3 py-2 rounded-md transition-all duration-150"
-            style={{ background: "hsl(var(--bg-surface2))", border: "1px solid var(--border-strong)", color: "hsl(var(--text-secondary))", fontFamily: "'DM Sans'", borderRadius: 6 }}
+            style={{ background: "hsl(var(--bg-surface2))", border: "1px solid hsl(var(--border-strong))", color: "hsl(var(--text-secondary))", fontFamily: "'DM Sans'", borderRadius: 6 }}
           >
             Marcar tudo como lido
           </button>
@@ -64,7 +64,7 @@ const Notifications = () => {
       {loading ? (
         <div className="text-sm" style={{ color: "hsl(var(--text-muted))" }}>Carregando...</div>
       ) : notifications.length === 0 ? (
-        <div className="p-12 rounded-lg text-center" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid var(--border-default)", borderRadius: 8 }}>
+        <div className="p-12 rounded-lg text-center" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid hsl(var(--border-default))", borderRadius: 8 }}>
           <Bell size={40} className="mx-auto mb-4" style={{ color: "hsl(var(--text-muted))" }} />
           <p className="text-sm" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>Nenhuma notificação</p>
         </div>

@@ -79,7 +79,7 @@ export const WorkflowProgress = ({
       className="flex items-center gap-0 p-3 rounded-lg mb-6"
       style={{
         background: "hsl(var(--bg-surface1))",
-        border: "1px solid var(--border-default)",
+        border: "1px solid hsl(var(--border-default))",
         borderRadius: 8,
       }}
     >
@@ -124,10 +124,10 @@ export const WorkflowProgress = ({
                     ? "color-mix(in srgb, var(--accent) 15%, transparent)"
                     : "hsl(var(--bg-surface2))",
                   border: isActive
-                    ? "1px solid var(--accent)"
+                    ? "1px solid hsl(var(--accent))"
                     : isDone
-                    ? "1px solid var(--accent)"
-                    : "1px solid var(--border-default)",
+                    ? "1px solid hsl(var(--accent))"
+                    : "1px solid hsl(var(--border-default))",
                   color: isDone
                     ? "hsl(var(--text-inverse))"
                     : isActive

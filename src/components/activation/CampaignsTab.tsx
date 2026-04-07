@@ -120,7 +120,7 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
       )}
 
       {campaigns.length === 0 ? (
-        <div className="p-8 rounded-lg text-center" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid var(--border-default)", borderRadius: 8 }}>
+        <div className="p-8 rounded-lg text-center" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid hsl(var(--border-default))", borderRadius: 8 }}>
           <Megaphone size={32} className="mx-auto mb-3" style={{ color: "hsl(var(--text-muted))" }} />
           <p className="text-sm mb-1" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>Nenhuma campanha de ads</p>
           <p className="text-[10px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
@@ -137,7 +137,7 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
               <div
                 key={campaign.id}
                 className="rounded-lg overflow-hidden"
-                style={{ background: "hsl(var(--bg-surface1))", border: "1px solid var(--border-default)", borderRadius: 8 }}
+                style={{ background: "hsl(var(--bg-surface1))", border: "1px solid hsl(var(--border-default))", borderRadius: 8 }}
               >
                 {/* Campaign header */}
                 <button
@@ -179,7 +179,7 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
 
                 {/* Expanded details */}
                 {isExpanded && (
-                  <div className="px-4 pb-4" style={{ borderTop: "1px solid var(--border-default)" }}>
+                  <div className="px-4 pb-4" style={{ borderTop: "1px solid hsl(var(--border-default))" }}>
                     <div className="flex items-center justify-between py-3">
                       <div className="flex items-center gap-4">
                         {campaign.start_date && (

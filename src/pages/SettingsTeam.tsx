@@ -46,7 +46,7 @@ const SettingsTeam = () => {
 
   const inputStyle = {
     background: "hsl(var(--bg-base))",
-    border: "1px solid var(--border-strong)",
+    border: "1px solid hsl(var(--border-strong))",
     color: "hsl(var(--text-primary))",
     fontFamily: "'DM Sans', sans-serif",
     borderRadius: 6,
@@ -59,7 +59,7 @@ const SettingsTeam = () => {
       </h1>
 
       {/* Invite */}
-      <div className="p-5 rounded-lg mb-6" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid var(--border-default)", borderRadius: 8 }}>
+      <div className="p-5 rounded-lg mb-6" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid hsl(var(--border-default))", borderRadius: 8 }}>
         <SectionLabel>Convidar membro</SectionLabel>
         <form onSubmit={handleInvite} className="flex gap-3 mt-3">
           <input
@@ -91,7 +91,7 @@ const SettingsTeam = () => {
             <div
               key={p.id}
               className="flex items-center gap-4 p-4 rounded-lg"
-              style={{ background: "hsl(var(--bg-surface1))", border: "1px solid var(--border-default)", borderRadius: 8 }}
+              style={{ background: "hsl(var(--bg-surface1))", border: "1px solid hsl(var(--border-default))", borderRadius: 8 }}
             >
               {p.avatar_url ? (
                 <img src={p.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" />

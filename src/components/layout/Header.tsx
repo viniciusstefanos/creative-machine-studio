@@ -57,7 +57,7 @@ export const Header = ({ breadcrumbs = [] }: HeaderProps) => {
       className="sticky top-0 z-40 flex items-center justify-between px-8 py-3"
       style={{
         background: "hsl(var(--bg-surface1))",
-        borderBottom: "1px solid var(--border-subtle)",
+        borderBottom: "1px solid hsl(var(--border-subtle))",
       }}
     >
       <div className="flex items-center gap-1.5 pl-10 md:pl-0">
@@ -108,9 +108,9 @@ export const Header = ({ breadcrumbs = [] }: HeaderProps) => {
         {showDropdown && (
           <div
             className="absolute right-0 top-full mt-2 w-80 rounded-lg overflow-hidden shadow-lg z-50"
-            style={{ background: "hsl(var(--bg-surface2))", border: "1px solid var(--border-default)", borderRadius: 8 }}
+            style={{ background: "hsl(var(--bg-surface2))", border: "1px solid hsl(var(--border-default))", borderRadius: 8 }}
           >
-            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid hsl(var(--border-subtle))" }}>
               <span className="text-xs font-medium" style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}>Notificações</span>
               <Link to="/notifications" onClick={() => setShowDropdown(false)} className="text-[10px]" style={{ color: "hsl(var(--accent))", fontFamily: "'JetBrains Mono', monospace" }}>
                 Ver todas
@@ -128,7 +128,7 @@ export const Header = ({ breadcrumbs = [] }: HeaderProps) => {
                     onClick={() => markAsRead(n.id)}
                     className="w-full text-left px-4 py-3 transition-all duration-150 hover:opacity-80"
                     style={{
-                      borderBottom: "1px solid var(--border-subtle)",
+                      borderBottom: "1px solid hsl(var(--border-subtle))",
                       background: n.read ? "transparent" : "color-mix(in srgb, var(--accent) 5%, transparent)",
                     }}
                   >

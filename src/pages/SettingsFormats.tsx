@@ -51,7 +51,7 @@ const SettingsFormats = () => {
 
   const inputStyle = {
     background: "hsl(var(--bg-base))",
-    border: "1px solid var(--border-strong)",
+    border: "1px solid hsl(var(--border-strong))",
     color: "hsl(var(--text-primary))",
     fontFamily: "'DM Sans', sans-serif",
     borderRadius: 6,
@@ -75,7 +75,7 @@ const SettingsFormats = () => {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="p-5 rounded-lg mb-6 space-y-4" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid var(--border-default)", borderRadius: 8 }}>
+        <form onSubmit={handleSubmit} className="p-5 rounded-lg mb-6 space-y-4" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid hsl(var(--border-default))", borderRadius: 8 }}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: "hsl(var(--text-secondary))", fontFamily: "'DM Sans'" }}>Nome</label>
@@ -100,7 +100,7 @@ const SettingsFormats = () => {
             <button type="submit" disabled={saving} className="px-5 py-2 text-sm font-medium rounded-md disabled:opacity-50" style={{ background: "hsl(var(--accent))", color: "hsl(var(--text-inverse))", fontFamily: "'DM Sans'", borderRadius: 6 }}>
               {editId ? "Atualizar" : "Criar"}
             </button>
-            <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="px-5 py-2 text-sm font-medium rounded-md" style={{ background: "hsl(var(--bg-surface2))", border: "1px solid var(--border-strong)", color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'", borderRadius: 6 }}>
+            <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="px-5 py-2 text-sm font-medium rounded-md" style={{ background: "hsl(var(--bg-surface2))", border: "1px solid hsl(var(--border-strong))", color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'", borderRadius: 6 }}>
               Cancelar
             </button>
           </div>
@@ -121,7 +121,7 @@ const SettingsFormats = () => {
                     className="flex items-center gap-4 p-4 rounded-lg"
                     style={{
                       background: "hsl(var(--bg-surface1))",
-                      border: "1px solid var(--border-default)",
+                      border: "1px solid hsl(var(--border-default))",
                       borderRadius: 8,
                       opacity: f.active ? 1 : 0.5,
                     }}
