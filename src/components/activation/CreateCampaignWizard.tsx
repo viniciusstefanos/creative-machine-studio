@@ -239,10 +239,10 @@ export const CreateCampaignWizard = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="max-w-xl"
-        style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)" }}
+        style={{ background: "hsl(var(--bg-surface1)", border: "1px solid var(--border-default)" }}
       >
         <DialogHeader>
-          <DialogTitle className="text-display-sm" style={{ color: "var(--text-primary)" }}>
+          <DialogTitle className="text-display-sm" style={{ color: "hsl(var(--text-primary)" }}>
             Criar Campanha Meta Ads
           </DialogTitle>
         </DialogHeader>
@@ -254,18 +254,18 @@ export const CreateCampaignWizard = ({
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium"
                 style={{
-                  background: s <= step ? "hsl(var(--accent))" : "var(--bg-surface2)",
-                  color: s <= step ? "hsl(var(--accent-foreground))" : "var(--text-muted)",
+                  background: s <= step ? "hsl(var(--accent))" : "hsl(var(--bg-surface2)",
+                  color: s <= step ? "hsl(var(--accent-foreground))" : "hsl(var(--text-muted)",
                 }}
               >
                 {s < step ? <Check size={14} /> : s}
               </div>
               {s < 3 && (
-                <div className="w-8 h-px" style={{ background: s < step ? "hsl(var(--accent))" : "var(--border-default)" }} />
+                <div className="w-8 h-px" style={{ background: s < step ? "hsl(var(--accent))" : "hsl(var(--border-default)" }} />
               )}
             </div>
           ))}
-          <span className="ml-3 text-xs" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>
+          <span className="ml-3 text-xs" style={{ color: "hsl(var(--text-muted)", fontFamily: "'DM Sans'" }}>
             {step === 1 ? "Campanha" : step === 2 ? "Segmentação" : "Anúncios"}
           </span>
         </div>
@@ -280,17 +280,17 @@ export const CreateCampaignWizard = ({
             )}
 
             <div>
-              <Label className="text-xs mb-1.5 block" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>Nome da campanha</Label>
+              <Label className="text-xs mb-1.5 block" style={{ color: "hsl(var(--text-secondary)", fontFamily: "'DM Sans'" }}>Nome da campanha</Label>
               <Input
                 value={campaignName}
                 onChange={e => setCampaignName(e.target.value)}
                 placeholder="Ex: Black Friday 2026"
-                style={{ background: "var(--bg-surface2)", border: "1px solid var(--border-default)", color: "var(--text-primary)", fontFamily: "'DM Sans'" }}
+                style={{ background: "hsl(var(--bg-surface2)", border: "1px solid var(--border-default)", color: "hsl(var(--text-primary)", fontFamily: "'DM Sans'" }}
               />
             </div>
 
             <div>
-              <Label className="text-xs mb-1.5 block" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>Objetivo</Label>
+              <Label className="text-xs mb-1.5 block" style={{ color: "hsl(var(--text-secondary)", fontFamily: "'DM Sans'" }}>Objetivo</Label>
               <div className="grid grid-cols-2 gap-2">
                 {OBJECTIVES.map(obj => (
                   <button
@@ -299,9 +299,9 @@ export const CreateCampaignWizard = ({
                     onClick={() => setObjective(obj.value)}
                     className="px-3 py-2 rounded-md text-xs text-left transition-all"
                     style={{
-                      background: objective === obj.value ? "hsl(var(--accent) / 0.15)" : "var(--bg-surface2)",
-                      border: `1px solid ${objective === obj.value ? "hsl(var(--accent))" : "var(--border-default)"}`,
-                      color: objective === obj.value ? "hsl(var(--accent))" : "var(--text-secondary)",
+                      background: objective === obj.value ? "hsl(var(--accent) / 0.15)" : "hsl(var(--bg-surface2)",
+                      border: `1px solid ${objective === obj.value ? "hsl(var(--accent))" : "hsl(var(--border-default)"}`,
+                      color: objective === obj.value ? "hsl(var(--accent))" : "hsl(var(--text-secondary)",
                       fontFamily: "'DM Sans'",
                     }}
                   >
@@ -313,31 +313,31 @@ export const CreateCampaignWizard = ({
 
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <Label className="text-xs mb-1.5 block" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>Orçamento diário (R$)</Label>
+                <Label className="text-xs mb-1.5 block" style={{ color: "hsl(var(--text-secondary)", fontFamily: "'DM Sans'" }}>Orçamento diário (R$)</Label>
                 <Input
                   type="number"
                   value={dailyBudget}
                   onChange={e => setDailyBudget(e.target.value)}
                   min={1}
-                  style={{ background: "var(--bg-surface2)", border: "1px solid var(--border-default)", color: "var(--text-primary)", fontFamily: "'JetBrains Mono', monospace" }}
+                  style={{ background: "hsl(var(--bg-surface2)", border: "1px solid var(--border-default)", color: "hsl(var(--text-primary)", fontFamily: "'JetBrains Mono', monospace" }}
                 />
               </div>
               <div>
-                <Label className="text-xs mb-1.5 block" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>Início</Label>
+                <Label className="text-xs mb-1.5 block" style={{ color: "hsl(var(--text-secondary)", fontFamily: "'DM Sans'" }}>Início</Label>
                 <Input
                   type="date"
                   value={startDate}
                   onChange={e => setStartDate(e.target.value)}
-                  style={{ background: "var(--bg-surface2)", border: "1px solid var(--border-default)", color: "var(--text-primary)", fontFamily: "'JetBrains Mono', monospace" }}
+                  style={{ background: "hsl(var(--bg-surface2)", border: "1px solid var(--border-default)", color: "hsl(var(--text-primary)", fontFamily: "'JetBrains Mono', monospace" }}
                 />
               </div>
               <div>
-                <Label className="text-xs mb-1.5 block" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>Fim</Label>
+                <Label className="text-xs mb-1.5 block" style={{ color: "hsl(var(--text-secondary)", fontFamily: "'DM Sans'" }}>Fim</Label>
                 <Input
                   type="date"
                   value={endDate}
                   onChange={e => setEndDate(e.target.value)}
-                  style={{ background: "var(--bg-surface2)", border: "1px solid var(--border-default)", color: "var(--text-primary)", fontFamily: "'JetBrains Mono', monospace" }}
+                  style={{ background: "hsl(var(--bg-surface2)", border: "1px solid var(--border-default)", color: "hsl(var(--text-primary)", fontFamily: "'JetBrains Mono', monospace" }}
                 />
               </div>
             </div>
@@ -349,29 +349,29 @@ export const CreateCampaignWizard = ({
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs mb-1.5 block" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>Idade mín.</Label>
+                <Label className="text-xs mb-1.5 block" style={{ color: "hsl(var(--text-secondary)", fontFamily: "'DM Sans'" }}>Idade mín.</Label>
                 <Input
                   type="number"
                   value={ageMin}
                   onChange={e => setAgeMin(e.target.value)}
                   min={13} max={65}
-                  style={{ background: "var(--bg-surface2)", border: "1px solid var(--border-default)", color: "var(--text-primary)", fontFamily: "'JetBrains Mono', monospace" }}
+                  style={{ background: "hsl(var(--bg-surface2)", border: "1px solid var(--border-default)", color: "hsl(var(--text-primary)", fontFamily: "'JetBrains Mono', monospace" }}
                 />
               </div>
               <div>
-                <Label className="text-xs mb-1.5 block" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>Idade máx.</Label>
+                <Label className="text-xs mb-1.5 block" style={{ color: "hsl(var(--text-secondary)", fontFamily: "'DM Sans'" }}>Idade máx.</Label>
                 <Input
                   type="number"
                   value={ageMax}
                   onChange={e => setAgeMax(e.target.value)}
                   min={13} max={65}
-                  style={{ background: "var(--bg-surface2)", border: "1px solid var(--border-default)", color: "var(--text-primary)", fontFamily: "'JetBrains Mono', monospace" }}
+                  style={{ background: "hsl(var(--bg-surface2)", border: "1px solid var(--border-default)", color: "hsl(var(--text-primary)", fontFamily: "'JetBrains Mono', monospace" }}
                 />
               </div>
             </div>
 
             <div>
-              <Label className="text-xs mb-1.5 block" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>Gênero</Label>
+              <Label className="text-xs mb-1.5 block" style={{ color: "hsl(var(--text-secondary)", fontFamily: "'DM Sans'" }}>Gênero</Label>
               <div className="flex gap-2">
                 {[
                   { value: 0, label: "Todos" },
@@ -387,9 +387,9 @@ export const CreateCampaignWizard = ({
                     }}
                     className="px-3 py-2 rounded-md text-xs transition-all"
                     style={{
-                      background: (g.value === 0 && genders.length === 0) || genders.includes(g.value) ? "hsl(var(--accent) / 0.15)" : "var(--bg-surface2)",
-                      border: `1px solid ${(g.value === 0 && genders.length === 0) || genders.includes(g.value) ? "hsl(var(--accent))" : "var(--border-default)"}`,
-                      color: (g.value === 0 && genders.length === 0) || genders.includes(g.value) ? "hsl(var(--accent))" : "var(--text-secondary)",
+                      background: (g.value === 0 && genders.length === 0) || genders.includes(g.value) ? "hsl(var(--accent) / 0.15)" : "hsl(var(--bg-surface2)",
+                      border: `1px solid ${(g.value === 0 && genders.length === 0) || genders.includes(g.value) ? "hsl(var(--accent))" : "hsl(var(--border-default)"}`,
+                      color: (g.value === 0 && genders.length === 0) || genders.includes(g.value) ? "hsl(var(--accent))" : "hsl(var(--text-secondary)",
                       fontFamily: "'DM Sans'",
                     }}
                   >
@@ -400,15 +400,15 @@ export const CreateCampaignWizard = ({
             </div>
 
             <div>
-              <Label className="text-xs mb-1.5 block" style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}>Interesses (separados por vírgula)</Label>
+              <Label className="text-xs mb-1.5 block" style={{ color: "hsl(var(--text-secondary)", fontFamily: "'DM Sans'" }}>Interesses (separados por vírgula)</Label>
               <Textarea
                 value={interests}
                 onChange={e => setInterests(e.target.value)}
                 placeholder="Ex: fitness, nutrição, bem-estar"
                 rows={2}
-                style={{ background: "var(--bg-surface2)", border: "1px solid var(--border-default)", color: "var(--text-primary)", fontFamily: "'DM Sans'" }}
+                style={{ background: "hsl(var(--bg-surface2)", border: "1px solid var(--border-default)", color: "hsl(var(--text-primary)", fontFamily: "'DM Sans'" }}
               />
-              <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>
+              <p className="text-[10px] mt-1" style={{ color: "hsl(var(--text-muted)", fontFamily: "'DM Sans'" }}>
                 Nota: interesses serão enviados como texto livre na segmentação
               </p>
             </div>
@@ -418,19 +418,19 @@ export const CreateCampaignWizard = ({
         {/* Step 3: Ads */}
         {step === 3 && (
           <div className="space-y-3">
-            <p className="text-xs" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>
+            <p className="text-xs" style={{ color: "hsl(var(--text-muted)", fontFamily: "'DM Sans'" }}>
               Selecione as peças aprovadas que serão enviadas como anúncios:
             </p>
 
             {loadingAssets ? (
               <div className="flex items-center gap-2 p-4">
-                <Loader2 size={16} className="animate-spin" style={{ color: "var(--text-muted)" }} />
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>Carregando peças...</span>
+                <Loader2 size={16} className="animate-spin" style={{ color: "hsl(var(--text-muted)" }} />
+                <span className="text-xs" style={{ color: "hsl(var(--text-muted)" }}>Carregando peças...</span>
               </div>
             ) : approvedAssets.length === 0 ? (
-              <div className="p-6 text-center rounded-lg" style={{ background: "var(--bg-surface2)", border: "1px solid var(--border-default)" }}>
-                <ImageIcon size={24} className="mx-auto mb-2" style={{ color: "var(--text-muted)" }} />
-                <p className="text-xs" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>
+              <div className="p-6 text-center rounded-lg" style={{ background: "hsl(var(--bg-surface2)", border: "1px solid var(--border-default)" }}>
+                <ImageIcon size={24} className="mx-auto mb-2" style={{ color: "hsl(var(--text-muted)" }} />
+                <p className="text-xs" style={{ color: "hsl(var(--text-muted)", fontFamily: "'DM Sans'" }}>
                   Nenhuma peça aprovada encontrada. Aprove peças antes de criar anúncios.
                 </p>
               </div>
@@ -446,23 +446,23 @@ export const CreateCampaignWizard = ({
                       onClick={() => toggleAsset(asset.id)}
                       className="text-left rounded-lg overflow-hidden transition-all"
                       style={{
-                        background: "var(--bg-surface2)",
-                        border: `2px solid ${selected ? "hsl(var(--accent))" : "var(--border-default)"}`,
+                        background: "hsl(var(--bg-surface2)",
+                        border: `2px solid ${selected ? "hsl(var(--accent))" : "hsl(var(--border-default)"}`,
                       }}
                     >
                       {thumbUrl ? (
                         <img src={thumbUrl} alt="" className="w-full h-28 object-cover" />
                       ) : (
-                        <div className="w-full h-28 flex items-center justify-center" style={{ background: "var(--bg-surface3)" }}>
-                          <ImageIcon size={20} style={{ color: "var(--text-muted)" }} />
+                        <div className="w-full h-28 flex items-center justify-center" style={{ background: "hsl(var(--bg-surface3)" }}>
+                          <ImageIcon size={20} style={{ color: "hsl(var(--text-muted)" }} />
                         </div>
                       )}
                       <div className="p-2">
-                        <p className="text-[10px] truncate" style={{ color: "var(--text-primary)", fontFamily: "'DM Sans'" }}>
+                        <p className="text-[10px] truncate" style={{ color: "hsl(var(--text-primary)", fontFamily: "'DM Sans'" }}>
                           {asset.name || "Sem nome"}
                         </p>
                         {asset.copy?.hook && (
-                          <p className="text-[9px] truncate mt-0.5" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>
+                          <p className="text-[9px] truncate mt-0.5" style={{ color: "hsl(var(--text-muted)", fontFamily: "'DM Sans'" }}>
                             {asset.copy.hook}
                           </p>
                         )}
@@ -478,7 +478,7 @@ export const CreateCampaignWizard = ({
               </div>
             )}
 
-            <p className="text-[10px]" style={{ color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
+            <p className="text-[10px]" style={{ color: "hsl(var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
               {selectedAssetIds.size} peça(s) selecionada(s)
             </p>
           </div>
@@ -494,7 +494,7 @@ export const CreateCampaignWizard = ({
                 onClick={() => setStep(s => s - 1)}
                 disabled={submitting}
                 className="text-xs gap-1"
-                style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}
+                style={{ color: "hsl(var(--text-secondary)", fontFamily: "'DM Sans'" }}
               >
                 <ChevronLeft size={14} /> Voltar
               </Button>
@@ -508,7 +508,7 @@ export const CreateCampaignWizard = ({
               onClick={() => onOpenChange(false)}
               disabled={submitting}
               className="text-xs"
-              style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}
+              style={{ color: "hsl(var(--text-muted)", fontFamily: "'DM Sans'" }}
             >
               Cancelar
             </Button>

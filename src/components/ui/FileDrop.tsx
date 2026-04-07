@@ -28,16 +28,16 @@ export const FileDrop = ({ accept = ".pdf,.docx", onFile, uploading, fileName, o
     return (
       <div
         className="flex items-center gap-3 p-4 rounded-lg"
-        style={{ background: "var(--bg-surface2)", border: "1px solid var(--border-default)", borderRadius: 8 }}
+        style={{ background: "hsl(var(--bg-surface2)", border: "1px solid var(--border-default)", borderRadius: 8 }}
       >
-        <FileText size={18} style={{ color: "var(--accent)" }} />
-        <span className="flex-1 text-sm truncate" style={{ color: "var(--text-primary)", fontFamily: "'DM Sans'" }}>
+        <FileText size={18} style={{ color: "hsl(var(--accent))" }} />
+        <span className="flex-1 text-sm truncate" style={{ color: "hsl(var(--text-primary)", fontFamily: "'DM Sans'" }}>
           {fileName}
         </span>
         {uploading ? (
-          <Loader2 size={16} className="animate-spin" style={{ color: "var(--text-muted)" }} />
+          <Loader2 size={16} className="animate-spin" style={{ color: "hsl(var(--text-muted)" }} />
         ) : onClear ? (
-          <button onClick={onClear} className="p-1 rounded transition-all duration-150" style={{ color: "var(--text-muted)" }}>
+          <button onClick={onClear} className="p-1 rounded transition-all duration-150" style={{ color: "hsl(var(--text-muted)" }}>
             <X size={14} />
           </button>
         ) : null}
@@ -52,13 +52,13 @@ export const FileDrop = ({ accept = ".pdf,.docx", onFile, uploading, fileName, o
       onDrop={handleDrop}
       className="flex flex-col items-center justify-center gap-2 p-6 rounded-lg cursor-pointer transition-all duration-150"
       style={{
-        background: dragOver ? "var(--bg-surface3)" : "var(--bg-surface1)",
-        border: `1px dashed ${dragOver ? "var(--accent)" : "var(--border-strong)"}`,
+        background: dragOver ? "var(--bg-surface3)" : "hsl(var(--bg-surface1)",
+        border: `1px dashed ${dragOver ? "var(--accent)" : "hsl(var(--border-strong)"}`,
         borderRadius: 8,
       }}
     >
-      <Upload size={24} style={{ color: dragOver ? "var(--accent)" : "var(--text-muted)" }} />
-      <p className="text-xs text-center" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>
+      <Upload size={24} style={{ color: dragOver ? "var(--accent)" : "hsl(var(--text-muted)" }} />
+      <p className="text-xs text-center" style={{ color: "hsl(var(--text-muted)", fontFamily: "'DM Sans'" }}>
         Arraste um arquivo PDF ou DOCX aqui, ou clique para selecionar
       </p>
       <input type="file" accept={accept} onChange={handleChange} className="hidden" />

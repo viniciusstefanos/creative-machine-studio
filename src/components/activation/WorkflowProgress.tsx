@@ -78,7 +78,7 @@ export const WorkflowProgress = ({
     <div
       className="flex items-center gap-0 p-3 rounded-lg mb-6"
       style={{
-        background: "var(--bg-surface1)",
+        background: "hsl(var(--bg-surface1)",
         border: "1px solid var(--border-default)",
         borderRadius: 8,
       }}
@@ -98,7 +98,7 @@ export const WorkflowProgress = ({
                   width: 24,
                   background: isDone || isActive
                     ? "var(--accent)"
-                    : "var(--border-default)",
+                    : "hsl(var(--border-default)",
                 }}
               />
             )}
@@ -122,7 +122,7 @@ export const WorkflowProgress = ({
                     ? "var(--accent)"
                     : isActive
                     ? "color-mix(in srgb, var(--accent) 15%, transparent)"
-                    : "var(--bg-surface2)",
+                    : "hsl(var(--bg-surface2)",
                   border: isActive
                     ? "1px solid var(--accent)"
                     : isDone
@@ -132,7 +132,7 @@ export const WorkflowProgress = ({
                     ? "var(--text-inverse)"
                     : isActive
                     ? "var(--accent)"
-                    : "var(--text-muted)",
+                    : "hsl(var(--text-muted)",
                 }}
               >
                 {isDone ? <Check size={12} /> : step.icon}
@@ -144,7 +144,7 @@ export const WorkflowProgress = ({
                   className="text-xs font-medium block truncate"
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
-                    color: isDone || isActive ? "var(--text-primary)" : "var(--text-muted)",
+                    color: isDone || isActive ? "var(--text-primary)" : "hsl(var(--text-muted)",
                   }}
                 >
                   {step.label}
@@ -158,7 +158,7 @@ export const WorkflowProgress = ({
                         ? "var(--accent)"
                         : isActive
                         ? "var(--text-secondary)"
-                        : "var(--text-ghost)",
+                        : "hsl(var(--text-ghost)",
                     }}
                   >
                     {step.hint}

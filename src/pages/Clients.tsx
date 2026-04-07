@@ -34,7 +34,7 @@ const Clients = () => {
       <div className="flex items-center justify-between mb-8">
         <h1
           className="text-2xl font-bold"
-          style={{ fontFamily: "'Syne', sans-serif", color: "var(--text-primary)" }}
+          style={{ fontFamily: "'Syne', sans-serif", color: "hsl(var(--text-primary)" }}
         >
           Clientes
         </h1>
@@ -42,8 +42,8 @@ const Clients = () => {
           to="/clients/new"
           className="flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-150"
           style={{
-            background: "var(--accent)",
-            color: "var(--text-inverse)",
+            background: "hsl(var(--accent))",
+            color: "hsl(var(--text-inverse)",
             fontFamily: "'DM Sans', sans-serif",
             borderRadius: 6,
           }}
@@ -54,14 +54,14 @@ const Clients = () => {
       </div>
 
       {loading ? (
-        <div className="text-sm" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>
+        <div className="text-sm" style={{ color: "hsl(var(--text-muted)", fontFamily: "'DM Sans'" }}>
           Carregando...
         </div>
       ) : clients.length === 0 ? (
         <div
           className="p-12 rounded-lg text-center"
           style={{
-            background: "var(--bg-surface1)",
+            background: "hsl(var(--bg-surface1)",
             border: "1px solid var(--border-default)",
             borderRadius: 8,
           }}
@@ -69,17 +69,17 @@ const Clients = () => {
           <Building2
             size={40}
             className="mx-auto mb-4"
-            style={{ color: "var(--text-muted)" }}
+            style={{ color: "hsl(var(--text-muted)" }}
           />
           <p
             className="text-sm mb-1"
-            style={{ color: "var(--text-secondary)", fontFamily: "'DM Sans'" }}
+            style={{ color: "hsl(var(--text-secondary)", fontFamily: "'DM Sans'" }}
           >
             Nenhum cliente cadastrado
           </p>
           <p
             className="text-xs"
-            style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}
+            style={{ color: "hsl(var(--text-muted)", fontFamily: "'DM Sans'" }}
           >
             Clique em "Novo cliente" para começar
           </p>
@@ -108,8 +108,8 @@ const Clients = () => {
                   <div
                     className="w-10 h-10 rounded-md flex items-center justify-center text-sm font-bold"
                     style={{
-                      background: "var(--bg-surface3)",
-                      color: "var(--accent)",
+                      background: "hsl(var(--bg-surface3)",
+                      color: "hsl(var(--accent))",
                       fontFamily: "'Syne', sans-serif",
                     }}
                   >
@@ -119,7 +119,7 @@ const Clients = () => {
                 <div>
                   <p
                     className="text-sm font-semibold"
-                    style={{ color: "var(--text-primary)", fontFamily: "'DM Sans'" }}
+                    style={{ color: "hsl(var(--text-primary)", fontFamily: "'DM Sans'" }}
                   >
                     {client.name}
                   </p>
@@ -127,7 +127,7 @@ const Clients = () => {
                     <p
                       className="text-[11px]"
                       style={{
-                        color: "var(--text-muted)",
+                        color: "hsl(var(--text-muted)",
                         fontFamily: "'JetBrains Mono', monospace",
                       }}
                     >

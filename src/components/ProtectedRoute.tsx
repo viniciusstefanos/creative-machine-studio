@@ -6,7 +6,7 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "hsl(var(--bg-base)" }}>
         <div className="text-[var(--text-secondary)] font-['DM_Sans']">Carregando...</div>
       </div>
     );

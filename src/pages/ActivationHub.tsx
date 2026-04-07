@@ -91,7 +91,7 @@ const ActivationHub = () => {
   if (loading) {
     return (
       <AppLayout breadcrumbs={[{ label: "..." }]}>
-        <div className="text-sm" style={{ color: "var(--text-muted)" }}>Carregando...</div>
+        <div className="text-sm" style={{ color: "hsl(var(--text-muted)" }}>Carregando...</div>
       </AppLayout>
     );
   }
@@ -99,7 +99,7 @@ const ActivationHub = () => {
   if (!activation) {
     return (
       <AppLayout breadcrumbs={[{ label: "Ativação não encontrada" }]}>
-        <div className="text-sm" style={{ color: "var(--text-muted)" }}>Ativação não encontrada</div>
+        <div className="text-sm" style={{ color: "hsl(var(--text-muted)" }}>Ativação não encontrada</div>
       </AppLayout>
     );
   }
