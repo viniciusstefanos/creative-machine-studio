@@ -1,0 +1,1 @@
+ALTER TABLE public.client_meta_accounts ADD COLUMN facebook_page_id text;

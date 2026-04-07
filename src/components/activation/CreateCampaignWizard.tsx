@@ -16,6 +16,7 @@ interface CreateCampaignWizardProps {
     ad_account_id: string | null;
     page_access_token: string | null;
     instagram_page_id: string | null;
+    facebook_page_id: string | null;
   } | null;
   landingPageUrl?: string | null;
   onCreated: () => void;
@@ -205,6 +206,7 @@ export const CreateCampaignWizard = ({
               caption: asset.copy?.full_copy || asset.copy?.hook || "",
               link: landingPageUrl || "https://example.com",
               instagram_page_id: metaAccount.instagram_page_id,
+              facebook_page_id: metaAccount.facebook_page_id,
               page_access_token: metaAccount.page_access_token,
               db_campaign_id: dbCampaignId,
               asset_id: asset.id,
