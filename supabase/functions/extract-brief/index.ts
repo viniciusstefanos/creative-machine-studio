@@ -148,7 +148,7 @@ Responda APENAS com JSON válido, sem markdown:
       extracted = {};
     }
 
-    return new Response(JSON.stringify({ extracted }), {
+    return new Response(JSON.stringify({ extracted, raw_text: text.slice(0, 30000) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
@@ -220,7 +220,7 @@ NUNCA invente informações.`,
   const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
   const extracted = toolCall ? JSON.parse(toolCall.function.arguments) : {};
 
-  return new Response(JSON.stringify({ extracted }), {
+  return new Response(JSON.stringify({ extracted, raw_text: text.slice(0, 30000) }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
