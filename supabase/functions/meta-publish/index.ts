@@ -6,6 +6,21 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const META_GRAPH_URL = "https://graph.facebook.com/v21.0";
 
+// Poll container status until FINISHED or timeout
+async function waitForContainer(containerId: string, token: string, maxAttempts = 15): Promise<void> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const res = await fetch(
+      `${META_GRAPH_URL}/${containerId}?fields=status_code&access_token=${token}`
+    );
+    const data = await res.json();
+    console.log(`Container ${containerId} status: ${data.status_code} (attempt ${i + 1})`);
+    if (data.status_code === "FINISHED") return;
+    if (data.status_code === "ERROR") throw new Error(`Container processing failed: ${JSON.stringify(data)}`);
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  throw new Error("Container not ready after polling timeout");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -23,21 +38,15 @@ Deno.serve(async (req) => {
 
     const { action, scheduled_post_id, instagram_page_id, page_access_token, image_url, caption, images } = await req.json();
 
-    // Use page-specific token if available, otherwise use main token
     const token = page_access_token || META_ACCESS_TOKEN;
 
     if (action === "publish_post") {
-      // Step 1: Create media container
       const containerRes = await fetch(
         `${META_GRAPH_URL}/${instagram_page_id}/media`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            image_url,
-            caption,
-            access_token: token,
-          }),
+          body: JSON.stringify({ image_url, caption, access_token: token }),
         }
       );
       const containerData = await containerRes.json();
@@ -47,16 +56,15 @@ Deno.serve(async (req) => {
 
       const containerId = containerData.id;
 
-      // Step 2: Publish the container
+      // Wait for container to be ready
+      await waitForContainer(containerId, token);
+
       const publishRes = await fetch(
         `${META_GRAPH_URL}/${instagram_page_id}/media_publish`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            creation_id: containerId,
-            access_token: token,
-          }),
+          body: JSON.stringify({ creation_id: containerId, access_token: token }),
         }
       );
       const publishData = await publishRes.json();
@@ -64,15 +72,10 @@ Deno.serve(async (req) => {
         throw new Error(`Meta publish failed [${publishRes.status}]: ${JSON.stringify(publishData)}`);
       }
 
-      // Update scheduled_post status
       if (scheduled_post_id) {
         await supabase
           .from("scheduled_posts")
-          .update({
-            status: "published",
-            platform_post_id: publishData.id,
-            published_at: new Date().toISOString(),
-          })
+          .update({ status: "published", platform_post_id: publishData.id, published_at: new Date().toISOString() })
           .eq("id", scheduled_post_id);
       }
 
@@ -84,38 +87,35 @@ Deno.serve(async (req) => {
     if (action === "publish_carousel") {
       const carouselImages = images || [];
       const carouselCaption = caption || "";
-      // Create containers for each image
+
       const containerIds = [];
       for (const img of carouselImages) {
         const res = await fetch(`${META_GRAPH_URL}/${instagram_page_id}/media`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            image_url: img,
-            is_carousel_item: true,
-            access_token: token,
-          }),
+          body: JSON.stringify({ image_url: img, is_carousel_item: true, access_token: token }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(`Carousel item failed: ${JSON.stringify(data)}`);
         containerIds.push(data.id);
       }
 
-      // Create carousel container
+      // Wait for all carousel items to be ready
+      for (const cid of containerIds) {
+        await waitForContainer(cid, token);
+      }
+
       const carouselRes = await fetch(`${META_GRAPH_URL}/${instagram_page_id}/media`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          media_type: "CAROUSEL",
-          children: containerIds,
-          caption: carouselCaption,
-          access_token: token,
-        }),
+        body: JSON.stringify({ media_type: "CAROUSEL", children: containerIds, caption: carouselCaption, access_token: token }),
       });
       const carouselData = await carouselRes.json();
       if (!carouselRes.ok) throw new Error(`Carousel creation failed: ${JSON.stringify(carouselData)}`);
 
-      // Publish
+      // Wait for carousel container too
+      await waitForContainer(carouselData.id, token);
+
       const publishRes = await fetch(`${META_GRAPH_URL}/${instagram_page_id}/media_publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -124,15 +124,10 @@ Deno.serve(async (req) => {
       const publishData = await publishRes.json();
       if (!publishRes.ok) throw new Error(`Carousel publish failed: ${JSON.stringify(publishData)}`);
 
-      // Update scheduled_post status
       if (scheduled_post_id) {
         await supabase
           .from("scheduled_posts")
-          .update({
-            status: "published",
-            platform_post_id: publishData.id,
-            published_at: new Date().toISOString(),
-          })
+          .update({ status: "published", platform_post_id: publishData.id, published_at: new Date().toISOString() })
           .eq("id", scheduled_post_id);
       }
 
@@ -141,7 +136,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Validate token / get pages
     if (action === "get_pages") {
       const res = await fetch(`${META_GRAPH_URL}/me/accounts?fields=id,name,instagram_business_account{id,username}&access_token=${token}`);
       const data = await res.json();
