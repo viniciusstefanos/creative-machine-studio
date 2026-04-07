@@ -499,6 +499,31 @@ const AssetDetail = () => {
         </Button>
         <h1 className="text-display-md">Peça v{asset.version || 1}</h1>
         <StatusBadge status={asset.status} />
+        <div className="ml-auto flex items-center gap-1">
+          {siblingAssets.length > 1 && (
+            <span className="text-mono text-txt-muted mr-2">
+              {currentAssetIndex + 1} / {siblingAssets.length}
+            </span>
+          )}
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            disabled={!prevAsset}
+            onClick={() => prevAsset && navigate(`/activations/${id}/assets/${prevAsset.id}`)}
+          >
+            <ChevronLeft size={16} />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            disabled={!nextAsset}
+            onClick={() => nextAsset && navigate(`/activations/${id}/assets/${nextAsset.id}`)}
+          >
+            <ChevronRight size={16} />
+          </Button>
+        </div>
       </div>
 
       <NextStepBar
