@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
         page_id,
       } = body;
 
-      const effectivePageId = page_id || instagram_page_id;
+      const effectivePageId = (page_id || instagram_page_id || "").trim();
 
       // Try uploading image hash first; if that fails (missing capability), fall back to image_url
       let imageHash: string | null = null;
