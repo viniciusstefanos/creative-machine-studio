@@ -30,6 +30,12 @@ const AssetDetail = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [workflowData, setWorkflowData] = useState({ briefDone: false, copiesApproved: 0, assetsApproved: 0, scheduledCount: 0 });
 
+  // Sibling assets for navigation
+  const [siblingAssets, setSiblingAssets] = useState<any[]>([]);
+  const currentAssetIndex = siblingAssets.findIndex((a) => a.id === assetId);
+  const prevAsset = currentAssetIndex > 0 ? siblingAssets[currentAssetIndex - 1] : null;
+  const nextAsset = currentAssetIndex < siblingAssets.length - 1 ? siblingAssets[currentAssetIndex + 1] : null;
+
   // Editing state
   const [editMode, setEditMode] = useState<"none" | "html" | "refine" | "image">("none");
   const [editHtml, setEditHtml] = useState("");
@@ -81,6 +87,20 @@ const AssetDetail = () => {
   }, [assetId]);
 
   useEffect(() => { fetchAsset(); }, [fetchAsset]);
+
+  // Fetch sibling assets for prev/next navigation
+  useEffect(() => {
+    if (!id) return;
+    const fetchSiblings = async () => {
+      const { data } = await supabase
+        .from("assets")
+        .select("id, status, version, category, image_url")
+        .eq("activation_id", id)
+        .order("created_at", { ascending: false });
+      setSiblingAssets(data || []);
+    };
+    fetchSiblings();
+  }, [id]);
 
   useEffect(() => {
     if (asset?.status !== "generating") return;
@@ -479,6 +499,31 @@ const AssetDetail = () => {
         </Button>
         <h1 className="text-display-md">Peça v{asset.version || 1}</h1>
         <StatusBadge status={asset.status} />
+        <div className="ml-auto flex items-center gap-1">
+          {siblingAssets.length > 1 && (
+            <span className="text-mono text-txt-muted mr-2">
+              {currentAssetIndex + 1} / {siblingAssets.length}
+            </span>
+          )}
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            disabled={!prevAsset}
+            onClick={() => prevAsset && navigate(`/activations/${id}/assets/${prevAsset.id}`)}
+          >
+            <ChevronLeft size={16} />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            disabled={!nextAsset}
+            onClick={() => nextAsset && navigate(`/activations/${id}/assets/${nextAsset.id}`)}
+          >
+            <ChevronRight size={16} />
+          </Button>
+        </div>
       </div>
 
       <NextStepBar
@@ -541,11 +586,26 @@ const AssetDetail = () => {
           {/* Actions */}
           {asset.status === "review" && (
             <div className="card-base space-y-3">
-              <Button className="w-full gap-2" onClick={() => updateStatus("approved")} disabled={actionLoading}>
-                <Check size={16} /> Aprovar
+              {nextAsset ? (
+                <Button className="w-full gap-2" onClick={async () => {
+                  await updateStatus("approved");
+                  navigate(`/activations/${id}/assets/${nextAsset.id}`);
+                }} disabled={actionLoading}>
+                  <Check size={16} /> Aprovar e próxima →
+                </Button>
+              ) : (
+                <Button className="w-full gap-2" onClick={() => updateStatus("approved")} disabled={actionLoading}>
+                  <Check size={16} /> Aprovar
+                </Button>
+              )}
+              <Button variant="outline" className="w-full gap-2" onClick={() => {
+                updateStatus("approved");
+                navigate(`/activations/${id}/schedule`);
+              }} disabled={actionLoading}>
+                <Calendar size={16} /> Aprovar e agendar
               </Button>
               {!showFeedback ? (
-                <Button variant="outline" className="w-full gap-2" onClick={() => setShowFeedback(true)} disabled={actionLoading}>
+                <Button variant="outline" className="w-full gap-2 text-destructive border-destructive/30" onClick={() => setShowFeedback(true)} disabled={actionLoading}>
                   <X size={16} /> Rejeitar
                 </Button>
               ) : (
