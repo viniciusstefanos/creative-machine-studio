@@ -28,6 +28,7 @@ const AssetDetail = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [renders, setRenders] = useState<any[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [workflowData, setWorkflowData] = useState({ briefDone: false, copiesApproved: 0, assetsApproved: 0, scheduledCount: 0 });
 
   // Editing state
   const [editMode, setEditMode] = useState<"none" | "html" | "refine" | "image">("none");
@@ -83,13 +84,16 @@ const AssetDetail = () => {
     setActionLoading(true);
     const { error } = await supabase.from("assets").update({ status, ...extraFields }).eq("id", assetId!);
     if (error) {
-      toast({ title: "Erro", description: "Falha ao atualizar", variant: "destructive" });
+      toast.error("Falha ao atualizar");
     } else {
       setAsset((prev: any) => ({ ...prev, status, ...extraFields }));
       if (status === "approved") {
-        toast({ title: "Peça aprovada! ✓", description: "Agora você pode agendar publicação." });
+        toast.success("Peça aprovada!", {
+          description: "Agora você pode agendar publicação.",
+          action: { label: "Agendar →", onClick: () => navigate(`/activations/${id}/schedule`) },
+        });
       } else if (status === "rejected") {
-        toast({ title: "Peça rejeitada", description: "Adicione feedback e gere nova versão." });
+        toast("Peça rejeitada", { description: "Adicione feedback e gere nova versão." });
       }
     }
     setActionLoading(false);
@@ -116,7 +120,7 @@ const AssetDetail = () => {
       .single();
 
     if (error || !newAsset) {
-      toast({ title: "Erro", description: "Falha ao criar nova versão", variant: "destructive" });
+      toast.error("Falha ao criar nova versão");
       setActionLoading(false);
       return;
     }
@@ -153,10 +157,10 @@ const AssetDetail = () => {
       body: { render_id: currentRender.id, asset_id: assetId, action: "save_html", html_content: editHtml },
     });
     if (error) {
-      toast({ title: "Erro", description: "Falha ao salvar", variant: "destructive" });
+      toast.error("Falha ao salvar");
     } else {
       setRenders(prev => prev.map((r, i) => i === currentSlide ? { ...r, html_content: editHtml, png_url: null } : r));
-      toast({ title: "Salvo ✓" });
+      toast.success("Salvo ✓");
       setEditMode("none");
     }
     setEditLoading(false);
@@ -173,10 +177,10 @@ const AssetDetail = () => {
       },
     });
     if (error || !data?.html_content) {
-      toast({ title: "Erro", description: "Falha ao refinar", variant: "destructive" });
+      toast.error("Falha ao refinar");
     } else {
       setRenders(prev => prev.map((r, i) => i === currentSlide ? { ...r, html_content: data.html_content, png_url: null } : r));
-      toast({ title: "Design refinado ✓" });
+      toast.success("Design refinado ✓");
       setRefineInstruction("");
       setEditMode("none");
     }
@@ -190,10 +194,10 @@ const AssetDetail = () => {
       body: { render_id: currentRender.id, asset_id: assetId, action: "regenerate_image", image_prompt: imagePrompt },
     });
     if (error || !data?.image_url) {
-      toast({ title: "Erro", description: "Falha ao gerar imagem", variant: "destructive" });
+      toast.error("Falha ao gerar imagem");
     } else {
       setRenders(prev => prev.map((r, i) => i === currentSlide ? { ...r, image_url: data.image_url } : r));
-      toast({ title: "Imagem regenerada ✓" });
+      toast.success("Imagem regenerada ✓");
       setImagePrompt("");
       setEditMode("none");
     }
