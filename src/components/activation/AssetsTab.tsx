@@ -47,7 +47,7 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
           <p className="empty-state__desc">
             {copiesApproved === 0
               ? "Aprove copies antes de criar peças visuais."
-              : "Clique em "Nova peça" para criar sua primeira peça visual."}
+              : "Clique em 'Nova peça' para criar sua primeira peça visual."}
           </p>
           {copiesApproved === 0 ? (
             <Link
