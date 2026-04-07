@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { action, scheduled_post_id, instagram_page_id, page_access_token, image_url, caption } = await req.json();
+    const { action, scheduled_post_id, instagram_page_id, page_access_token, image_url, caption, images } = await req.json();
 
     // Use page-specific token if available, otherwise use main token
     const token = page_access_token || META_ACCESS_TOKEN;
@@ -82,11 +82,11 @@ Deno.serve(async (req) => {
     }
 
     if (action === "publish_carousel") {
-      const { images, caption: carouselCaption } = await req.json();
-      
+      const carouselImages = images || [];
+      const carouselCaption = caption || "";
       // Create containers for each image
       const containerIds = [];
-      for (const img of images) {
+      for (const img of carouselImages) {
         const res = await fetch(`${META_GRAPH_URL}/${instagram_page_id}/media`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -123,6 +123,18 @@ Deno.serve(async (req) => {
       });
       const publishData = await publishRes.json();
       if (!publishRes.ok) throw new Error(`Carousel publish failed: ${JSON.stringify(publishData)}`);
+
+      // Update scheduled_post status
+      if (scheduled_post_id) {
+        await supabase
+          .from("scheduled_posts")
+          .update({
+            status: "published",
+            platform_post_id: publishData.id,
+            published_at: new Date().toISOString(),
+          })
+          .eq("id", scheduled_post_id);
+      }
 
       return new Response(JSON.stringify({ success: true, post_id: publishData.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
