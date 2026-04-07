@@ -25,6 +25,12 @@ Deno.serve(async (req) => {
     const { action } = body;
     const token = body.page_access_token || META_ACCESS_TOKEN;
 
+    // Ensure ad_account_id has act_ prefix
+    const ensureActPrefix = (id: string | undefined) => {
+      if (!id) return id;
+      return id.startsWith("act_") ? id : `act_${id}`;
+    };
+
     // ─── Get ad accounts ───
     if (action === "get_ad_accounts") {
       const res = await fetch(`${META_GRAPH_URL}/me/adaccounts?fields=id,name,account_status,currency&access_token=${token}`);
