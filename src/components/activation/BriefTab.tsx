@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { FileDrop } from "@/components/ui/FileDrop";
+import { BriefVisualIdentity } from "@/components/activation/BriefVisualIdentity";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
