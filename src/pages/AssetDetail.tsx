@@ -671,7 +671,7 @@ const AssetDetail = () => {
         { label: "Clientes", href: "/clients" },
         { label: clientName, href: `/clients/${activation?.client_id}` },
         { label: activation?.name || "", href: `/activations/${id}/assets` },
-        { label: `Peça v${asset.version || 1}` },
+        { label: asset.name || `Peça v${asset.version || 1}` },
       ]}
     >
       {/* Back button + workflow */}
@@ -679,7 +679,7 @@ const AssetDetail = () => {
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/activations/${id}/assets`)}>
           <ArrowLeft size={16} />
         </Button>
-        <h1 className="text-display-md">Peça v{asset.version || 1}</h1>
+        <h1 className="text-display-md">{asset.name || `Peça v${asset.version || 1}`}</h1>
         <StatusBadge status={asset.status} />
         <div className="ml-auto flex items-center gap-1">
           {siblingAssets.length > 1 && (() => {
