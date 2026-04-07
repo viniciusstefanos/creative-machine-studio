@@ -98,7 +98,10 @@ const AssetDetail = () => {
         .select("id, status, version, category, image_url")
         .eq("activation_id", id)
         .order("created_at", { ascending: false });
-      setSiblingAssets(data || []);
+      // Sort: review first, then generating, then rest
+      const priorityOrder: Record<string, number> = { review: 0, generating: 1, rejected: 2, draft: 3, approved: 4 };
+      const sorted = (data || []).sort((a, b) => (priorityOrder[a.status] ?? 5) - (priorityOrder[b.status] ?? 5));
+      setSiblingAssets(sorted);
     };
     fetchSiblings();
   }, [id]);
