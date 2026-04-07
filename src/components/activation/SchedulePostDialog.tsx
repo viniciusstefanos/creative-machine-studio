@@ -44,7 +44,7 @@ export const SchedulePostDialog = ({
     const load = async () => {
       const { data } = await supabase
         .from("assets")
-        .select("id, category, image_url, copy_id, template_id, status, version")
+        .select("id, name, category, image_url, copy_id, template_id, status, version")
         .eq("activation_id", activationId)
         .eq("status", "approved")
         .order("created_at", { ascending: false });
@@ -52,7 +52,7 @@ export const SchedulePostDialog = ({
       if (preselectedAssetId && !(data || []).find((a) => a.id === preselectedAssetId)) {
         const { data: extra } = await supabase
           .from("assets")
-          .select("id, category, image_url, copy_id, template_id, status, version")
+          .select("id, name, category, image_url, copy_id, template_id, status, version")
           .eq("id", preselectedAssetId)
           .maybeSingle();
         if (extra) data?.push(extra);
