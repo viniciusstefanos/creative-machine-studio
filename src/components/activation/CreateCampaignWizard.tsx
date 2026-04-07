@@ -49,6 +49,7 @@ export const CreateCampaignWizard = ({
 
   // Step 1: Campaign
   const [campaignName, setCampaignName] = useState("");
+  const [activationSlug, setActivationSlug] = useState("");
   const [objective, setObjective] = useState("OUTCOME_ENGAGEMENT");
   const [dailyBudget, setDailyBudget] = useState("20");
   const [startDate, setStartDate] = useState("");
@@ -70,6 +71,20 @@ export const CreateCampaignWizard = ({
       loadApprovedAssets();
     }
   }, [open, step]);
+
+  // Load activation slug when dialog opens
+  useEffect(() => {
+    if (open && activationId) {
+      supabase
+        .from("activations")
+        .select("slug")
+        .eq("id", activationId)
+        .single()
+        .then(({ data }) => {
+          if (data?.slug) setActivationSlug(data.slug);
+        });
+    }
+  }, [open, activationId]);
 
   const loadApprovedAssets = async () => {
     setLoadingAssets(true);
@@ -146,11 +161,14 @@ export const CreateCampaignWizard = ({
       const budgetCents = Math.round(parseFloat(dailyBudget) * 100);
 
       // 1. Create campaign
+      const fullCampaignName = activationSlug
+        ? `${activationSlug} — ${campaignName}`
+        : campaignName;
       const { data: campRes, error: campErr } = await supabase.functions.invoke("meta-ads", {
         body: {
           action: "create_campaign",
           ad_account_id: metaAccount.ad_account_id,
-          name: campaignName,
+          name: fullCampaignName,
           objective,
           status: "PAUSED",
           daily_budget: parseFloat(dailyBudget),
@@ -173,7 +191,7 @@ export const CreateCampaignWizard = ({
           action: "create_adset",
           ad_account_id: metaAccount.ad_account_id,
           campaign_id: platformCampaignId,
-          name: `${campaignName} — Conjunto`,
+          name: `${fullCampaignName} — Conjunto`,
           daily_budget: budgetCents,
           optimization_goal: objective === "OUTCOME_TRAFFIC" ? "LINK_CLICKS" : "REACH",
           age_min: parseInt(ageMin),

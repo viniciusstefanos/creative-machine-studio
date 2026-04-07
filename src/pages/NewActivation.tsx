@@ -13,6 +13,7 @@ const NewActivation = () => {
   const [tagInput, setTagInput] = useState("");
   const [form, setForm] = useState({
     name: "",
+    slug: "",
     type: "ongoing" as "seasonal" | "ongoing",
     start_date: "",
     end_date: "",
@@ -48,6 +49,7 @@ const NewActivation = () => {
     const { error } = await supabase.from("activations").insert([{
       client_id: clientId,
       name: form.name,
+      slug: form.slug.toUpperCase().trim() || null,
       type: form.type,
       start_date: form.start_date || null,
       end_date: form.end_date || null,
@@ -84,6 +86,22 @@ const NewActivation = () => {
               className="field-input"
               placeholder="Ex: Campanha Dia das Mães"
             />
+          </div>
+
+          <div>
+            <label className="field-label">Sigla da ativação *</label>
+            <input
+              required
+              value={form.slug}
+              onChange={(e) => setForm({ ...form, slug: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })}
+              className="field-input"
+              placeholder="Ex: BF26, DDM25"
+              maxLength={10}
+              style={{ textTransform: "uppercase", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "1px" }}
+            />
+            <p className="text-[10px] mt-1" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
+              Identifica campanhas e peças desta ativação. Sem espaços ou caracteres especiais.
+            </p>
           </div>
 
           <div>
