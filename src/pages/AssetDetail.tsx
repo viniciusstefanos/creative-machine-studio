@@ -44,6 +44,7 @@ const AssetDetail = () => {
   const [imagePrompt, setImagePrompt] = useState("");
   const [editLoading, setEditLoading] = useState(false);
   const [editCopy, setEditCopy] = useState<{ hook: string; body: string; cta: string }>({ hook: "", body: "", cta: "" });
+  const [syncingCopy, setSyncingCopy] = useState(false);
 
   const fetchAsset = useCallback(async () => {
     if (!assetId) return;
