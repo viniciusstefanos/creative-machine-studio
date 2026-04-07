@@ -4,7 +4,7 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Image, Plus } from "lucide-react";
+import { Image, Plus, Layers } from "lucide-react";
 
 interface AssetsTabProps {
   activationId: string;
