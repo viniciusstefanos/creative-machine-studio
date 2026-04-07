@@ -43,7 +43,8 @@ Deno.serve(async (req) => {
 
     // ─── Create campaign ───
     if (action === "create_campaign") {
-      const { ad_account_id, name, objective, status: campStatus, daily_budget, activation_id } = body;
+      const { name, objective, status: campStatus, daily_budget, activation_id } = body;
+      const ad_account_id = ensureActPrefix(body.ad_account_id);
 
       const res = await fetch(`${META_GRAPH_URL}/${ad_account_id}/campaigns`, {
         method: "POST",
