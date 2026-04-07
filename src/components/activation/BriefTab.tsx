@@ -209,7 +209,21 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
         />
       </div>
 
-      <div>
+      {/* Identidade Visual */}
+      <div
+        className="pt-6 mt-2"
+        style={{ borderTop: "1px solid hsl(var(--border-subtle))" }}
+      >
+        <BriefVisualIdentity
+          brandColors={form.brand_colors}
+          typography={form.typography}
+          visualStyle={form.visual_style}
+          onChange={(field, value) => setForm({ ...form, [field]: value })}
+          highlightClass={getHighlightClass}
+        />
+      </div>
+
+
         <label className="field-label">Referências (URLs)</label>
         <div className="flex flex-wrap gap-2 mb-2">
           {form.references_urls.map((url, i) => (
