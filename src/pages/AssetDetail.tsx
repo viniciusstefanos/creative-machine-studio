@@ -8,7 +8,10 @@ import { CommentThread } from "@/components/ui/CommentThread";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, X, RefreshCw, Calendar, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Check, X, RefreshCw, Calendar, Loader2, ChevronLeft, ChevronRight,
+  Pencil, Image, Wand2, Save, RotateCcw
+} from "lucide-react";
 
 const AssetDetail = () => {
   const { id, assetId } = useParams<{ id: string; assetId: string }>();
@@ -24,6 +27,13 @@ const AssetDetail = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [renders, setRenders] = useState<any[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Editing state
+  const [editMode, setEditMode] = useState<"none" | "html" | "refine" | "image">("none");
+  const [editHtml, setEditHtml] = useState("");
+  const [refineInstruction, setRefineInstruction] = useState("");
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
 
   const fetchAsset = useCallback(async () => {
     if (!assetId) return;
@@ -126,6 +136,69 @@ const AssetDetail = () => {
     setActionLoading(false);
   };
 
+  // ─── Edit actions ─────────────────────────────────────────────
+  const currentRender = renders[currentSlide];
+
+  const startHtmlEdit = () => {
+    if (!currentRender?.html_content) return;
+    setEditHtml(currentRender.html_content);
+    setEditMode("html");
+  };
+
+  const saveHtmlEdit = async () => {
+    if (!currentRender) return;
+    setEditLoading(true);
+    const { error } = await supabase.functions.invoke("edit-asset-render", {
+      body: { render_id: currentRender.id, asset_id: assetId, action: "save_html", html_content: editHtml },
+    });
+    if (error) {
+      toast({ title: "Erro", description: "Falha ao salvar", variant: "destructive" });
+    } else {
+      setRenders(prev => prev.map((r, i) => i === currentSlide ? { ...r, html_content: editHtml, png_url: null } : r));
+      toast({ title: "Salvo ✓" });
+      setEditMode("none");
+    }
+    setEditLoading(false);
+  };
+
+  const refineHtml = async () => {
+    if (!currentRender || !refineInstruction.trim()) return;
+    setEditLoading(true);
+    const { data, error } = await supabase.functions.invoke("edit-asset-render", {
+      body: {
+        render_id: currentRender.id, asset_id: assetId,
+        action: "refine_html", html_content: refineInstruction,
+        use_claude: asset?.render_config?.use_claude,
+      },
+    });
+    if (error || !data?.html_content) {
+      toast({ title: "Erro", description: "Falha ao refinar", variant: "destructive" });
+    } else {
+      setRenders(prev => prev.map((r, i) => i === currentSlide ? { ...r, html_content: data.html_content, png_url: null } : r));
+      toast({ title: "Design refinado ✓" });
+      setRefineInstruction("");
+      setEditMode("none");
+    }
+    setEditLoading(false);
+  };
+
+  const regenerateImage = async () => {
+    if (!currentRender || !imagePrompt.trim()) return;
+    setEditLoading(true);
+    const { data, error } = await supabase.functions.invoke("edit-asset-render", {
+      body: { render_id: currentRender.id, asset_id: assetId, action: "regenerate_image", image_prompt: imagePrompt },
+    });
+    if (error || !data?.image_url) {
+      toast({ title: "Erro", description: "Falha ao gerar imagem", variant: "destructive" });
+    } else {
+      setRenders(prev => prev.map((r, i) => i === currentSlide ? { ...r, image_url: data.image_url } : r));
+      toast({ title: "Imagem regenerada ✓" });
+      setImagePrompt("");
+      setEditMode("none");
+    }
+    setEditLoading(false);
+  };
+
   if (loading) {
     return (
       <AppLayout breadcrumbs={[{ label: "..." }]}>
@@ -143,8 +216,10 @@ const AssetDetail = () => {
   }
 
   const hasMultipleSlides = renders.length > 1;
-  const currentRender = renders[currentSlide];
   const aspectRatio = template?.aspect_ratio === "9:16" ? "9/16" : template?.aspect_ratio === "4:5" ? "4/5" : "1/1";
+  const canEdit = asset.status === "review" || asset.status === "rejected";
+  const hasHtml = !!currentRender?.html_content;
+  const hasImage = !!currentRender?.image_url;
 
   const renderPreviewContent = () => {
     if (asset.status === "generating") {
@@ -197,7 +272,7 @@ const AssetDetail = () => {
             <div className="mt-4">
               <div className="flex items-center justify-center gap-4 mb-3">
                 <button
-                  onClick={() => setCurrentSlide((s) => Math.max(0, s - 1))}
+                  onClick={() => { setCurrentSlide((s) => Math.max(0, s - 1)); setEditMode("none"); }}
                   disabled={currentSlide === 0}
                   className={`p-1.5 rounded-md bg-surface-2 transition-colors ${currentSlide === 0 ? "text-txt-ghost" : "text-txt-primary"}`}
                 >
@@ -205,19 +280,18 @@ const AssetDetail = () => {
                 </button>
                 <span className="text-mono">{currentSlide + 1} / {renders.length}</span>
                 <button
-                  onClick={() => setCurrentSlide((s) => Math.min(renders.length - 1, s + 1))}
+                  onClick={() => { setCurrentSlide((s) => Math.min(renders.length - 1, s + 1)); setEditMode("none"); }}
                   disabled={currentSlide === renders.length - 1}
                   className={`p-1.5 rounded-md bg-surface-2 transition-colors ${currentSlide === renders.length - 1 ? "text-txt-ghost" : "text-txt-primary"}`}
                 >
                   <ChevronRight size={18} />
                 </button>
               </div>
-              {/* Thumbnail strip */}
               <div className="flex gap-2 overflow-x-auto pb-1 justify-center">
                 {renders.map((r, i) => (
                   <button
                     key={r.id}
-                    onClick={() => setCurrentSlide(i)}
+                    onClick={() => { setCurrentSlide(i); setEditMode("none"); }}
                     className={`flex-shrink-0 w-14 h-14 rounded-md overflow-hidden relative transition-all border-2 ${
                       i === currentSlide ? "border-accent shadow-[0_0_0_1px_hsl(var(--accent))]" : "border-line"
                     }`}
@@ -262,6 +336,113 @@ const AssetDetail = () => {
     );
   };
 
+  // ─── Edit panel below preview ─────────────────────────────────
+  const renderEditPanel = () => {
+    if (!canEdit || !currentRender) return null;
+
+    return (
+      <div className="mt-4 space-y-3">
+        {/* Edit action buttons */}
+        {editMode === "none" && (
+          <div className="flex flex-wrap gap-2">
+            {hasHtml && (
+              <>
+                <Button variant="outline" size="sm" className="gap-2" onClick={startHtmlEdit}>
+                  <Pencil size={14} /> Editar HTML
+                </Button>
+                <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditMode("refine")}>
+                  <Wand2 size={14} /> Refinar com IA
+                </Button>
+              </>
+            )}
+            {(hasImage || template?.generation_type?.includes("image")) && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditMode("image")}>
+                <Image size={14} /> Regerar imagem
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* HTML direct edit */}
+        {editMode === "html" && (
+          <div className="card-base space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-label">Editar HTML do slide {currentSlide + 1}</span>
+              <Button variant="ghost" size="sm" onClick={() => setEditMode("none")}>
+                <X size={14} />
+              </Button>
+            </div>
+            <Textarea
+              value={editHtml}
+              onChange={(e) => setEditHtml(e.target.value)}
+              className="font-mono text-xs min-h-[200px]"
+              placeholder="HTML do slide..."
+            />
+            <div className="flex gap-2">
+              <Button size="sm" className="gap-2" onClick={saveHtmlEdit} disabled={editLoading}>
+                {editLoading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                Salvar
+              </Button>
+              <Button variant="ghost" size="sm" className="gap-2" onClick={() => { setEditHtml(currentRender.html_content); }}>
+                <RotateCcw size={14} /> Restaurar
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* AI refine */}
+        {editMode === "refine" && (
+          <div className="card-base space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-label">Refinar design com IA</span>
+              <Button variant="ghost" size="sm" onClick={() => setEditMode("none")}>
+                <X size={14} />
+              </Button>
+            </div>
+            <p className="text-body-sm text-txt-muted">
+              Descreva o que quer mudar. Ex: "mude a cor de fundo para azul escuro", "aumente o tamanho do texto", "troque o CTA para 'Saiba mais'"
+            </p>
+            <Textarea
+              value={refineInstruction}
+              onChange={(e) => setRefineInstruction(e.target.value)}
+              className="text-sm min-h-[80px]"
+              placeholder="Ex: mude a cor de fundo para #1a1a2e e aumente a fonte do título..."
+            />
+            <Button size="sm" className="gap-2" onClick={refineHtml} disabled={editLoading || !refineInstruction.trim()}>
+              {editLoading ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
+              Aplicar refinamento
+            </Button>
+          </div>
+        )}
+
+        {/* Image regeneration */}
+        {editMode === "image" && (
+          <div className="card-base space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-label">Regerar imagem</span>
+              <Button variant="ghost" size="sm" onClick={() => setEditMode("none")}>
+                <X size={14} />
+              </Button>
+            </div>
+            <p className="text-body-sm text-txt-muted">
+              Descreva a imagem que deseja. Será gerada com Nano Banana (IA de imagem).
+            </p>
+            <Textarea
+              value={imagePrompt}
+              onChange={(e) => setImagePrompt(e.target.value)}
+              className="text-sm min-h-[80px]"
+              placeholder="Ex: pessoa brasileira sorrindo em escritório moderno, luz natural, estilo UGC..."
+            />
+            <Button size="sm" className="gap-2" onClick={regenerateImage} disabled={editLoading || !imagePrompt.trim()}>
+              {editLoading ? <Loader2 size={14} className="animate-spin" /> : <Image size={14} />}
+              Gerar nova imagem
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <AppLayout
       breadcrumbs={[
@@ -272,9 +453,10 @@ const AssetDetail = () => {
       ]}
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Preview */}
+        {/* Main Preview + Edit */}
         <div className="lg:col-span-2">
           {renderPreviewContent()}
+          {renderEditPanel()}
         </div>
 
         {/* Sidebar */}
