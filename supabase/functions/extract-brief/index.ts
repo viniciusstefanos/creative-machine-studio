@@ -196,7 +196,7 @@ NUNCA invente informações.`,
           type: "function",
           function: {
             name: "extract_brief",
-            description: "Extract structured brief fields from document",
+            description: "Extract structured brief fields and detect document category",
             parameters: {
               type: "object",
               properties: {
@@ -205,8 +205,13 @@ NUNCA invente informações.`,
                 objectives: { type: "string" },
                 extra_context: { type: "string" },
                 references_urls: { type: "array", items: { type: "string" } },
+                detected_category: {
+                  type: "string",
+                  enum: ["identidade_visual", "produto", "tom_de_voz", "publico_alvo", "contexto", "referencias", "briefing", "geral"],
+                  description: "Category of the document based on its content",
+                },
               },
-              required: ["tone_of_voice", "target_audience", "objectives", "extra_context", "references_urls"],
+              required: ["tone_of_voice", "target_audience", "objectives", "extra_context", "references_urls", "detected_category"],
               additionalProperties: false,
             },
           },
