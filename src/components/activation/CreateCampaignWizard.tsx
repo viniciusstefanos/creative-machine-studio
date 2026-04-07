@@ -206,6 +206,7 @@ export const CreateCampaignWizard = ({
               caption: asset.copy?.full_copy || asset.copy?.hook || "",
               link: landingPageUrl || "https://example.com",
               instagram_page_id: metaAccount.instagram_page_id,
+              facebook_page_id: metaAccount.facebook_page_id,
               page_access_token: metaAccount.page_access_token,
               db_campaign_id: dbCampaignId,
               asset_id: asset.id,

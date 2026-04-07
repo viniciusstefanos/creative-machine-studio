@@ -20,6 +20,7 @@ export const MetaAccountSettings = ({ clientId }: MetaAccountSettingsProps) => {
     instagram_username: "",
     ad_account_id: "",
     ad_account_name: "",
+    facebook_page_id: "",
   });
 
   useEffect(() => {
