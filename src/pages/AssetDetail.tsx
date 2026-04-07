@@ -586,11 +586,26 @@ const AssetDetail = () => {
           {/* Actions */}
           {asset.status === "review" && (
             <div className="card-base space-y-3">
-              <Button className="w-full gap-2" onClick={() => updateStatus("approved")} disabled={actionLoading}>
-                <Check size={16} /> Aprovar
+              {nextAsset ? (
+                <Button className="w-full gap-2" onClick={async () => {
+                  await updateStatus("approved");
+                  navigate(`/activations/${id}/assets/${nextAsset.id}`);
+                }} disabled={actionLoading}>
+                  <Check size={16} /> Aprovar e próxima →
+                </Button>
+              ) : (
+                <Button className="w-full gap-2" onClick={() => updateStatus("approved")} disabled={actionLoading}>
+                  <Check size={16} /> Aprovar
+                </Button>
+              )}
+              <Button variant="outline" className="w-full gap-2" onClick={() => {
+                updateStatus("approved");
+                navigate(`/activations/${id}/schedule`);
+              }} disabled={actionLoading}>
+                <Calendar size={16} /> Aprovar e agendar
               </Button>
               {!showFeedback ? (
-                <Button variant="outline" className="w-full gap-2" onClick={() => setShowFeedback(true)} disabled={actionLoading}>
+                <Button variant="outline" className="w-full gap-2 text-destructive border-destructive/30" onClick={() => setShowFeedback(true)} disabled={actionLoading}>
                   <X size={16} /> Rejeitar
                 </Button>
               ) : (
