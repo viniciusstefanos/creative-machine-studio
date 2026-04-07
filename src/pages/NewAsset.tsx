@@ -6,7 +6,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Check, ChevronRight, Loader2, Sparkles } from "lucide-react";
+import { Check, ChevronRight, Loader2, Sparkles, Layout, Image, Layers } from "lucide-react";
 
 interface EditableField {
   label: string;
@@ -16,6 +16,14 @@ interface EditableField {
   min?: number;
   max?: number;
 }
+
+const categoryIcon = (cat: string) => {
+  switch (cat) {
+    case "carousel": return <Layers size={28} className="text-txt-ghost" />;
+    case "static": return <Image size={28} className="text-txt-ghost" />;
+    default: return <Layout size={28} className="text-txt-ghost" />;
+  }
+};
 
 const NewAsset = () => {
   const { id } = useParams<{ id: string }>();
@@ -52,7 +60,6 @@ const NewAsset = () => {
     fetchData();
   }, [id]);
 
-  // Initialize render config when template is selected
   useEffect(() => {
     if (!selectedTemplate?.editable_fields) {
       setRenderConfig({});
@@ -108,7 +115,7 @@ const NewAsset = () => {
   if (loading) {
     return (
       <AppLayout breadcrumbs={[{ label: "..." }]}>
-        <div className="text-sm" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>Carregando...</div>
+        <p className="text-body-sm">Carregando...</p>
       </AppLayout>
     );
   }
@@ -128,9 +135,7 @@ const NewAsset = () => {
         { label: "Nova Peça" },
       ]}
     >
-      <h1 className="text-2xl font-bold mb-6" style={{ fontFamily: "'Syne', sans-serif", color: "var(--text-primary)" }}>
-        Nova Peça Visual
-      </h1>
+      <h1 className="text-display-lg mb-6">Nova Peça Visual</h1>
 
       {/* Stepper */}
       <div className="flex items-center gap-2 mb-8">
@@ -140,7 +145,7 @@ const NewAsset = () => {
           const isDone = step > stepNum;
           return (
             <div key={label} className="flex items-center gap-2">
-              {i > 0 && <ChevronRight size={14} style={{ color: "var(--text-ghost)" }} />}
+              {i > 0 && <ChevronRight size={14} className="text-txt-ghost" />}
               <button
                 className="flex items-center gap-2"
                 onClick={() => isDone && setStep(stepNum)}
@@ -148,23 +153,17 @@ const NewAsset = () => {
                 style={{ cursor: isDone ? "pointer" : "default" }}
               >
                 <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                  style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    background: isDone ? "var(--accent)" : isActive ? "var(--accent-dim)" : "var(--bg-surface2)",
-                    color: isDone || isActive ? "var(--bg-base)" : "var(--text-muted)",
-                    border: isActive ? "1px solid var(--accent)" : "1px solid transparent",
-                  }}
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-mono ${
+                    isDone
+                      ? "bg-accent text-txt-inverse"
+                      : isActive
+                      ? "bg-accent-dim text-txt-inverse border border-accent"
+                      : "bg-surface-2 text-txt-muted"
+                  }`}
                 >
                   {isDone ? <Check size={14} /> : stepNum}
                 </div>
-                <span
-                  className="text-xs"
-                  style={{
-                    fontFamily: "'DM Sans', sans-serif",
-                    color: isActive ? "var(--text-primary)" : "var(--text-muted)",
-                  }}
-                >
+                <span className={`text-label ${isActive ? "text-txt-primary" : "text-txt-muted"}`}>
                   {label}
                 </span>
               </button>
@@ -176,35 +175,29 @@ const NewAsset = () => {
       {/* Step 1: Select Copy */}
       {step === 1 && (
         <div>
-          <SectionLabel>Copies Aprovados</SectionLabel>
+          <div className="section-label--ruled mb-4">
+            <SectionLabel>Copies Aprovados</SectionLabel>
+          </div>
           {copies.length === 0 ? (
-            <div className="p-8 rounded-lg text-center mt-4" style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
-              <p className="text-sm" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans'" }}>
-                Nenhum copy aprovado. Aprove um copy antes de criar uma peça.
-              </p>
+            <div className="empty-state card-base">
+              <p className="empty-state__title">Nenhum copy aprovado</p>
+              <p className="empty-state__desc">Aprove um copy antes de criar uma peça.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 mt-4">
+            <div className="grid grid-cols-1 gap-3">
               {copies.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => { setSelectedCopy(c.id); setStep(2); }}
-                  className="p-4 rounded-lg text-left transition-all duration-150"
-                  style={{
-                    background: selectedCopy === c.id ? "var(--accent-surface)" : "var(--bg-surface1)",
-                    border: selectedCopy === c.id ? "1px solid var(--accent)" : "1px solid var(--border-default)",
-                    borderRadius: 8,
-                  }}
+                  className={`card-base card-interactive text-left transition-all duration-100 ${
+                    selectedCopy === c.id ? "!border-accent !bg-accent-surface" : ""
+                  }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>
-                      {c.type} · {c.channel} · v{c.version}
-                    </span>
+                    <span className="text-mono-label">{c.type} · {c.channel} · v{c.version}</span>
                     <StatusBadge status={c.status} />
                   </div>
-                  <p className="text-sm line-clamp-2" style={{ fontFamily: "'DM Sans'", color: "var(--text-primary)" }}>
-                    {c.hook || c.body || "Sem conteúdo"}
-                  </p>
+                  <p className="text-body line-clamp-2">{c.hook || c.body || "Sem conteúdo"}</p>
                 </button>
               ))}
             </div>
@@ -215,20 +208,19 @@ const NewAsset = () => {
       {/* Step 2: Select Template */}
       {step === 2 && (
         <div>
-          <SectionLabel>Templates Disponíveis</SectionLabel>
+          <div className="section-label--ruled mb-4">
+            <SectionLabel>Templates Disponíveis</SectionLabel>
+          </div>
 
           {/* Category filters */}
-          <div className="flex gap-2 mt-4 mb-4">
+          <div className="flex gap-2 mb-4">
             <button
               onClick={() => setCategoryFilter(null)}
-              className="px-3 py-1.5 rounded text-xs transition-all"
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                background: !categoryFilter ? "var(--accent-dim)" : "var(--bg-surface2)",
-                color: !categoryFilter ? "var(--accent)" : "var(--text-muted)",
-                border: !categoryFilter ? "1px solid var(--accent)" : "1px solid var(--border-default)",
-                borderRadius: 6,
-              }}
+              className={`text-mono px-3 py-1.5 rounded-md transition-all border ${
+                !categoryFilter
+                  ? "bg-accent-dim text-accent border-accent"
+                  : "bg-surface-2 text-txt-muted border-line"
+              }`}
             >
               Todos
             </button>
@@ -236,14 +228,11 @@ const NewAsset = () => {
               <button
                 key={cat}
                 onClick={() => setCategoryFilter(cat)}
-                className="px-3 py-1.5 rounded text-xs transition-all"
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  background: categoryFilter === cat ? "var(--accent-dim)" : "var(--bg-surface2)",
-                  color: categoryFilter === cat ? "var(--accent)" : "var(--text-muted)",
-                  border: categoryFilter === cat ? "1px solid var(--accent)" : "1px solid var(--border-default)",
-                  borderRadius: 6,
-                }}
+                className={`text-mono px-3 py-1.5 rounded-md transition-all border ${
+                  categoryFilter === cat
+                    ? "bg-accent-dim text-accent border-accent"
+                    : "bg-surface-2 text-txt-muted border-line"
+                }`}
               >
                 {cat}
               </button>
@@ -255,60 +244,29 @@ const NewAsset = () => {
               <button
                 key={t.id}
                 onClick={() => { setSelectedTemplate(t); setStep(3); }}
-                className="rounded-lg text-left transition-all duration-150 overflow-hidden"
-                style={{
-                  background: selectedTemplate?.id === t.id ? "var(--accent-surface)" : "var(--bg-surface1)",
-                  border: selectedTemplate?.id === t.id ? "1px solid var(--accent)" : "1px solid var(--border-default)",
-                  borderRadius: 8,
-                }}
+                className={`card-base card-interactive text-left transition-all duration-100 overflow-hidden ${
+                  selectedTemplate?.id === t.id ? "!border-accent !bg-accent-surface" : ""
+                }`}
+                style={{ padding: 0 }}
               >
-                {/* Thumbnail placeholder */}
+                {/* Thumbnail */}
                 <div
-                  className="flex items-center justify-center"
-                  style={{
-                    aspectRatio: t.aspect_ratio === "9:16" ? "9/16" : "1/1",
-                    maxHeight: 160,
-                    background: "var(--bg-surface2)",
-                    borderBottom: "1px solid var(--border-subtle)",
-                    fontSize: 32,
-                    color: "var(--text-ghost)",
-                  }}
+                  className="flex items-center justify-center bg-surface-2 border-b border-line-subtle"
+                  style={{ maxHeight: 160, aspectRatio: t.aspect_ratio === "9:16" ? "9/16" : "1/1" }}
                 >
-                  {t.category === "carousel" ? "🎠" : t.generation_type === "image_only" ? "🖼️" : "📐"}
+                  {categoryIcon(t.category)}
                 </div>
                 <div className="p-3">
-                  <p className="text-sm font-medium mb-2" style={{ fontFamily: "'DM Sans'", color: "var(--text-primary)" }}>
-                    {t.name}
-                  </p>
+                  <p className="text-body font-medium mb-2">{t.name}</p>
                   <div className="flex flex-wrap gap-1">
-                    <span
-                      className="text-[9px] uppercase px-1.5 py-0.5 rounded"
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        background: t.is_base ? "var(--bg-surface3)" : "var(--accent-dim)",
-                        color: t.is_base ? "var(--text-muted)" : "var(--accent)",
-                        border: t.is_base ? "none" : "1px solid color-mix(in srgb, var(--accent) 30%, transparent)",
-                      }}
-                    >
+                    <span className={`text-mono px-1.5 py-0.5 rounded ${t.is_base ? "bg-surface-3 text-txt-muted" : "bg-accent-surface text-accent"}`}>
                       {t.is_base ? "BASE" : "CUSTOM"}
                     </span>
-                    <span
-                      className="text-[9px] uppercase px-1.5 py-0.5 rounded"
-                      style={{ fontFamily: "'JetBrains Mono', monospace", background: "var(--bg-surface3)", color: "var(--text-muted)" }}
-                    >
-                      {t.category}
-                    </span>
-                    <span
-                      className="text-[9px] uppercase px-1.5 py-0.5 rounded"
-                      style={{ fontFamily: "'JetBrains Mono', monospace", background: "var(--bg-surface3)", color: "var(--text-muted)" }}
-                    >
-                      {t.width_px}×{t.height_px}
-                    </span>
+                    <span className="text-mono px-1.5 py-0.5 rounded bg-surface-3 text-txt-muted">{t.category}</span>
+                    <span className="text-mono px-1.5 py-0.5 rounded bg-surface-3 text-txt-muted">{t.width_px}×{t.height_px}</span>
                   </div>
                   {t.description && (
-                    <p className="text-xs mt-2 line-clamp-2" style={{ fontFamily: "'DM Sans'", color: "var(--text-ghost)" }}>
-                      {t.description}
-                    </p>
+                    <p className="text-caption mt-2 line-clamp-2">{t.description}</p>
                   )}
                 </div>
               </button>
@@ -321,36 +279,28 @@ const NewAsset = () => {
       {/* Step 3: Configure editable fields */}
       {step === 3 && selectedTemplate && (
         <div>
-          <SectionLabel>Configurar Template</SectionLabel>
+          <div className="section-label--ruled mb-4">
+            <SectionLabel>Configurar Template</SectionLabel>
+          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Template info */}
-            <div className="p-4 rounded-lg" style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
-              <p className="text-sm font-semibold mb-1" style={{ fontFamily: "'DM Sans'", color: "var(--text-primary)" }}>
-                {selectedTemplate.name}
-              </p>
-              <p className="text-xs mb-3" style={{ fontFamily: "'DM Sans'", color: "var(--text-ghost)" }}>
-                {selectedTemplate.description}
-              </p>
-              <div className="flex gap-3">
+            <div className="card-base">
+              <p className="text-heading mb-1">{selectedTemplate.name}</p>
+              <p className="text-caption mb-3">{selectedTemplate.description}</p>
+              <div className="flex gap-4">
                 <div>
-                  <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>Dimensões</span>
-                  <p className="text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-secondary)" }}>
-                    {selectedTemplate.width_px}×{selectedTemplate.height_px}px
-                  </p>
+                  <span className="text-mono-label">Dimensões</span>
+                  <p className="text-mono-lg mt-1">{selectedTemplate.width_px}×{selectedTemplate.height_px}px</p>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>Tipo</span>
-                  <p className="text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-secondary)" }}>
-                    {selectedTemplate.generation_type.replace(/_/g, " ")}
-                  </p>
+                  <span className="text-mono-label">Tipo</span>
+                  <p className="text-mono-lg mt-1">{selectedTemplate.generation_type.replace(/_/g, " ")}</p>
                 </div>
                 {selectedTemplate.category === "carousel" && (
                   <div>
-                    <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>Slides</span>
-                    <p className="text-sm" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-secondary)" }}>
-                      {selectedTemplate.slides_count_min}–{selectedTemplate.slides_count_max}
-                    </p>
+                    <span className="text-mono-label">Slides</span>
+                    <p className="text-mono-lg mt-1">{selectedTemplate.slides_count_min}–{selectedTemplate.slides_count_max}</p>
                   </div>
                 )}
               </div>
@@ -358,41 +308,27 @@ const NewAsset = () => {
 
             {/* Editable fields */}
             {selectedTemplate.editable_fields && Object.keys(selectedTemplate.editable_fields).length > 0 && (
-              <div className="p-4 rounded-lg space-y-4" style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
-                <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>
-                  Personalização
-                </span>
+              <div className="card-base space-y-4">
+                <span className="text-mono-label">Personalização</span>
                 {Object.entries(selectedTemplate.editable_fields as Record<string, EditableField>).map(([key, field]) => (
                   <div key={key}>
-                    <label className="text-[10px] uppercase tracking-wider block mb-1.5" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>
-                      {field.label}
-                    </label>
+                    <label className="field-label">{field.label}</label>
                     {field.type === "color" && (
-                      <div className="flex items-center gap-2 p-1 pr-3 rounded" style={{ background: "var(--bg-base)", border: "1px solid var(--border-strong)", borderRadius: 6 }}>
+                      <div className="flex items-center gap-2 field-input !p-1 !pr-3">
                         <input
                           type="color"
                           value={renderConfig[key] || field.default}
                           onChange={(e) => setRenderConfig((prev) => ({ ...prev, [key]: e.target.value }))}
-                          className="w-8 h-8 rounded border-none cursor-pointer"
-                          style={{ background: "none", padding: 0 }}
+                          className="w-8 h-8 rounded border-none cursor-pointer bg-transparent p-0"
                         />
-                        <span className="text-xs" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-secondary)" }}>
-                          {renderConfig[key] || field.default}
-                        </span>
+                        <span className="text-mono">{renderConfig[key] || field.default}</span>
                       </div>
                     )}
                     {field.type === "select" && (
                       <select
                         value={renderConfig[key] || field.default}
                         onChange={(e) => setRenderConfig((prev) => ({ ...prev, [key]: e.target.value }))}
-                        className="w-full px-3 py-2 rounded text-sm"
-                        style={{
-                          fontFamily: "'DM Sans'",
-                          background: "var(--bg-base)",
-                          border: "1px solid var(--border-strong)",
-                          color: "var(--text-primary)",
-                          borderRadius: 6,
-                        }}
+                        className="field-input"
                       >
                         {field.options?.map((opt) => (
                           <option key={opt} value={opt}>{opt}</option>
@@ -407,12 +343,9 @@ const NewAsset = () => {
                           max={field.max || 100}
                           value={renderConfig[key] || field.default}
                           onChange={(e) => setRenderConfig((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
-                          className="flex-1"
-                          style={{ accentColor: "var(--accent)" }}
+                          className="flex-1 accent-accent"
                         />
-                        <span className="text-xs w-8 text-right" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-secondary)" }}>
-                          {renderConfig[key] || field.default}
-                        </span>
+                        <span className="text-mono w-8 text-right">{renderConfig[key] || field.default}</span>
                       </div>
                     )}
                   </div>
@@ -433,33 +366,29 @@ const NewAsset = () => {
       {/* Step 4: Confirm & Generate */}
       {step === 4 && (
         <div>
-          <SectionLabel>Confirmar e Gerar</SectionLabel>
-          <div className="mt-4 p-6 rounded-lg" style={{ background: "var(--bg-surface1)", border: "1px solid var(--border-default)", borderRadius: 8 }}>
+          <div className="section-label--ruled mb-4">
+            <SectionLabel>Confirmar e Gerar</SectionLabel>
+          </div>
+          <div className="card-base">
             <div className="space-y-4">
               <div>
-                <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>
-                  Copy selecionado
-                </span>
-                <p className="text-sm mt-1 line-clamp-2" style={{ fontFamily: "'DM Sans'", color: "var(--text-primary)" }}>
+                <span className="text-mono-label">Copy selecionado</span>
+                <p className="text-body mt-1 line-clamp-2">
                   {copies.find((c) => c.id === selectedCopy)?.hook || "—"}
                 </p>
               </div>
               <div>
-                <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>
-                  Template
-                </span>
-                <p className="text-sm mt-1" style={{ fontFamily: "'DM Sans'", color: "var(--text-primary)" }}>
+                <span className="text-mono-label">Template</span>
+                <p className="text-body mt-1">
                   {selectedTemplate?.name} ({selectedTemplate?.width_px}×{selectedTemplate?.height_px}px)
                 </p>
               </div>
               {Object.keys(renderConfig).length > 0 && (
                 <div>
-                  <span className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "var(--text-muted)" }}>
-                    Configurações
-                  </span>
+                  <span className="text-mono-label">Configurações</span>
                   <div className="flex flex-wrap gap-2 mt-1">
                     {Object.entries(renderConfig).map(([key, val]) => (
-                      <span key={key} className="text-xs px-2 py-1 rounded" style={{ fontFamily: "'JetBrains Mono', monospace", background: "var(--bg-surface2)", color: "var(--text-secondary)", borderRadius: 4 }}>
+                      <span key={key} className="text-mono px-2 py-1 rounded bg-surface-2 text-txt-secondary">
                         {key}: {String(val)}
                       </span>
                     ))}
@@ -468,27 +397,19 @@ const NewAsset = () => {
               )}
             </div>
 
-            <div className="flex gap-3 mt-6 items-center">
+            <div className="flex gap-3 mt-6 items-center pt-4 border-t border-line-subtle">
               <Button variant="ghost" onClick={() => setStep(3)}>← Voltar</Button>
 
               {/* Claude toggle */}
               <button
                 onClick={() => setUseClaude(!useClaude)}
-                className="flex items-center gap-2 px-3 py-2 rounded text-xs transition-all"
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  background: useClaude ? "var(--accent-dim)" : "var(--bg-surface2)",
-                  color: useClaude ? "var(--accent)" : "var(--text-muted)",
-                  border: useClaude ? "1px solid var(--accent)" : "1px solid var(--border-default)",
-                  borderRadius: 6,
-                }}
+                className={`flex items-center gap-2 text-mono px-3 py-2 rounded-md transition-all border ${
+                  useClaude
+                    ? "bg-accent-dim text-accent border-accent"
+                    : "bg-surface-2 text-txt-muted border-line"
+                }`}
               >
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{
-                    background: useClaude ? "var(--accent)" : "var(--border-strong)",
-                  }}
-                />
+                <div className={`w-3 h-3 rounded-full ${useClaude ? "bg-accent" : "bg-line-strong"}`} />
                 Claude (Anthropic)
               </button>
 
