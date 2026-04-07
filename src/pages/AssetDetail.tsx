@@ -723,6 +723,9 @@ const AssetDetail = () => {
               <Button variant="ghost" className="w-full gap-2 text-xs" onClick={() => navigate(`/activations/${id}/assets/new`)}>
                 Criar outra peça →
               </Button>
+              <Button variant="outline" className="w-full gap-2 text-xs text-destructive border-destructive/30" onClick={() => updateStatus("review")} disabled={actionLoading}>
+                <RotateCcw size={14} /> Desaprovar (voltar p/ revisão)
+              </Button>
             </div>
           )}
 
