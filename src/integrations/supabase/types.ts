@@ -386,6 +386,39 @@ export type Database = {
           },
         ]
       }
+      brief_files: {
+        Row: {
+          activation_id: string
+          category: string | null
+          created_at: string | null
+          extracted_fields: Json | null
+          file_name: string
+          file_path: string
+          id: string
+          raw_text: string | null
+        }
+        Insert: {
+          activation_id: string
+          category?: string | null
+          created_at?: string | null
+          extracted_fields?: Json | null
+          file_name: string
+          file_path: string
+          id?: string
+          raw_text?: string | null
+        }
+        Update: {
+          activation_id?: string
+          category?: string | null
+          created_at?: string | null
+          extracted_fields?: Json | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          raw_text?: string | null
+        }
+        Relationships: []
+      }
       briefs: {
         Row: {
           activation_id: string

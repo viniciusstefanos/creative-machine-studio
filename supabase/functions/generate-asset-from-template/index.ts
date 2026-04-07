@@ -379,15 +379,17 @@ serve(async (req) => {
 
   try {
     await supabase.from("asset_template_renders").delete().eq("asset_id", asset_id);
-    const [templateRes, copyRes, briefRes] = await Promise.all([
+    const [templateRes, copyRes, briefRes, briefFilesRes] = await Promise.all([
       supabase.from("asset_templates").select("*").eq("id", template_id).single(),
       supabase.from("copies").select("*").eq("id", copy_id).single(),
       supabase.from("briefs").select("*").eq("activation_id", activation_id).maybeSingle(),
+      supabase.from("brief_files").select("category, raw_text, file_name").eq("activation_id", activation_id).not("raw_text", "is", null),
     ]);
 
     const template = templateRes.data;
     const copy = copyRes.data;
     const brief = briefRes.data;
+    const briefFiles = briefFilesRes.data || [];
 
     if (!template || !copy) {
       await supabase.from("assets").update({ status: "rejected", feedback: "Template ou copy não encontrado." }).eq("id", asset_id);
@@ -395,6 +397,11 @@ serve(async (req) => {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Build brief files context for prompts
+    const filesContext = briefFiles.length
+      ? briefFiles.map((f: any) => `[${f.category}] ${f.file_name}: ${(f.raw_text || "").slice(0, 5000)}`).join("\n\n")
+      : "";
 
     const config = render_config || {};
     const context = {
@@ -405,6 +412,10 @@ serve(async (req) => {
       objectives: brief?.objectives || "",
       target_audience: brief?.target_audience || "",
       tone_of_voice: brief?.tone_of_voice || "",
+      brand_colors: (brief as any)?.brand_colors || "",
+      typography: (brief as any)?.typography || "",
+      visual_style: (brief as any)?.visual_style || "",
+      brief_files_context: filesContext,
       ...config,
     };
 

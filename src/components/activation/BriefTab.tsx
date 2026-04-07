@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { SectionLabel } from "@/components/ui/SectionLabel";
-import { FileDrop } from "@/components/ui/FileDrop";
 import { BriefVisualIdentity } from "@/components/activation/BriefVisualIdentity";
+import { BriefFilesSection } from "@/components/activation/BriefFilesSection";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
 
 interface BriefTabProps {
   activationId: string;
@@ -14,9 +13,7 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
   const [brief, setBrief] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [extracting, setExtracting] = useState(false);
-  const [fileName, setFileName] = useState("");
+  const [briefFiles, setBriefFiles] = useState<any[]>([]);
   const [form, setForm] = useState({
     tone_of_voice: "",
     target_audience: "",
@@ -31,13 +28,15 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
   const [extractedHighlight, setExtractedHighlight] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    const fetch = async () => {
-      const { data } = await supabase
-        .from("briefs")
-        .select("*")
-        .eq("activation_id", activationId)
-        .single();
-      if (data) {
+    const fetchData = async () => {
+      // Fetch brief and files in parallel
+      const [briefRes, filesRes] = await Promise.all([
+        supabase.from("briefs").select("*").eq("activation_id", activationId).single(),
+        supabase.from("brief_files" as any).select("*").eq("activation_id", activationId).order("created_at", { ascending: true }),
+      ]);
+
+      if (briefRes.data) {
+        const data = briefRes.data;
         setBrief(data);
         setForm({
           tone_of_voice: data.tone_of_voice || "",
@@ -49,14 +48,15 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
           typography: (data as any).typography || "",
           visual_style: (data as any).visual_style || "",
         });
-        if (data.source_file_url) {
-          const parts = data.source_file_url.split("/");
-          setFileName(parts[parts.length - 1]);
-        }
       }
+
+      if (filesRes.data) {
+        setBriefFiles(filesRes.data as any[]);
+      }
+
       setLoading(false);
     };
-    fetch();
+    fetchData();
   }, [activationId]);
 
   const handleSave = async () => {
@@ -64,66 +64,31 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
     if (brief) {
       await supabase.from("briefs").update({ ...form, updated_at: new Date().toISOString() }).eq("id", brief.id);
     } else {
-      await supabase.from("briefs").insert([{ activation_id: activationId, ...form }]);
+      const { data } = await supabase.from("briefs").insert([{ activation_id: activationId, ...form }]).select().single();
+      if (data) setBrief(data);
     }
     setSaving(false);
     toast({ title: "Brief salvo!" });
   };
 
-  const handleFileUpload = async (file: File) => {
-    setUploading(true);
-    setFileName(file.name);
-    const filePath = `${activationId}/${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("briefs").upload(filePath, file);
-    if (error) {
-      toast({ title: "Erro no upload", description: error.message, variant: "destructive" });
-      setUploading(false);
-      setFileName("");
-      return;
-    }
-
-    // Save file URL to brief
-    const updates = { source_file_url: filePath };
-    if (brief) {
-      await supabase.from("briefs").update(updates).eq("id", brief.id);
-    } else {
-      const { data } = await supabase.from("briefs").insert([{ activation_id: activationId, ...updates }]).select().single();
-      if (data) setBrief(data);
-    }
-    setUploading(false);
-
-    // Extract with AI
-    setExtracting(true);
-    try {
-      const { data, error: fnError } = await supabase.functions.invoke("extract-brief", {
-        body: { file_path: filePath },
-      });
-      if (fnError) throw fnError;
-      if (data?.extracted) {
-        const ex = data.extracted;
-        const highlights: Record<string, boolean> = {};
-        const newForm = { ...form };
-        (["tone_of_voice", "target_audience", "objectives", "extra_context"] as const).forEach((key) => {
-          if (ex[key] && ex[key].trim()) {
-            newForm[key] = ex[key];
-            highlights[key] = true;
-          } else if (!newForm[key]) {
-            highlights[key] = false; // empty = warn
-          }
-        });
-        if (ex.references_urls?.length) {
-          newForm.references_urls = [...new Set([...newForm.references_urls, ...ex.references_urls])];
-          highlights["references_urls"] = true;
+  const handleExtracted = (ex: any) => {
+    const highlights: Record<string, boolean> = {};
+    const newForm = { ...form };
+    (["tone_of_voice", "target_audience", "objectives", "extra_context"] as const).forEach((key) => {
+      if (ex[key] && ex[key].trim()) {
+        // Only fill if field is currently empty
+        if (!newForm[key]) {
+          newForm[key] = ex[key];
+          highlights[key] = true;
         }
-        setForm(newForm);
-        setExtractedHighlight(highlights);
-        toast({ title: "Campos extraídos com IA", description: "Revise os campos destacados antes de salvar." });
       }
-    } catch (err) {
-      console.error("Extract error:", err);
-      toast({ title: "Erro na extração", description: "Não foi possível extrair campos do arquivo.", variant: "destructive" });
+    });
+    if (ex.references_urls?.length) {
+      newForm.references_urls = [...new Set([...newForm.references_urls, ...ex.references_urls])];
+      highlights["references_urls"] = true;
     }
-    setExtracting(false);
+    setForm(newForm);
+    setExtractedHighlight((prev) => ({ ...prev, ...highlights }));
   };
 
   const handleAddRef = (e: React.KeyboardEvent) => {
@@ -149,21 +114,15 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
     <div className="max-w-2xl space-y-6">
       <SectionLabel>Brief da Ativação</SectionLabel>
 
-      {/* File Upload */}
+      {/* Multi-file upload */}
       <div>
-        <label className="field-label">Arquivo de briefing</label>
-        <FileDrop
-          onFile={handleFileUpload}
-          uploading={uploading}
-          fileName={fileName}
-          onClear={() => setFileName("")}
+        <label className="field-label">Arquivos de referência</label>
+        <BriefFilesSection
+          activationId={activationId}
+          files={briefFiles}
+          onFilesChange={setBriefFiles}
+          onExtracted={handleExtracted}
         />
-        {extracting && (
-          <div className="flex items-center gap-2 mt-2">
-            <Loader2 size={14} className="animate-spin" style={{ color: "hsl(var(--accent))" }} />
-            <span className="text-xs" style={{ color: "hsl(var(--accent))", fontFamily: "'DM Sans'" }}>Extraindo campos com IA...</span>
-          </div>
-        )}
       </div>
 
       <div>
@@ -210,10 +169,7 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
       </div>
 
       {/* Identidade Visual */}
-      <div
-        className="pt-6 mt-2"
-        style={{ borderTop: "1px solid hsl(var(--border-subtle))" }}
-      >
+      <div className="pt-6 mt-2" style={{ borderTop: "1px solid hsl(var(--border-subtle))" }}>
         <BriefVisualIdentity
           brandColors={form.brand_colors}
           typography={form.typography}
