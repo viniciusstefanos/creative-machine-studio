@@ -139,9 +139,18 @@ export const MetaAccountSettings = ({ clientId }: MetaAccountSettingsProps) => {
             <span className="ml-1">Auto-detectar</span>
           </Button>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="field-label">Page ID</label>
+            <label className="field-label">Facebook Page ID</label>
+            <Input
+              value={form.facebook_page_id}
+              onChange={(e) => setForm({ ...form, facebook_page_id: e.target.value })}
+              placeholder="123456789..."
+              className="text-xs font-mono"
+            />
+          </div>
+          <div>
+            <label className="field-label">Instagram Actor ID</label>
             <Input
               value={form.instagram_page_id}
               onChange={(e) => setForm({ ...form, instagram_page_id: e.target.value })}
@@ -159,7 +168,7 @@ export const MetaAccountSettings = ({ clientId }: MetaAccountSettingsProps) => {
             />
           </div>
         </div>
-        {form.instagram_page_id && (
+        {form.facebook_page_id && form.instagram_page_id && (
           <div className="flex items-center gap-1.5 text-xs" style={{ color: "hsl(var(--accent))" }}>
             <Check size={12} /> Vinculado
           </div>
