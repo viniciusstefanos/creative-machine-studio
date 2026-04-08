@@ -1,39 +1,61 @@
 
 
-# Subir anúncios em campanhas existentes
+# Agendamento em massa + Subir anúncios em massa
 
-## Contexto
+## Resumo
 
-Hoje o wizard `CreateCampaignWizard` sempre cria campanha + adset + ads de uma vez. O usuário quer poder selecionar uma campanha já criada (que já tem adset no Meta) e adicionar novos anúncios nela.
+Duas funcionalidades novas acessíveis via botões "em massa" nas abas Agenda e Campanhas:
 
-## Plano
+1. **Agendar em massa** — selecionar múltiplas peças aprovadas, definir data inicial/final e horário, e distribuir automaticamente os posts ao longo dos dias
+2. **Subir anúncios em massa** — selecionar múltiplas peças aprovadas e subir todas de uma vez a uma campanha existente (já funciona no `AddAdsToCampaignDialog`, mas precisa de UX melhor para seleção em massa)
 
-### 1. Novo componente: `AddAdsToCampaignDialog`
+## 1. Novo componente: `BulkScheduleDialog`
 
-Dialog separado do wizard de criação, acessível pela aba Campanhas. Fluxo:
+Dialog com o fluxo:
 
-1. **Selecionar campanha** — lista campanhas existentes desta ativação (tabela `ad_campaigns`) que tenham `platform_adset_id` preenchido
-2. **Selecionar peças aprovadas** — mesma lógica do step 3 do wizard atual (assets aprovados com renders)
-3. **Submeter** — para cada asset selecionado, chama `meta-ads` com `action: "create_ad"` usando o `platform_adset_id` da campanha selecionada
+1. **Selecionar peças** — lista assets aprovados com thumbnail (checkbox multi-select, botão selecionar/limpar tudo)
+2. **Configurar distribuição**:
+   - Data início e data fim
+   - Horários preferidos (ex: 09:00, 12:00, 18:00 — seleção múltipla)
+   - Canal (instagram_feed, reels, stories)
+   - Algoritmo: distribui N peças nos dias disponíveis, rotacionando pelos horários selecionados
+3. **Preview** — mostra lista dos agendamentos que serão criados (data/hora + peça) antes de confirmar
+4. **Confirmar** — insere todos os `scheduled_posts` de uma vez
 
-### 2. Botão na `CampaignsTab`
+### Lógica de distribuição
 
-Adicionar botão "Adicionar Anúncios" ao lado do "Criar Campanha". Abre o novo dialog.
+```text
+Exemplo: 6 peças, 3 dias (10-12 abril), horários [09:00, 18:00]
+→ 10/04 09:00 — Peça 1
+→ 10/04 18:00 — Peça 2
+→ 11/04 09:00 — Peça 3
+→ 11/04 18:00 — Peça 4
+→ 12/04 09:00 — Peça 5
+→ 12/04 18:00 — Peça 6
+```
 
-Também: dentro de cada campanha expandida, um botão "+ Adicionar anúncio" que já pré-seleciona aquela campanha.
+Se há mais peças que slots, concentra mais por slot. Se há menos, distribui uniformemente.
 
-### 3. Lógica no frontend
+### Caption automático
 
-- Buscar campanhas com `platform_adset_id IS NOT NULL` (indica que o adset já foi criado no Meta)
-- Reutilizar a mesma lógica de `loadApprovedAssets` do wizard
-- Na submissão, chamar `meta-ads` `create_ad` com `adset_id = campaign.platform_adset_id`
-- Salvar `ad_creatives` no banco com `campaign_id` do DB
+Para cada peça, puxa o `full_copy` da copy associada (mesma lógica do `SchedulePostDialog`).
 
-### Nenhuma mudança no backend
+## 2. Botão na `ScheduleTab`
 
-A edge function `meta-ads` já suporta `create_ad` com `adset_id` passado diretamente. Não precisa de migration nem de alteração na edge function.
+Adicionar botão "Agendar em massa" ao lado do "Agendar post" existente.
 
-### Arquivos modificados
-- **`src/components/activation/AddAdsToCampaignDialog.tsx`** — novo componente
-- **`src/components/activation/CampaignsTab.tsx`** — botão para abrir o dialog + botão dentro de cada campanha expandida
+## 3. Melhorar `AddAdsToCampaignDialog` para UX em massa
+
+O componente já suporta multi-select de peças. Ajustes:
+- Adicionar botões "Selecionar tudo" / "Limpar"
+- Mostrar progresso durante submissão (X de Y subidos)
+- Feedback visual por peça (check verde / erro vermelho)
+
+## Arquivos modificados
+
+- **`src/components/activation/BulkScheduleDialog.tsx`** — novo componente
+- **`src/components/activation/ScheduleTab.tsx`** — botão para abrir o bulk dialog
+- **`src/components/activation/AddAdsToCampaignDialog.tsx`** — melhorias de UX (select all, progresso)
+
+Nenhuma migration necessária — usa a tabela `scheduled_posts` existente.
 
