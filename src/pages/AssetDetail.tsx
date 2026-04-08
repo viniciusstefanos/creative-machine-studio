@@ -875,6 +875,11 @@ const AssetDetail = () => {
             </div>
           )}
 
+          {/* Delete */}
+          <Button variant="ghost" className="w-full gap-1.5 text-xs text-destructive/60 hover:text-destructive" onClick={handleDeleteAsset}>
+            <Trash2 size={14} /> Excluir peça
+          </Button>
+
           {/* Comments */}
           <div className="card-base">
             <CommentThread entityType="asset" entityId={assetId!} />
