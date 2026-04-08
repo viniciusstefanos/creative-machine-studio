@@ -25,7 +25,6 @@ Deno.serve(async (req) => {
     const { action } = body;
     const token = body.page_access_token || META_ACCESS_TOKEN;
 
-    // Ensure ad_account_id has act_ prefix
     const ensureActPrefix = (id: string | undefined) => {
       if (!id) return id;
       return id.startsWith("act_") ? id : `act_${id}`;
@@ -60,7 +59,6 @@ Deno.serve(async (req) => {
       const data = await res.json();
       if (!res.ok) throw new Error(`Create campaign failed [${res.status}]: ${JSON.stringify(data)}`);
 
-      // Save to DB
       let dbCampaignId: string | null = null;
       if (activation_id) {
         const { data: inserted } = await supabase.from("ad_campaigns").insert({
@@ -97,7 +95,6 @@ Deno.serve(async (req) => {
         db_campaign_id,
       } = body;
 
-      // Build targeting object
       const targetingObj: Record<string, unknown> = {
         geo_locations: targeting?.geo_locations || { countries: ["BR"] },
       };
@@ -107,6 +104,9 @@ Deno.serve(async (req) => {
       if (targeting?.flexible_spec) targetingObj.flexible_spec = targeting.flexible_spec;
       if (targeting?.interests) {
         targetingObj.flexible_spec = [{ interests: targeting.interests }];
+      }
+      if (targeting?.custom_audiences) {
+        targetingObj.custom_audiences = targeting.custom_audiences;
       }
 
       const adsetPayload: Record<string, unknown> = {
@@ -132,7 +132,6 @@ Deno.serve(async (req) => {
       const data = await res.json();
       if (!res.ok) throw new Error(`Create adset failed [${res.status}]: ${JSON.stringify(data)}`);
 
-      // Update campaign in DB with adset info
       if (db_campaign_id) {
         await supabase.from("ad_campaigns").update({
           platform_adset_id: data.id,
@@ -162,7 +161,7 @@ Deno.serve(async (req) => {
       }
 
       const normalizedImageUrls = Array.isArray(image_urls)
-        ? image_urls.map((url) => String(url).trim()).filter(Boolean)
+        ? image_urls.map((url: string) => String(url).trim()).filter(Boolean)
         : [];
       const creativeImageUrls = normalizedImageUrls.length > 0
         ? normalizedImageUrls
@@ -259,7 +258,6 @@ Deno.serve(async (req) => {
       }
       const creativeData = creativeAttempt.data;
 
-      // Create ad
       const adRes = await fetch(`${META_GRAPH_URL}/${ad_account_id}/ads`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -274,7 +272,6 @@ Deno.serve(async (req) => {
       const adData = await adRes.json();
       if (!adRes.ok) throw new Error(`Create ad failed [${adRes.status}]: ${JSON.stringify(adData)}`);
 
-      // Save ad creative to DB
       if (db_campaign_id) {
         await supabase.from("ad_creatives").insert({
           campaign_id: db_campaign_id,
@@ -303,13 +300,11 @@ Deno.serve(async (req) => {
       const data = await res.json();
       if (!res.ok) throw new Error(`Get campaign status failed [${res.status}]: ${JSON.stringify(data)}`);
 
-      // Also fetch adsets
       const adsetsRes = await fetch(
         `${META_GRAPH_URL}/${platform_campaign_id}/adsets?fields=id,name,status,effective_status,daily_budget&access_token=${token}`
       );
       const adsetsData = await adsetsRes.json();
 
-      // Fetch ads for each adset
       const adsets = adsetsData.data || [];
       for (const adset of adsets) {
         const adsRes = await fetch(
@@ -328,7 +323,6 @@ Deno.serve(async (req) => {
     if (action === "get_client_meta") {
       const { activation_id } = body;
       
-      // Get client_id from activation
       const { data: activation } = await supabase
         .from("activations")
         .select("client_id")
@@ -368,7 +362,6 @@ Deno.serve(async (req) => {
 
       const campaignsList = data.data || [];
 
-      // Fetch adsets for each campaign
       for (const camp of campaignsList) {
         try {
           const adsetsRes = await fetch(
@@ -398,6 +391,219 @@ Deno.serve(async (req) => {
       if (!res.ok) throw new Error(`List adsets failed [${res.status}]: ${JSON.stringify(data)}`);
 
       return new Response(JSON.stringify({ adsets: data.data || [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── Update campaign/adset/ad status (pause/activate) ───
+    if (action === "update_status") {
+      const { object_id, new_status } = body;
+      if (!object_id) throw new Error("object_id is required");
+      if (!new_status) throw new Error("new_status is required (ACTIVE or PAUSED)");
+
+      const res = await fetch(`${META_GRAPH_URL}/${object_id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: new_status, access_token: token }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(`Update status failed [${res.status}]: ${JSON.stringify(data)}`);
+
+      // Update local DB if db_id provided
+      const { db_id, db_table } = body;
+      if (db_id && db_table) {
+        const table = db_table === "ad_creatives" ? "ad_creatives" : "ad_campaigns";
+        await supabase.from(table).update({ status: new_status.toLowerCase() }).eq("id", db_id);
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── Update adset daily budget ───
+    if (action === "update_budget") {
+      const { object_id, daily_budget_cents } = body;
+      if (!object_id) throw new Error("object_id is required");
+      if (!daily_budget_cents) throw new Error("daily_budget_cents is required");
+
+      const res = await fetch(`${META_GRAPH_URL}/${object_id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ daily_budget: daily_budget_cents, access_token: token }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(`Update budget failed [${res.status}]: ${JSON.stringify(data)}`);
+
+      // Update local DB
+      const { db_campaign_id } = body;
+      if (db_campaign_id) {
+        await supabase.from("ad_campaigns").update({ daily_budget_cents }).eq("id", db_campaign_id);
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── Get insights (campaign, adset, or ad level) ───
+    if (action === "get_insights") {
+      const { object_id, level, date_preset, time_range } = body;
+      if (!object_id) throw new Error("object_id is required");
+
+      const fields = "impressions,reach,clicks,cpc,cpm,ctr,spend,actions,cost_per_action_type,frequency,unique_clicks,inline_link_clicks,inline_link_click_ctr";
+      let url = `${META_GRAPH_URL}/${object_id}/insights?fields=${fields}&access_token=${token}`;
+      
+      if (level) url += `&level=${level}`;
+      if (date_preset) {
+        url += `&date_preset=${date_preset}`;
+      } else if (time_range) {
+        url += `&time_range=${encodeURIComponent(JSON.stringify(time_range))}`;
+      } else {
+        url += `&date_preset=last_30d`;
+      }
+
+      // Also get daily breakdown
+      const dailyUrl = `${META_GRAPH_URL}/${object_id}/insights?fields=impressions,reach,clicks,spend,actions,ctr,cpc&time_increment=1&date_preset=${date_preset || "last_30d"}&access_token=${token}&limit=90`;
+
+      const [summaryRes, dailyRes] = await Promise.all([
+        fetch(url),
+        fetch(dailyUrl),
+      ]);
+
+      const summaryData = await summaryRes.json();
+      const dailyData = await dailyRes.json();
+
+      if (!summaryRes.ok) throw new Error(`Get insights failed [${summaryRes.status}]: ${JSON.stringify(summaryData)}`);
+
+      return new Response(JSON.stringify({
+        summary: summaryData.data?.[0] || null,
+        daily: dailyData.data || [],
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── Get insights per ad (creative-level breakdown) ───
+    if (action === "get_ad_insights") {
+      const { campaign_id } = body;
+      const ad_account_id = ensureActPrefix(body.ad_account_id);
+      if (!ad_account_id) throw new Error("ad_account_id is required");
+
+      const fields = "ad_id,ad_name,impressions,reach,clicks,spend,ctr,cpc,actions,cost_per_action_type";
+      let url = `${META_GRAPH_URL}/${ad_account_id}/insights?fields=${fields}&level=ad&date_preset=${body.date_preset || "last_30d"}&limit=100&access_token=${token}`;
+      
+      if (campaign_id) {
+        const filtering = JSON.stringify([{ field: "campaign.id", operator: "EQUAL", value: campaign_id }]);
+        url += `&filtering=${encodeURIComponent(filtering)}`;
+      }
+
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) throw new Error(`Get ad insights failed [${res.status}]: ${JSON.stringify(data)}`);
+
+      return new Response(JSON.stringify({ ads: data.data || [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── List custom audiences ───
+    if (action === "list_audiences") {
+      const ad_account_id = ensureActPrefix(body.ad_account_id);
+      if (!ad_account_id) throw new Error("ad_account_id is required");
+
+      const res = await fetch(
+        `${META_GRAPH_URL}/${ad_account_id}/customaudiences?fields=id,name,subtype,approximate_count,delivery_status,description,time_created&limit=100&access_token=${token}`
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(`List audiences failed [${res.status}]: ${JSON.stringify(data)}`);
+
+      return new Response(JSON.stringify({ audiences: data.data || [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── Create custom audience ───
+    if (action === "create_audience") {
+      const ad_account_id = ensureActPrefix(body.ad_account_id);
+      if (!ad_account_id) throw new Error("ad_account_id is required");
+
+      const { name, description, subtype, rule, customer_file_source } = body;
+      if (!name) throw new Error("name is required");
+
+      const payload: Record<string, unknown> = {
+        name,
+        description: description || "",
+        subtype: subtype || "CUSTOM",
+        access_token: token,
+      };
+
+      if (subtype === "WEBSITE") {
+        payload.rule = rule || JSON.stringify({ inclusions: { operator: "or", rules: [{ event_sources: [{ id: body.pixel_id }], retention_seconds: 2592000, filter: { operator: "and", filters: [{ field: "url", operator: "i_contains", value: "" }] } }] } });
+      }
+      if (subtype === "ENGAGEMENT") {
+        payload.rule = rule;
+      }
+      if (customer_file_source) {
+        payload.customer_file_source = customer_file_source;
+      }
+
+      const res = await fetch(`${META_GRAPH_URL}/${ad_account_id}/customaudiences`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(`Create audience failed [${res.status}]: ${JSON.stringify(data)}`);
+
+      return new Response(JSON.stringify({ success: true, audience_id: data.id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── Create lookalike audience ───
+    if (action === "create_lookalike") {
+      const ad_account_id = ensureActPrefix(body.ad_account_id);
+      if (!ad_account_id) throw new Error("ad_account_id is required");
+
+      const { name, origin_audience_id, country, ratio } = body;
+      if (!name || !origin_audience_id) throw new Error("name and origin_audience_id are required");
+
+      const spec = {
+        origin: [{ id: origin_audience_id, type: "custom_audience" }],
+        starting_ratio: 0,
+        ratio: ratio || 0.01,
+        country: country || "BR",
+      };
+
+      const res = await fetch(`${META_GRAPH_URL}/${ad_account_id}/customaudiences`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          subtype: "LOOKALIKE",
+          lookalike_spec: JSON.stringify(spec),
+          access_token: token,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(`Create lookalike failed [${res.status}]: ${JSON.stringify(data)}`);
+
+      return new Response(JSON.stringify({ success: true, audience_id: data.id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── Delete audience ───
+    if (action === "delete_audience") {
+      const { audience_id } = body;
+      if (!audience_id) throw new Error("audience_id is required");
+
+      const res = await fetch(`${META_GRAPH_URL}/${audience_id}?access_token=${token}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(`Delete audience failed [${res.status}]: ${JSON.stringify(data)}`);
+
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
