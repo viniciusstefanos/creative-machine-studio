@@ -1,35 +1,36 @@
 
 
-# Adicionar opção "Subir para tráfego" ao aprovar peça
+# Campanhas no mesmo nível de Agendar no workflow
 
-## Problema
+## Situacao atual
 
-Quando a peça é aprovada, só aparece "Agendar publicação" (orgânico). Falta a opção de adicionar a peça a uma campanha de tráfego pago (Meta Ads).
+O WorkflowProgress tem 4 etapas: Brief → Copies → Peças → Agendar. Campanhas (ad-campaigns) fica apenas na tab bar secundária, separada do fluxo principal.
 
-## Solução
+## Solucao
 
-No bloco de ações pós-aprovação (`asset.status === "approved"`, linhas 827-838 de `AssetDetail.tsx`), adicionar um botão **"Adicionar a campanha"** que:
-
-1. Abre o `AddAdsToCampaignDialog` já existente, com o asset pré-selecionado
-2. Busca o `metaAccount` do cliente (mesma lógica que `CampaignsTab` usa)
-3. Busca campanhas existentes da ativação para o dialog
-
-## Mudanças em `AssetDetail.tsx`
-
-1. **Importar** `AddAdsToCampaignDialog` e o ícone `Megaphone` (ou `Target`)
-2. **Adicionar state**: `addToCampaignOpen`, `metaAccount`, `campaigns`
-3. **Fetch metaAccount** junto com os dados do asset (usar `client_meta_accounts` via `activation.client_id`)
-4. **Adicionar botão** no bloco `approved`:
+Adicionar "Campanhas" como 5o passo no WorkflowProgress, entre Peças e Agendar. Ambos (Campanhas e Agendar) representam destinos de distribuicao paralelos -- trafego pago e organico.
 
 ```text
-[Agendar publicação]        ← orgânico (já existe)
-[Adicionar a campanha ▸]    ← tráfego (NOVO)
-[Criar outra peça →]        ← já existe
-[Desaprovar]                ← já existe
+[Brief] ── [Copies] ── [Peças] ── [Campanhas] ── [Agendar]
 ```
 
-5. **Renderizar** `<AddAdsToCampaignDialog>` com `activationId`, `metaAccount`, e `landingPageUrl` do activation
+- **Campanhas** fica desbloqueada quando `assetsApproved > 0` (mesmo criterio de Agendar)
+- Status "done" quando existem campanhas criadas (`campaignsCount > 0`)
+- Icone: `Megaphone` (lucide)
+- Remover "Campanhas" da tab bar secundaria para nao duplicar
 
-## Arquivo modificado
-- `src/pages/AssetDetail.tsx`
+### Mudancas
+
+1. **`WorkflowProgress.tsx`**
+   - Adicionar prop `campaignsCount`
+   - Inserir step "Campanhas" com key `ad-campaigns`, path `ad-campaigns`, entre Pecas e Agendar
+
+2. **`ActivationHub.tsx`**
+   - Buscar count de `ad_campaigns` no query (similar ao `scheduled_posts`)
+   - Passar `campaignsCount` ao WorkflowProgress
+   - Remover `{ key: "ad-campaigns" }` do array `tabs` (sai da tab bar)
+
+## Arquivos modificados
+- `src/components/activation/WorkflowProgress.tsx`
+- `src/pages/ActivationHub.tsx`
 
