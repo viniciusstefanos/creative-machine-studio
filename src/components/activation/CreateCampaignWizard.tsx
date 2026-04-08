@@ -758,6 +758,7 @@ export const CreateCampaignWizard = ({
                   <span className="text-[10px] block mb-0.5" style={{ color: "hsl(var(--text-muted))" }}>Term</span>
                   <Input value={utmTerm} onChange={e => setUtmTerm(e.target.value)} placeholder={utmDynamic ? "{{adset.name}}" : ""} style={{ ...monoInputStyle, fontSize: "11px" }} />
                 </div>
+              </div>
             </div>
 
             <div>
