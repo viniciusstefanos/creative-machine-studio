@@ -18,7 +18,6 @@ const tabs = [
   { key: "brief", label: "Brief", path: "brief" },
   { key: "copies", label: "Copies", path: "copies" },
   { key: "assets", label: "Peças", path: "assets" },
-  { key: "ad-campaigns", label: "Campanhas", path: "ad-campaigns" },
   { key: "utm", label: "UTMs", path: "utm" },
   { key: "schedule", label: "Agendamento", path: "schedule" },
   { key: "analytics", label: "Métricas", path: "analytics" },
@@ -38,7 +37,7 @@ const ActivationHub = () => {
         .single();
       if (error) throw error;
 
-      const [copiesReviewRes, assetsReviewRes, briefRes, copiesAllRes, copiesApprovedRes, assetsAllRes, assetsApprovedRes, scheduledRes] = await Promise.all([
+      const [copiesReviewRes, assetsReviewRes, briefRes, copiesAllRes, copiesApprovedRes, assetsAllRes, assetsApprovedRes, scheduledRes, campaignsRes] = await Promise.all([
         supabase.from("copies").select("status", { count: "exact" }).eq("activation_id", id!).eq("status", "review"),
         supabase.from("assets").select("status", { count: "exact" }).eq("activation_id", id!).eq("status", "review"),
         supabase.from("briefs").select("objectives").eq("activation_id", id!).single(),
@@ -47,6 +46,7 @@ const ActivationHub = () => {
         supabase.from("assets").select("id", { count: "exact" }).eq("activation_id", id!),
         supabase.from("assets").select("id", { count: "exact" }).eq("activation_id", id!).eq("status", "approved"),
         supabase.from("scheduled_posts").select("id", { count: "exact" }).eq("activation_id", id!),
+        supabase.from("ad_campaigns").select("id", { count: "exact" }).eq("activation_id", id!),
       ]);
 
       return {
@@ -63,6 +63,7 @@ const ActivationHub = () => {
           assetsApproved: assetsApprovedRes.count || 0,
           assetsTotal: assetsAllRes.count || 0,
           scheduledCount: scheduledRes.count || 0,
+          campaignsCount: campaignsRes.count || 0,
         },
       };
     },
@@ -148,6 +149,7 @@ const ActivationHub = () => {
         assetsApproved={workflow.assetsApproved}
         assetsTotal={workflow.assetsTotal}
         scheduledCount={workflow.scheduledCount}
+        campaignsCount={workflow.campaignsCount}
         activeTab={activeTab}
       />
 
