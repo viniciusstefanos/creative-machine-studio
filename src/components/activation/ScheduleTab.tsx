@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { Calendar, Send, Loader2, Plus, Trash2, Pencil, Image, Layers } from "lucide-react";
 import { renderHtmlToPng, uploadPng } from "@/lib/renderPng";
 import { BulkScheduleDialog } from "./BulkScheduleDialog";
+import { Progress } from "@/components/ui/progress";
 
 interface ScheduleTabProps {
   activationId: string;
@@ -19,6 +20,7 @@ export const ScheduleTab = ({ activationId, assetsApproved }: ScheduleTabProps) 
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState<string | null>(null);
+  const [publishStep, setPublishStep] = useState("");
   const [metaAccount, setMetaAccount] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<any>(null);
@@ -57,6 +59,7 @@ export const ScheduleTab = ({ activationId, assetsApproved }: ScheduleTabProps) 
       return;
     }
     setPublishing(post.id);
+    setPublishStep("Preparando...");
     try {
       let caption = post.caption || "";
       if (!caption && post.assets?.copy_id) {
@@ -94,8 +97,8 @@ export const ScheduleTab = ({ activationId, assetsApproved }: ScheduleTabProps) 
             if (tpl) { w = tpl.width_px; h = tpl.height_px; }
           }
 
-          toast({ title: `Renderizando ${renders.length} slides...` });
-          for (const render of renders) {
+          for (const [idx, render] of renders.entries()) {
+            setPublishStep(`Renderizando slide ${idx + 1}/${renders.length}...`);
             let slideUrl = render.png_url;
             if (!slideUrl && render.html_content) {
               const dataUrl = await renderHtmlToPng(render.html_content, w, h);
@@ -129,7 +132,7 @@ export const ScheduleTab = ({ activationId, assetsApproved }: ScheduleTabProps) 
                 .single();
               if (tpl) { w = tpl.width_px; h = tpl.height_px; }
             }
-            toast({ title: "Renderizando arte..." });
+            setPublishStep("Renderizando arte...");
             const dataUrl = await renderHtmlToPng(render.html_content, w, h);
             const uploaded = await uploadPng(post.asset_id, render.slide_index || 0, dataUrl);
             if (uploaded) {
@@ -142,6 +145,7 @@ export const ScheduleTab = ({ activationId, assetsApproved }: ScheduleTabProps) 
         }
       }
 
+      setPublishStep("Publicando no Instagram...");
       // Choose publish action based on slide count
       const body = isCarousel && carouselImageUrls.length >= 2
         ? {
@@ -173,6 +177,7 @@ export const ScheduleTab = ({ activationId, assetsApproved }: ScheduleTabProps) 
       toast({ title: "Erro ao publicar", description: e.message, variant: "destructive" });
     }
     setPublishing(null);
+    setPublishStep("");
   };
 
   const handleCancel = async (postId: string) => {
@@ -236,7 +241,7 @@ export const ScheduleTab = ({ activationId, assetsApproved }: ScheduleTabProps) 
                 className="text-xs h-7 px-2.5 gap-1"
               >
                 {publishing === post.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                Publicar
+                {publishing === post.id && publishStep ? publishStep : "Publicar"}
               </Button>
             )}
             <Button
@@ -324,6 +329,19 @@ export const ScheduleTab = ({ activationId, assetsApproved }: ScheduleTabProps) 
                   ? "Aprove peças visuais antes de agendar publicação."
                   : "Clique em 'Agendar post' para começar."}
               </p>
+              {assetsApproved === 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-3 gap-1.5 text-xs"
+                  onClick={() => {
+                    const path = window.location.pathname.replace(/\/schedule$/, "/assets");
+                    window.location.href = path;
+                  }}
+                >
+                  <Image size={14} /> Ver peças
+                </Button>
+              )}
             </div>
           ) : (
             <>

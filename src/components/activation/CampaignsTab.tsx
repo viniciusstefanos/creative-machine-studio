@@ -151,9 +151,17 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
         <div className="p-8 rounded-lg text-center" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid hsl(var(--border-default))", borderRadius: 8 }}>
           <Megaphone size={32} className="mx-auto mb-3" style={{ color: "hsl(var(--text-muted))" }} />
           <p className="text-sm mb-1" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>Nenhuma campanha de ads</p>
-          <p className="text-[10px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
+          <p className="text-[10px] mb-3" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
             Crie uma campanha para subir suas peças aprovadas ao Meta Ads
           </p>
+          <Button
+            size="sm"
+            onClick={() => setWizardOpen(true)}
+            className="gap-1.5"
+            style={{ background: "hsl(var(--accent))", color: "hsl(var(--accent-foreground))", fontFamily: "'DM Sans'", borderRadius: 6 }}
+          >
+            <Plus size={14} /> Criar campanha
+          </Button>
         </div>
       ) : (
         <div className="space-y-3">
