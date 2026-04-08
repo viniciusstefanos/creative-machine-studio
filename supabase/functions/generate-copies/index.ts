@@ -137,6 +137,83 @@ Deno.serve(async (req) => {
 
     const safeQuantity = Math.min(Math.max(Number(quantity) || 6, 1), 20);
 
+    if (!activation_id || !brief) {
+      return new Response(JSON.stringify({ error: "activation_id and brief are required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!anthropicKey) {
+      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    const { data: briefFiles } = await supabase
+      .from("brief_files")
+      .select("category, raw_text, file_name")
+      .eq("activation_id", activation_id)
+      .not("raw_text", "is", null);
+
+    const filesContext = briefFiles?.length
+      ? "\n\n## DOCUMENTOS DE REFERÊNCIA COMPLETOS\n" +
+        briefFiles.map((f: any) => `### [${f.category}] ${f.file_name}\n${(f.raw_text || "").slice(0, 8000)}`).join("\n\n")
+      : "";
+
+    const topicBlock = topic
+      ? `\nASSUNTO/DOR ESPECÍFICA: ${topic}. Todas as copies DEVEM abordar esse tema/dor como eixo central.\n`
+      : "";
+
+    const briefBlock = `BRIEF DA ATIVAÇÃO: "${activation_name}"
+- Objetivos: ${brief.objectives || "Não especificado"}
+- Público-alvo: ${brief.target_audience || "Não especificado"}
+- Tom de voz: ${brief.tone_of_voice || "Não especificado"}
+- Contexto extra: ${brief.extra_context || "Nenhum"}
+- Cores da marca: ${brief.brand_colors || "Não especificado"}
+- Tipografia: ${brief.typography || "Não especificado"}
+- Estilo visual: ${brief.visual_style || "Não especificado"}
+${filesContext}
+${topicBlock}
+CANAIS: ${(channels || ["instagram"]).join(", ")}
+ETAPAS DO FUNIL: ${(funnel_stages || ["top", "mid", "bottom"]).join(", ")}`;
+
+    const purposesToGenerate: string[] =
+      purpose === "both" ? ["organic", "ads"] : [purpose];
+
+    let allCopies: any[] = [];
+
+    for (const p of purposesToGenerate) {
+      const purposeRules = p === "organic" ? ORGANIC_RULES : ADS_RULES;
+      const systemPrompt = BASE_SYSTEM_PROMPT + "\n" + purposeRules;
+
+      const purposeInstruction = p === "organic"
+        ? `FINALIDADE: ORGÂNICO — gere copies para publicação orgânica. Caption longo, hashtags, CTA de engajamento.`
+        : `FINALIDADE: ADS (TRÁFEGO PAGO) — gere copies para anúncios pagos. Texto curto, direto, CTA de conversão.`;
+
+      const quantityForPurpose = purpose === "both" ? Math.ceil(safeQuantity / 2) : safeQuantity;
+
+      const userPrompt = `${briefBlock}
+
+${purposeInstruction}
+
+Para cada combinação de canal + etapa do funil, gere um copy com:
+- hook: frase curta que captura atenção (máx 8 palavras)
+- body: desenvolvimento do argumento com detalhes específicos${p === "organic" ? ". Inclua hashtags relevantes no final." : ". Máx 125 caracteres visíveis."}
+- cta: chamada para ação${p === "organic" ? " de engajamento (salvar, comentar, compartilhar)" : " de conversão (comprar, agendar, pedir)"}
+- type: "post" ou "ad"
+- channel: o canal
+- funnel_stage: "top", "mid" ou "bottom"
+
+Gere exatamente ${quantityForPurpose} copies variados.
+
+Responda APENAS com um JSON array válido. Exemplo:
+[{"hook":"...","body":"...","cta":"...","type":"${p === "organic" ? "post" : "ad"}","channel":"instagram","funnel_stage":"top"}]`;
+
       const content = await callClaude(systemPrompt, userPrompt, anthropicKey);
 
       let jsonStr = content;
