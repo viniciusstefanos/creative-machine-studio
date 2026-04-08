@@ -123,30 +123,28 @@ const SettingsTemplates = () => {
                       )}
 
                       <div className="flex gap-2 pt-2 border-t border-[hsl(var(--border-subtle))]">
+                        <button
+                          onClick={() => openEdit(t)}
+                          className="p-1.5 rounded-md bg-[hsl(var(--bg-surface2))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--accent))] transition-colors"
+                          title="Editar"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => toggleActive(t)}
+                          className="p-1.5 rounded-md bg-[hsl(var(--bg-surface2))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-secondary))] transition-colors"
+                          title={t.active ? "Desativar" : "Ativar"}
+                        >
+                          {t.active ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
                         {!t.is_base && (
-                          <>
-                            <button
-                              onClick={() => openEdit(t)}
-                              className="p-1.5 rounded-md bg-[hsl(var(--bg-surface2))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--accent))] transition-colors"
-                              title="Editar"
-                            >
-                              <Pencil size={14} />
-                            </button>
-                            <button
-                              onClick={() => toggleActive(t)}
-                              className="p-1.5 rounded-md bg-[hsl(var(--bg-surface2))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-secondary))] transition-colors"
-                              title={t.active ? "Desativar" : "Ativar"}
-                            >
-                              {t.active ? <EyeOff size={14} /> : <Eye size={14} />}
-                            </button>
-                            <button
-                              onClick={() => deleteTemplate(t)}
-                              className="p-1.5 rounded-md bg-[hsl(var(--bg-surface2))] text-[hsl(var(--status-rejected))] hover:opacity-80 transition-colors"
-                              title="Excluir"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </>
+                          <button
+                            onClick={() => deleteTemplate(t)}
+                            className="p-1.5 rounded-md bg-[hsl(var(--bg-surface2))] text-[hsl(var(--status-rejected))] hover:opacity-80 transition-colors"
+                            title="Excluir"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         )}
                       </div>
                     </div>
