@@ -331,18 +331,35 @@ Deno.serve(async (req) => {
       
       if (!activation) throw new Error("Activation not found");
 
-      // Filter by context: "ads" → meta_ads, "organic" → meta_organic, default → meta_ads
-      const preferredPlatform = context === "organic" ? "meta_organic" : "meta_ads";
+      // Fetch ALL meta records for this client
       const { data: metaRecords } = await supabase
         .from("client_meta_accounts")
         .select("*")
         .eq("client_id", activation.client_id)
-        .in("platform", [preferredPlatform, "meta"]);
-      
-      const metaAccount = metaRecords?.find((r: any) => r.platform === preferredPlatform)
-        || metaRecords?.[0] || null;
+        .in("platform", ["meta_ads", "meta_organic", "meta"]);
 
-      return new Response(JSON.stringify({ meta_account: metaAccount || null }), {
+      const adsRec = metaRecords?.find((r: any) => r.platform === "meta_ads")
+        || metaRecords?.find((r: any) => r.platform === "meta");
+      const orgRec = metaRecords?.find((r: any) => r.platform === "meta_organic")
+        || metaRecords?.find((r: any) => r.platform === "meta");
+
+      if (context === "organic") {
+        return new Response(JSON.stringify({ meta_account: orgRec || null }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Default: merge ads + organic fields (ad creation needs page IDs from organic)
+      const merged = adsRec || orgRec ? {
+        ...(adsRec || {}),
+        ad_account_id: adsRec?.ad_account_id || null,
+        page_access_token: adsRec?.page_access_token || orgRec?.page_access_token || null,
+        facebook_page_id: orgRec?.facebook_page_id || adsRec?.facebook_page_id || null,
+        instagram_page_id: orgRec?.instagram_page_id || adsRec?.instagram_page_id || null,
+        instagram_username: orgRec?.instagram_username || adsRec?.instagram_username || null,
+      } : null;
+
+      return new Response(JSON.stringify({ meta_account: merged }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
