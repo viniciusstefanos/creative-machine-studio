@@ -21,6 +21,7 @@ interface AdsForm {
   ad_account_id: string;
   ad_account_name: string;
   page_access_token: string;
+  pixel_id: string;
 }
 
 export const MetaAccountSettings = ({ clientId }: MetaAccountSettingsProps) => {
