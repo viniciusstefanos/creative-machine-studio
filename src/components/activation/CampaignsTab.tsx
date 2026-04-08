@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
-import { Megaphone, Plus, RefreshCw, ChevronDown, ChevronRight, ExternalLink, Upload } from "lucide-react";
+import { Megaphone, Plus, RefreshCw, ChevronDown, ChevronRight, ExternalLink, Upload, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreateCampaignWizard } from "./CreateCampaignWizard";
 import { AddAdsToCampaignDialog } from "./AddAdsToCampaignDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
 interface CampaignsTabProps {
@@ -24,6 +26,11 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
   const [landingPageUrl, setLandingPageUrl] = useState<string | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [activationSlug, setActivationSlug] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importSaving, setImportSaving] = useState(false);
+  const [metaCampaigns, setMetaCampaigns] = useState<any[]>([]);
+  const [selectedImports, setSelectedImports] = useState<Set<string>>(new Set());
 
   const fetchData = async () => {
     setLoading(true);
@@ -97,6 +104,78 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
     }
   };
 
+  const handleOpenImport = async () => {
+    if (!metaAccount?.ad_account_id) {
+      toast.error("Conta de anúncio Meta não configurada");
+      return;
+    }
+    setImportOpen(true);
+    setImportLoading(true);
+    setSelectedImports(new Set());
+    try {
+      const { data, error } = await supabase.functions.invoke("meta-ads", {
+        body: {
+          action: "list_campaigns",
+          ad_account_id: metaAccount.ad_account_id,
+          name_filter: activationSlug || "",
+          page_access_token: metaAccount?.page_access_token,
+        },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+
+      // Filter out campaigns already imported
+      const existingPlatformIds = new Set(campaigns.map(c => c.platform_campaign_id).filter(Boolean));
+      const newCampaigns = (data.campaigns || []).filter((c: any) => !existingPlatformIds.has(c.id));
+      setMetaCampaigns(newCampaigns);
+    } catch (err: any) {
+      toast.error("Erro ao buscar campanhas: " + (err.message || ""));
+      setMetaCampaigns([]);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleImportSelected = async () => {
+    if (selectedImports.size === 0) return;
+    setImportSaving(true);
+    try {
+      const toImport = metaCampaigns.filter(c => selectedImports.has(c.id));
+      for (const camp of toImport) {
+        const dailyBudgetCents = camp.daily_budget ? parseInt(camp.daily_budget) : null;
+        await supabase.from("ad_campaigns").insert({
+          activation_id: activationId,
+          platform: "meta",
+          name: camp.name,
+          objective: camp.objective || null,
+          status: (camp.effective_status || camp.status || "paused").toLowerCase(),
+          platform_campaign_id: camp.id,
+          ad_account_id: metaAccount?.ad_account_id,
+          daily_budget_cents: dailyBudgetCents,
+          start_date: camp.start_time ? camp.start_time.substring(0, 10) : null,
+          end_date: camp.stop_time ? camp.stop_time.substring(0, 10) : null,
+          adset_name: camp.adsets?.[0]?.name || null,
+          platform_adset_id: camp.adsets?.[0]?.id || null,
+        });
+      }
+      toast.success(`${toImport.length} campanha(s) importada(s)`);
+      setImportOpen(false);
+      fetchData();
+    } catch (err: any) {
+      toast.error("Erro ao importar: " + (err.message || ""));
+    } finally {
+      setImportSaving(false);
+    }
+  };
+
+  const toggleImportSelection = (id: string) => {
+    setSelectedImports(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   if (loading) return <div className="text-sm" style={{ color: "hsl(var(--text-muted))" }}>Carregando...</div>;
 
   return (
@@ -111,6 +190,21 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
           )}
         </SectionLabel>
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs gap-1.5"
+            style={{
+              color: "hsl(var(--text-secondary))",
+              fontFamily: "'DM Sans'",
+              borderRadius: 6,
+              border: "1px solid hsl(var(--border-default))",
+            }}
+            onClick={handleOpenImport}
+            disabled={!metaAccount?.ad_account_id}
+          >
+            <Download size={14} /> Importar do Meta
+          </Button>
           <Button
             size="sm"
             variant="ghost"
@@ -352,6 +446,92 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
         preSelectedCampaignId={addAdsPreselectedCampaign}
         onCreated={fetchData}
       />
+
+      {/* Import from Meta Dialog */}
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="sm:max-w-lg" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid hsl(var(--border-default))" }}>
+          <DialogHeader>
+            <DialogTitle className="text-sm" style={{ color: "hsl(var(--text-primary))", fontFamily: "'Syne'" }}>
+              Importar Campanhas do Meta
+            </DialogTitle>
+            {activationSlug && (
+              <p className="text-[10px] mt-1" style={{ color: "hsl(var(--text-muted))", fontFamily: "'JetBrains Mono', monospace" }}>
+                Filtro: "{activationSlug}"
+              </p>
+            )}
+          </DialogHeader>
+
+          {importLoading ? (
+            <div className="py-8 text-center text-xs" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
+              Buscando campanhas no Meta Ads...
+            </div>
+          ) : metaCampaigns.length === 0 ? (
+            <div className="py-8 text-center text-xs" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
+              Nenhuma campanha nova encontrada{activationSlug ? ` com "${activationSlug}" no nome` : ""}.
+            </div>
+          ) : (
+            <div className="max-h-[320px] overflow-y-auto space-y-2 pr-1">
+              {metaCampaigns.map((camp) => (
+                <label
+                  key={camp.id}
+                  className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors"
+                  style={{
+                    background: selectedImports.has(camp.id) ? "hsl(var(--accent) / 0.08)" : "hsl(var(--bg-surface2))",
+                    border: selectedImports.has(camp.id) ? "1px solid hsl(var(--accent) / 0.3)" : "1px solid transparent",
+                    borderRadius: 8,
+                  }}
+                >
+                  <Checkbox
+                    checked={selectedImports.has(camp.id)}
+                    onCheckedChange={() => toggleImportSelection(camp.id)}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs truncate" style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}>
+                      {camp.name}
+                    </p>
+                    <div className="flex items-center gap-3 mt-0.5">
+                      <span className="text-[10px] uppercase" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
+                        {camp.effective_status || camp.status}
+                      </span>
+                      {camp.objective && (
+                        <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
+                          {camp.objective}
+                        </span>
+                      )}
+                      {camp.daily_budget && (
+                        <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
+                          R$ {(parseInt(camp.daily_budget) / 100).toFixed(2)}/dia
+                        </span>
+                      )}
+                      {camp.adsets?.length > 0 && (
+                        <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
+                          {camp.adsets.length} adset(s)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setImportOpen(false)} className="text-xs" style={{ fontFamily: "'DM Sans'" }}>
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              className="text-xs gap-1.5"
+              style={{ background: "hsl(var(--accent))", color: "hsl(var(--accent-foreground))", fontFamily: "'DM Sans'", borderRadius: 6 }}
+              disabled={selectedImports.size === 0 || importSaving}
+              onClick={handleImportSelected}
+            >
+              <Download size={14} />
+              {importSaving ? "Importando..." : `Importar ${selectedImports.size > 0 ? selectedImports.size : ""} selecionada(s)`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

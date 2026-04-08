@@ -348,6 +348,44 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─── List campaigns (from Meta, filtered by name) ───
+    if (action === "list_campaigns") {
+      const ad_account_id = ensureActPrefix(body.ad_account_id);
+      const { name_filter } = body;
+
+      if (!ad_account_id) throw new Error("ad_account_id is required");
+
+      let url = `${META_GRAPH_URL}/${ad_account_id}/campaigns?fields=id,name,status,effective_status,daily_budget,objective,start_time,stop_time&limit=100&access_token=${token}`;
+
+      if (name_filter) {
+        const filtering = JSON.stringify([{ field: "name", operator: "CONTAIN", value: name_filter }]);
+        url += `&filtering=${encodeURIComponent(filtering)}`;
+      }
+
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) throw new Error(`List campaigns failed [${res.status}]: ${JSON.stringify(data)}`);
+
+      const campaignsList = data.data || [];
+
+      // Fetch adsets for each campaign
+      for (const camp of campaignsList) {
+        try {
+          const adsetsRes = await fetch(
+            `${META_GRAPH_URL}/${camp.id}/adsets?fields=id,name,status,daily_budget&limit=50&access_token=${token}`
+          );
+          const adsetsData = await adsetsRes.json();
+          camp.adsets = adsetsData.data || [];
+        } catch {
+          camp.adsets = [];
+        }
+      }
+
+      return new Response(JSON.stringify({ campaigns: campaignsList }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
