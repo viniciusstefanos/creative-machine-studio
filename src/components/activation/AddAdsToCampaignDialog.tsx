@@ -189,7 +189,7 @@ export const AddAdsToCampaignDialog = ({
     }));
 
     setApprovedAssets(enriched);
-    setSelectedAssetIds(new Set(enriched.map(a => a.id)));
+    setSelectedAssetIds(new Set(enriched.filter(a => a.renders.some(r => r.png_url)).map(a => a.id)));
     setLoading(false);
   };
 
@@ -201,7 +201,7 @@ export const AddAdsToCampaignDialog = ({
     });
   };
 
-  const selectAll = () => setSelectedAssetIds(new Set(approvedAssets.map(a => a.id)));
+  const selectAll = () => setSelectedAssetIds(new Set(approvedAssets.filter(a => a.renders.some(r => r.png_url)).map(a => a.id)));
   const clearAll = () => setSelectedAssetIds(new Set());
 
   const handleSelectAdset = async (adset: Adset) => {
@@ -234,7 +234,11 @@ export const AddAdsToCampaignDialog = ({
         .map(r => r.png_url)
         .filter((url): url is string => Boolean(url));
 
-      if (imageUrls.length === 0) continue;
+      if (imageUrls.length === 0) {
+        setAssetResults(prev => ({ ...prev, [asset.id]: "error" }));
+        setSubmitProgress(prev => prev + 1);
+        continue;
+      }
 
       try {
         const { data: adRes, error: adErr } = await supabase.functions.invoke("meta-ads", {
