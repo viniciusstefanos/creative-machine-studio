@@ -726,7 +726,17 @@ export const CreateCampaignWizard = ({
             </div>
 
             <div>
-              <Label className="text-xs mb-1.5 block" style={labelStyle}>UTM Tracking</Label>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Label className="text-xs" style={labelStyle}>UTM Tracking</Label>
+                {utmDynamic && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: "hsl(var(--accent) / 0.15)", color: "hsl(var(--accent))", fontFamily: "'JetBrains Mono'" }}>
+                    Dinâmico
+                  </span>
+                )}
+                {utmLoaded && !utmDynamic && (
+                  <span className="text-[9px]" style={{ color: "hsl(var(--text-muted))" }}>da aba UTMs</span>
+                )}
+              </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <span className="text-[10px] block mb-0.5" style={{ color: "hsl(var(--text-muted))" }}>Source</span>
@@ -740,6 +750,15 @@ export const CreateCampaignWizard = ({
                   <span className="text-[10px] block mb-0.5" style={{ color: "hsl(var(--text-muted))" }}>Campaign</span>
                   <Input value={utmCampaign} onChange={e => setUtmCampaign(e.target.value)} placeholder={campaignName.toLowerCase().replace(/\s+/g, "-")} style={{ ...monoInputStyle, fontSize: "11px" }} />
                 </div>
+                <div>
+                  <span className="text-[10px] block mb-0.5" style={{ color: "hsl(var(--text-muted))" }}>Content</span>
+                  <Input value={utmContent} onChange={e => setUtmContent(e.target.value)} placeholder={utmDynamic ? "{{ad.name}}" : "banner-hero"} style={{ ...monoInputStyle, fontSize: "11px" }} />
+                </div>
+                <div>
+                  <span className="text-[10px] block mb-0.5" style={{ color: "hsl(var(--text-muted))" }}>Term</span>
+                  <Input value={utmTerm} onChange={e => setUtmTerm(e.target.value)} placeholder={utmDynamic ? "{{adset.name}}" : ""} style={{ ...monoInputStyle, fontSize: "11px" }} />
+                </div>
+              </div>
               </div>
             </div>
 
