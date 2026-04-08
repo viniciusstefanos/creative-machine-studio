@@ -635,11 +635,13 @@ Deno.serve(async (req) => {
       }
       if (subtype === "ENGAGEMENT") {
         if (!rule && !body.page_id) throw new Error("rule or page_id is required for ENGAGEMENT audiences");
+        // Meta requires the rule as a parsed JSON object in URLSearchParams, not a string
         payload.rule = rule
           ? (typeof rule === "string" ? rule : JSON.stringify(rule))
           : JSON.stringify({
-              inclusions: { operator: "or", rules: [{ object_id: body.page_id, event_sources: [{ id: body.page_id, type: "page" }], retention_seconds: body.retention_seconds || 2592000 }] }
+              inclusions: { operator: "or", rules: [{ event_sources: [{ id: String(body.page_id), type: "page" }], retention_seconds: Number(body.retention_seconds) || 2592000 }] }
             });
+        payload.prefill = "true";
       }
       if (customer_file_source) {
         payload.customer_file_source = customer_file_source;
