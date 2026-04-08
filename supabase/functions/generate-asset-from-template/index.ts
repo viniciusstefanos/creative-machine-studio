@@ -430,7 +430,28 @@ Deno.serve(async (req) => {
     // Custom system prompt from brief
     const customPrompt = (brief as any)?.system_prompt ? `\n\n## INSTRUÇÕES CUSTOMIZADAS\n${(brief as any).system_prompt}` : "";
 
+    // Extract consolidated context for rich brief data
+    const consolidated = (brief as any)?.consolidated_context || {};
+    const consolidatedStr = Object.keys(consolidated).length > 0
+      ? JSON.stringify(consolidated, null, 2)
+      : "";
+
     const config = render_config || {};
+
+    // Resolve visual identity: prefer explicit brief fields, fallback to consolidated_context
+    const resolvedBrandColors = (brief as any)?.brand_colors
+      || consolidated.visual_guidelines?.colors
+      || consolidated.brand_colors
+      || "";
+    const resolvedTypography = (brief as any)?.typography
+      || consolidated.visual_guidelines?.typography
+      || consolidated.typography
+      || "";
+    const resolvedVisualStyle = (brief as any)?.visual_style
+      || consolidated.visual_guidelines?.style
+      || consolidated.visual_style
+      || "";
+
     const context = {
       hook: copy.hook || "",
       body: copy.body || "",
@@ -439,9 +460,9 @@ Deno.serve(async (req) => {
       objectives: brief?.objectives || "",
       target_audience: brief?.target_audience || "",
       tone_of_voice: brief?.tone_of_voice || "",
-      brand_colors: (brief as any)?.brand_colors || "",
-      typography: (brief as any)?.typography || "",
-      visual_style: (brief as any)?.visual_style || "",
+      brand_colors: resolvedBrandColors,
+      typography: resolvedTypography,
+      visual_style: resolvedVisualStyle,
       brief_files_context: filesContext,
       ...config,
     };
