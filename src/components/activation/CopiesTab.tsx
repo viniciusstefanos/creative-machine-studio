@@ -3,6 +3,10 @@ import { Link } from "react-router-dom";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, FileText, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -25,6 +29,12 @@ const purposeColor: Record<string, string> = {
   ads: "--accent",
 };
 
+const FUNNEL_OPTIONS = [
+  { value: "top", label: "Topo" },
+  { value: "mid", label: "Meio" },
+  { value: "bottom", label: "Fundo" },
+] as const;
+
 export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
   const [copies, setCopies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,8 +42,14 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [filter, setFilter] = useState<PurposeFilter>("all");
+
+  // Generation dialog state
+  const [showGenDialog, setShowGenDialog] = useState(false);
   const [genPurpose, setGenPurpose] = useState<GeneratePurpose>("both");
-  const [showGenSelect, setShowGenSelect] = useState(false);
+  const [genFunnelStages, setGenFunnelStages] = useState<string[]>(["top", "mid", "bottom"]);
+  const [genQuantity, setGenQuantity] = useState(6);
+  const [genTopic, setGenTopic] = useState("");
+
   const [form, setForm] = useState({
     type: "post",
     channel: "",
@@ -77,9 +93,19 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
     setSaving(false);
   };
 
+  const toggleFunnelStage = (stage: string) => {
+    setGenFunnelStages(prev =>
+      prev.includes(stage) ? prev.filter(s => s !== stage) : [...prev, stage]
+    );
+  };
+
   const handleAIGenerate = async () => {
+    if (genFunnelStages.length === 0) {
+      toast.error("Selecione pelo menos uma etapa do funil.");
+      return;
+    }
     setGenerating(true);
-    setShowGenSelect(false);
+    setShowGenDialog(false);
     try {
       const [briefRes, actRes] = await Promise.all([
         supabase.from("briefs").select("*").eq("activation_id", activationId).single(),
@@ -98,8 +124,10 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
           activation_name: actRes.data?.name || "",
           brief: briefRes.data,
           channels: ["instagram", "facebook"],
-          funnel_stages: ["top", "mid", "bottom"],
+          funnel_stages: genFunnelStages,
           purpose: genPurpose,
+          quantity: genQuantity,
+          topic: genTopic || undefined,
         },
       });
 
@@ -121,53 +149,113 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <SectionLabel>Copies</SectionLabel>
         <div className="flex gap-2">
-          {/* Generation with purpose selector */}
-          <div className="relative">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => setShowGenSelect(!showGenSelect)}
-              disabled={generating}
-            >
-              {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-              {generating ? "Gerando..." : "Gerar com IA"}
-            </Button>
-            {showGenSelect && !generating && (
-              <div
-                className="absolute right-0 top-full mt-1 z-20 rounded-md py-1 min-w-[160px]"
-                style={{
-                  background: "hsl(var(--bg-surface2))",
-                  border: "1px solid hsl(var(--border-subtle))",
-                  boxShadow: "0 8px 24px hsl(var(--bg-base) / 0.5)",
-                }}
-              >
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setShowGenDialog(true)}
+            disabled={generating}
+          >
+            {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+            {generating ? "Gerando..." : "Gerar com IA"}
+          </Button>
+          <Button size="sm" className="gap-2" onClick={() => setShowForm(!showForm)}>
+            <Plus size={14} /> Novo copy
+          </Button>
+        </div>
+      </div>
+
+      {/* AI Generation Dialog */}
+      <Dialog open={showGenDialog} onOpenChange={setShowGenDialog}>
+        <DialogContent
+          className="sm:max-w-md"
+          style={{
+            background: "hsl(var(--bg-surface2))",
+            border: "1px solid hsl(var(--border-subtle))",
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-heading-sm" style={{ color: "hsl(var(--text-primary))" }}>
+              Configurar geração IA
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            {/* Purpose */}
+            <div>
+              <Label className="field-label mb-2 block">Finalidade</Label>
+              <div className="flex gap-2">
                 {(["organic", "ads", "both"] as GeneratePurpose[]).map((p) => (
                   <button
                     key={p}
-                    className="w-full text-left px-3 py-2 text-body-sm transition-colors"
+                    onClick={() => setGenPurpose(p)}
+                    className="px-3 py-1.5 rounded-md text-[11px] font-medium transition-all"
                     style={{
-                      color: genPurpose === p ? "hsl(var(--accent))" : "hsl(var(--text-primary))",
-                      background: genPurpose === p ? "hsl(var(--accent) / 0.08)" : "transparent",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "hsl(var(--accent) / 0.08)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = genPurpose === p ? "hsl(var(--accent) / 0.08)" : "transparent")}
-                    onClick={() => {
-                      setGenPurpose(p);
-                      handleAIGenerate();
+                      fontFamily: "'JetBrains Mono', monospace",
+                      background: genPurpose === p ? "hsl(var(--accent) / 0.12)" : "hsl(var(--bg-base))",
+                      color: genPurpose === p ? "hsl(var(--accent))" : "hsl(var(--text-muted))",
+                      border: `1px solid ${genPurpose === p ? "hsl(var(--accent) / 0.3)" : "hsl(var(--border-subtle))"}`,
                     }}
                   >
                     {p === "organic" ? "🌱 Orgânico" : p === "ads" ? "📢 Ads" : "🌱📢 Ambos"}
                   </button>
                 ))}
               </div>
-            )}
+            </div>
+
+            {/* Funnel stages */}
+            <div>
+              <Label className="field-label mb-2 block">Etapas do funil</Label>
+              <div className="flex gap-4">
+                {FUNNEL_OPTIONS.map((opt) => (
+                  <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={genFunnelStages.includes(opt.value)}
+                      onCheckedChange={() => toggleFunnelStage(opt.value)}
+                    />
+                    <span className="text-body-sm" style={{ color: "hsl(var(--text-primary))" }}>
+                      {opt.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Quantity */}
+            <div>
+              <Label className="field-label mb-2 block">Quantidade de copies</Label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={genQuantity}
+                onChange={(e) => setGenQuantity(Math.min(20, Math.max(1, Number(e.target.value))))}
+                className="field-input w-24"
+              />
+              <span className="text-mono ml-2" style={{ color: "hsl(var(--text-muted))" }}>máx 20</span>
+            </div>
+
+            {/* Topic */}
+            <div>
+              <Label className="field-label mb-2 block">Assunto / Dor específica (opcional)</Label>
+              <Textarea
+                value={genTopic}
+                onChange={(e) => setGenTopic(e.target.value)}
+                placeholder="Ex: insegurança sobre investimentos, falta de tempo para cozinhar..."
+                rows={3}
+                className="field-input field-textarea"
+              />
+            </div>
           </div>
-          <Button size="sm" className="gap-2" onClick={() => setShowForm(!showForm)}>
-            <Plus size={14} /> Novo copy
-          </Button>
-        </div>
-      </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowGenDialog(false)}>Cancelar</Button>
+            <Button onClick={handleAIGenerate} className="gap-2">
+              <Sparkles size={14} /> Gerar copies
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Filter chips */}
       <div className="flex gap-2 mb-4">

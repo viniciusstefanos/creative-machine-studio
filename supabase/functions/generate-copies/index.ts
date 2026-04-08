@@ -133,7 +133,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { activation_id, brief, activation_name, channels, funnel_stages, purpose = "both" } = await req.json();
+    const { activation_id, brief, activation_name, channels, funnel_stages, purpose = "both", quantity = 6, topic } = await req.json();
+
+    const safeQuantity = Math.min(Math.max(Number(quantity) || 6, 1), 20);
 
     if (!activation_id || !brief) {
       return new Response(JSON.stringify({ error: "activation_id and brief are required" }), {
@@ -163,6 +165,10 @@ Deno.serve(async (req) => {
         briefFiles.map((f: any) => `### [${f.category}] ${f.file_name}\n${(f.raw_text || "").slice(0, 8000)}`).join("\n\n")
       : "";
 
+    const topicBlock = topic
+      ? `\nASSUNTO/DOR ESPECÍFICA: ${topic}. Todas as copies DEVEM abordar esse tema/dor como eixo central.\n`
+      : "";
+
     const briefBlock = `BRIEF DA ATIVAÇÃO: "${activation_name}"
 - Objetivos: ${brief.objectives || "Não especificado"}
 - Público-alvo: ${brief.target_audience || "Não especificado"}
@@ -172,7 +178,7 @@ Deno.serve(async (req) => {
 - Tipografia: ${brief.typography || "Não especificado"}
 - Estilo visual: ${brief.visual_style || "Não especificado"}
 ${filesContext}
-
+${topicBlock}
 CANAIS: ${(channels || ["instagram"]).join(", ")}
 ETAPAS DO FUNIL: ${(funnel_stages || ["top", "mid", "bottom"]).join(", ")}`;
 
@@ -189,6 +195,8 @@ ETAPAS DO FUNIL: ${(funnel_stages || ["top", "mid", "bottom"]).join(", ")}`;
         ? `FINALIDADE: ORGÂNICO — gere copies para publicação orgânica. Caption longo, hashtags, CTA de engajamento.`
         : `FINALIDADE: ADS (TRÁFEGO PAGO) — gere copies para anúncios pagos. Texto curto, direto, CTA de conversão.`;
 
+      const quantityForPurpose = purpose === "both" ? Math.ceil(safeQuantity / 2) : safeQuantity;
+
       const userPrompt = `${briefBlock}
 
 ${purposeInstruction}
@@ -201,7 +209,7 @@ Para cada combinação de canal + etapa do funil, gere um copy com:
 - channel: o canal
 - funnel_stage: "top", "mid" ou "bottom"
 
-Gere no máximo 6 copies variados.
+Gere exatamente ${quantityForPurpose} copies variados.
 
 Responda APENAS com um JSON array válido. Exemplo:
 [{"hook":"...","body":"...","cta":"...","type":"${p === "organic" ? "post" : "ad"}","channel":"instagram","funnel_stage":"top"}]`;
