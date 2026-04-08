@@ -1,103 +1,76 @@
 
 
-# Cores dos Templates Devem Obedecer o Briefing por Padrão
+# Gestão Profissional de Links e UTMs + UTM Dinâmico no Meta Ads
 
-## Problema
+## Problemas Atuais
 
-Hoje os `editable_fields` dos templates (ex: `brand_color`, `accent_color`, `bg_color`) usam valores default genéricos (ex: `#00C9A7`, `#111111`). Quando o usuário seleciona um template para gerar uma peça, esses defaults são carregados sem considerar as cores da identidade visual definidas no briefing.
+1. **UtmTab básica**: 1 config UTM por ativação, sem variações por canal/peça
+2. **UTMs no wizard são estáticos**: `utm_source=facebook`, `utm_medium=paid`, `utm_campaign=manual` — não variam por anúncio
+3. **Sem `utm_content` dinâmico**: Meta suporta `url_tags` com placeholders como `{{ad.name}}`, `{{adset.name}}`, `{{campaign.name}}` — não usamos
+4. **Sem shortener/tracking**: URLs longas, sem click tracking próprio
+5. **Sem vínculo entre UTM salva e campanha**: A UTM configurada na aba UTMs não alimenta o wizard de campanha
 
-O briefing já possui o campo `brand_colors` (texto descritivo com hex) e o `extracted_fields` dos arquivos pode conter `visual_guidelines.colors_hex`. Mas nada disso alimenta os defaults dos templates.
+## Solução em 4 Fases
 
-**Exceções**: Alguns templates exigem cores fixas (ex: carrossel estilo Twitter = fundo branco + texto preto). Nesses casos, o template deve prevalecer.
+### Fase 1 — UTM Templates por Canal
 
-## Solução
+Refatorar a tabela `utm_configs` para suportar múltiplas configs por ativação (1 por canal):
 
-### 1. Extrair cores hex do briefing (frontend — `NewAsset.tsx`)
+```sql
+ALTER TABLE public.utm_configs
+  ADD COLUMN IF NOT EXISTS channel text DEFAULT 'default',
+  ADD COLUMN IF NOT EXISTS use_dynamic_params boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS dynamic_content_pattern text;
 
-Quando o brief é carregado, parsear `brand_colors` e/ou `consolidated_context.visual_guidelines` para extrair cores hex automáticas:
-
-```typescript
-function extractBriefColors(brief: any): { primary?: string; secondary?: string; accent?: string; bg?: string } {
-  const colors: string[] = [];
-  // Parse hex codes from brand_colors text
-  const hexMatches = (brief?.brand_colors || "").match(/#[0-9A-Fa-f]{6}/g) || [];
-  colors.push(...hexMatches);
-  // Also check consolidated_context
-  const consolidated = brief?.consolidated_context?.visual_guidelines?.colors_hex || [];
-  colors.push(...consolidated.filter((c: string) => !colors.includes(c)));
-  return {
-    primary: colors[0],
-    secondary: colors[1],
-    accent: colors[2] || colors[0],
-  };
-}
+-- Remove unique constraint se existir, permitir múltiplas configs
+CREATE UNIQUE INDEX IF NOT EXISTS utm_configs_activation_channel_idx
+  ON utm_configs(activation_id, channel);
 ```
 
-### 2. Flag `lock_colors` nos templates
+Canais pré-definidos: `default`, `meta_ads`, `google_ads`, `email`, `organic_social`.
 
-Adicionar campo `lock_colors: boolean` (default `false`) nos `editable_fields` ou como campo top-level no template. Quando `true`, os defaults do template prevalecem e não são sobrescritos pelo brief.
+### Fase 2 — UTM Dinâmico com Macros Meta Ads
 
-Na prática, implementar como uma propriedade `locked: true` em cada campo do `editable_fields`:
+Na UI do UtmTab, quando canal = `meta_ads`, exibir opções de macro dinâmica:
 
-```json
-{
-  "bg_color": { "label": "Fundo", "type": "color", "default": "#FFFFFF", "locked": true },
-  "text_color": { "label": "Texto", "type": "color", "default": "#000000", "locked": true }
-}
-```
+- `utm_content`: dropdown com `{{ad.name}}`, `{{adset.name}}`, `{{ad.id}}`, ou texto fixo
+- `utm_campaign`: `{{campaign.name}}` ou texto fixo
+- `utm_term`: `{{adset.name}}` ou texto fixo
 
-Campos sem `locked: true` terão seus defaults substituídos pelas cores do brief.
+Essas macros são resolvidas pela Meta no momento do clique — cada anúncio gera uma URL única automaticamente.
 
-### 3. Override dos defaults no `useEffect` de `selectedTemplate` (`NewAsset.tsx`)
-
-No `useEffect` que popula `renderConfig` a partir dos `editable_fields`, após montar os defaults, sobrescrever campos de cor que não estejam `locked`:
-
-```typescript
-useEffect(() => {
-  if (!selectedTemplate?.editable_fields) { setRenderConfig({}); return; }
-  const fields = selectedTemplate.editable_fields;
-  const defaults: Record<string, any> = {};
-  const briefColors = extractBriefColors(brief);
-  
-  // Map de nomes comuns → cor do brief
-  const colorMap: Record<string, string | undefined> = {
-    brand_color: briefColors.primary,
-    accent_color: briefColors.accent,
-    cta_color: briefColors.accent || briefColors.primary,
-    primary_color: briefColors.primary,
-    secondary_color: briefColors.secondary,
-  };
-
-  Object.entries(fields).forEach(([key, field]) => {
-    defaults[key] = field.default;
-    // Override color fields with brief colors (unless locked)
-    if (field.type === "color" && !field.locked && colorMap[key]) {
-      defaults[key] = colorMap[key];
-    }
-  });
-  setRenderConfig(defaults);
-}, [selectedTemplate, brief]);
-```
-
-### 4. Injetar cores do brief no prompt da IA (edge function)
-
-No `generate-asset-from-template`, o contexto já recebe `brand_colors` como texto. Adicionar instrução explícita no prompt:
+No `CreateCampaignWizard`, o `buildUtmTags()` passa a consultar a config `meta_ads` da ativação e montar os `url_tags` com as macros. Exemplo de saída:
 
 ```
-## CORES DA MARCA (OBRIGATÓRIO)
-Use EXCLUSIVAMENTE estas cores da identidade visual do cliente: ${context.brand_colors}
-- Cor primária para elementos dominantes
-- Cor de acento APENAS para CTA/botões
-- NÃO use cores genéricas quando as cores da marca estiverem definidas
+utm_source=facebook&utm_medium=cpc&utm_campaign={{campaign.name}}&utm_content={{ad.name}}
 ```
 
-### 5. Indicador visual na UI
+Isso é passado como `url_tags` no `create_ad` (já funciona na API Meta — campo `creativePayload.url_tags`).
 
-No step de configuração do template em `NewAsset.tsx`, mostrar um badge ao lado dos campos de cor que foram preenchidos automaticamente pelo brief: "🎨 Do briefing". O usuário pode editar livremente.
+### Fase 3 — UI Refatorada da Aba UTMs
 
-## Arquivos modificados
+Substituir o formulário simples por:
 
-- **`src/pages/NewAsset.tsx`** — `extractBriefColors()`, override de defaults no `useEffect`, badge visual
-- **`supabase/functions/generate-asset-from-template/index.ts`** — instrução de cores obrigatórias no prompt
-- **Templates existentes** (migration SQL) — marcar `locked: true` nos `editable_fields` dos templates que exigem cores fixas (ex: Carrossel Twitter-style)
+1. **Tabs por canal** (Default, Meta Ads, Google Ads, Email, Social Orgânico)
+2. **Preview dinâmico** mostrando URL com macros destacadas em cor diferente
+3. **Botão "Copiar URL"** para cada variação
+4. **Auto-preenchimento**: `utm_campaign` = slug da ativação por default
+5. **Indicador "Dinâmico"**: badge ao lado dos campos que usam macros Meta
+6. **Tabela de links gerados**: lista de URLs por canal com botão copiar
+
+### Fase 4 — Integração Wizard ↔ UTM Config
+
+Quando o wizard abre no Step 4 (Anúncios):
+- Carregar automaticamente a `utm_config` do canal `meta_ads` (se existir)
+- Preencher `utmSource`, `utmMedium`, `utmCampaign` com os valores salvos
+- Se `use_dynamic_params = true`, usar as macros no `url_tags`
+- Mostrar preview da URL final com macros destacadas
+- Se não houver config, manter o comportamento atual (campos manuais)
+
+## Arquivos Modificados
+
+- **Migration SQL** — `channel`, `use_dynamic_params`, `dynamic_content_pattern` em `utm_configs`
+- **`src/components/activation/UtmTab.tsx`** — reescrever com tabs por canal, macros Meta, preview dinâmico
+- **`src/components/activation/CreateCampaignWizard.tsx`** — `buildUtmTags()` consulta utm_configs, suporta macros
+- **`supabase/functions/meta-ads/index.ts`** — garantir que `url_tags` com macros é passado corretamente (já funciona, apenas validar)
 
