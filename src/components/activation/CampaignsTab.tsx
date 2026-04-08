@@ -104,6 +104,78 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
     }
   };
 
+  const handleOpenImport = async () => {
+    if (!metaAccount?.ad_account_id) {
+      toast.error("Conta de anúncio Meta não configurada");
+      return;
+    }
+    setImportOpen(true);
+    setImportLoading(true);
+    setSelectedImports(new Set());
+    try {
+      const { data, error } = await supabase.functions.invoke("meta-ads", {
+        body: {
+          action: "list_campaigns",
+          ad_account_id: metaAccount.ad_account_id,
+          name_filter: activationSlug || "",
+          page_access_token: metaAccount?.page_access_token,
+        },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+
+      // Filter out campaigns already imported
+      const existingPlatformIds = new Set(campaigns.map(c => c.platform_campaign_id).filter(Boolean));
+      const newCampaigns = (data.campaigns || []).filter((c: any) => !existingPlatformIds.has(c.id));
+      setMetaCampaigns(newCampaigns);
+    } catch (err: any) {
+      toast.error("Erro ao buscar campanhas: " + (err.message || ""));
+      setMetaCampaigns([]);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleImportSelected = async () => {
+    if (selectedImports.size === 0) return;
+    setImportSaving(true);
+    try {
+      const toImport = metaCampaigns.filter(c => selectedImports.has(c.id));
+      for (const camp of toImport) {
+        const dailyBudgetCents = camp.daily_budget ? parseInt(camp.daily_budget) : null;
+        await supabase.from("ad_campaigns").insert({
+          activation_id: activationId,
+          platform: "meta",
+          name: camp.name,
+          objective: camp.objective || null,
+          status: (camp.effective_status || camp.status || "paused").toLowerCase(),
+          platform_campaign_id: camp.id,
+          ad_account_id: metaAccount?.ad_account_id,
+          daily_budget_cents: dailyBudgetCents,
+          start_date: camp.start_time ? camp.start_time.substring(0, 10) : null,
+          end_date: camp.stop_time ? camp.stop_time.substring(0, 10) : null,
+          adset_name: camp.adsets?.[0]?.name || null,
+          platform_adset_id: camp.adsets?.[0]?.id || null,
+        });
+      }
+      toast.success(`${toImport.length} campanha(s) importada(s)`);
+      setImportOpen(false);
+      fetchData();
+    } catch (err: any) {
+      toast.error("Erro ao importar: " + (err.message || ""));
+    } finally {
+      setImportSaving(false);
+    }
+  };
+
+  const toggleImportSelection = (id: string) => {
+    setSelectedImports(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   if (loading) return <div className="text-sm" style={{ color: "hsl(var(--text-muted))" }}>Carregando...</div>;
 
   return (
