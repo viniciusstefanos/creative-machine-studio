@@ -14,6 +14,7 @@ interface AudienceManagerProps {
   metaAccount: {
     ad_account_id: string | null;
     page_access_token: string | null;
+    facebook_page_id?: string | null;
   } | null;
 }
 
