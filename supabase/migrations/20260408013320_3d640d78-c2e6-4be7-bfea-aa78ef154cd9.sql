@@ -1,0 +1,1 @@
+ALTER TABLE public.copies ADD COLUMN purpose text DEFAULT 'organic';
