@@ -51,6 +51,7 @@ const AssetDetail = () => {
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [addToCampaignOpen, setAddToCampaignOpen] = useState(false);
   const [metaAccount, setMetaAccount] = useState<any>(null);
+  const [justApproved, setJustApproved] = useState(false);
 
   const fetchAsset = useCallback(async () => {
     if (!assetId) return;
@@ -786,25 +787,13 @@ const AssetDetail = () => {
           </div>
 
           {/* Actions */}
-          {asset.status === "review" && (
+          {asset.status === "review" && !justApproved && (
             <div className="card-base space-y-3">
-              {nextAsset ? (
-                <Button className="w-full gap-2" onClick={async () => {
-                  await updateStatus("approved");
-                  navigate(`/activations/${id}/assets/${nextAsset.id}`);
-                }} disabled={actionLoading}>
-                  <Check size={16} /> Aprovar e próxima →
-                </Button>
-              ) : (
-                <Button className="w-full gap-2" onClick={() => updateStatus("approved")} disabled={actionLoading}>
-                  <Check size={16} /> Aprovar
-                </Button>
-              )}
-              <Button variant="outline" className="w-full gap-2" onClick={() => {
-                updateStatus("approved");
-                navigate(`/activations/${id}/schedule`);
+              <Button className="w-full gap-2" onClick={async () => {
+                await updateStatus("approved");
+                setJustApproved(true);
               }} disabled={actionLoading}>
-                <Calendar size={16} /> Aprovar e agendar
+                <Check size={16} /> Aprovar
               </Button>
               {!showFeedback ? (
                 <Button variant="outline" className="w-full gap-2 text-destructive border-destructive/30" onClick={() => setShowFeedback(true)} disabled={actionLoading}>
@@ -836,19 +825,25 @@ const AssetDetail = () => {
             </div>
           )}
 
-          {asset.status === "approved" && (
+          {(asset.status === "approved" || justApproved) && (
             <div className="card-base space-y-2">
-              <Button className="w-full gap-2" onClick={() => setScheduleDialogOpen(true)}>
+              <Button className="w-full gap-2" onClick={() => setScheduleDialogOpen(true)} variant="outline">
                 <Calendar size={16} /> Agendar publicação
               </Button>
               <Button className="w-full gap-2" variant="outline" onClick={() => setAddToCampaignOpen(true)}>
                 <Megaphone size={16} /> Adicionar a campanha
               </Button>
-              <Button variant="ghost" className="w-full gap-2 text-xs" onClick={() => navigate(`/activations/${id}/assets/new`)}>
-                Criar outra peça →
-              </Button>
-              <Button variant="outline" className="w-full gap-2 text-xs text-destructive border-destructive/30" onClick={() => updateStatus("review")} disabled={actionLoading}>
-                <RotateCcw size={14} /> Desaprovar (voltar p/ revisão)
+              {nextAsset ? (
+                <Button className="w-full gap-2" onClick={() => navigate(`/activations/${id}/assets/${nextAsset.id}`)}>
+                  Próxima peça →
+                </Button>
+              ) : (
+                <Button className="w-full gap-2" onClick={() => navigate(`/activations/${id}/assets/new`)}>
+                  Criar outra peça →
+                </Button>
+              )}
+              <Button variant="ghost" className="w-full gap-2 text-xs text-destructive/70" onClick={() => { updateStatus("review"); setJustApproved(false); }} disabled={actionLoading}>
+                <RotateCcw size={14} /> Desaprovar
               </Button>
             </div>
           )}
