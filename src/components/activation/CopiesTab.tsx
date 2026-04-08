@@ -445,6 +445,72 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
             </Button>
           )}
         </div>
+      ) : viewMode === "list" ? (
+        <Table>
+          <TableHeader>
+            <TableRow style={{ borderColor: "hsl(var(--border-subtle))" }}>
+              <TableHead className="w-10">
+                <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
+              </TableHead>
+              <TableHead className="w-20 text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Tipo</TableHead>
+              <TableHead className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Gancho</TableHead>
+              <TableHead className="w-28 text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Canal</TableHead>
+              <TableHead className="w-20 text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Funil</TableHead>
+              <TableHead className="w-24 text-[10px] text-right" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map((copy) => {
+              const purpose = copy.purpose || "organic";
+              const isSelected = selected.has(copy.id);
+              return (
+                <TableRow
+                  key={copy.id}
+                  className="cursor-pointer"
+                  style={{ borderColor: "hsl(var(--border-subtle))" }}
+                  data-state={isSelected ? "selected" : undefined}
+                >
+                  <TableCell className="py-2">
+                    <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(copy.id)} />
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                      style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        background: `hsl(var(${purposeColor[purpose]}) / 0.12)`,
+                        color: `hsl(var(${purposeColor[purpose]}))`,
+                        border: `1px solid hsl(var(${purposeColor[purpose]}) / 0.25)`,
+                      }}
+                    >
+                      {purposeLabel[purpose]}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <Link
+                      to={`/activations/${activationId}/copies/${copy.id}`}
+                      className="text-body text-sm hover:underline line-clamp-1"
+                      style={{ color: "hsl(var(--text-primary))" }}
+                    >
+                      {copy.hook || "Copy sem gancho"}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span className="text-mono-label">{copy.type} · {copy.channel || "—"}</span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span className="text-mono text-[10px] px-1.5 py-0.5 rounded" style={{ background: "hsl(var(--bg-surface2))", color: "hsl(var(--text-muted))" }}>
+                      {copy.funnel_stage || "—"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-2 text-right">
+                    <StatusBadge status={copy.status} />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       ) : (
         <div className="grid grid-cols-1 gap-3">
           {filtered.map((copy) => {
