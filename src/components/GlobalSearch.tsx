@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  CommandDialog,
+  Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Users, Zap, FileText, Image } from "lucide-react";
 
 interface SearchResult {
