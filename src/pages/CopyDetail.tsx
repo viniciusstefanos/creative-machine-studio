@@ -270,6 +270,9 @@ const CopyDetail = () => {
 
           {/* Sticky footer */}
           <div className="form__footer sticky bottom-0" style={{ background: "hsl(var(--bg-base))", paddingBottom: 20 }}>
+            <Button variant="ghost" size="sm" onClick={handleDelete} className="gap-1.5 text-destructive/70 hover:text-destructive">
+              <Trash2 size={14} /> Excluir
+            </Button>
             {copy.status === "review" && (
               <Button variant="destructive" size="sm" onClick={handleReject} disabled={saving} className="gap-2">
                 <X size={14} /> Rejeitar
