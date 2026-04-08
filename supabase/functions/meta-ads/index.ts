@@ -616,40 +616,45 @@ Deno.serve(async (req) => {
       const { name, description, subtype, rule, customer_file_source } = body;
       if (!name) throw new Error("name is required");
 
-      const payload: Record<string, unknown> = {
+      const payload: Record<string, string> = {
         name,
         description: description || "",
-        subtype: subtype || "CUSTOM",
         access_token: token,
       };
 
+      if (subtype && subtype !== "CUSTOM") {
+        payload.subtype = subtype;
+      }
+
       if (subtype === "WEBSITE") {
-        const ruleObj = rule ? (typeof rule === "string" ? rule : JSON.stringify(rule)) : JSON.stringify({
-          inclusions: { operator: "or", rules: [{ event_sources: [{ id: body.pixel_id, type: "pixel" }], retention_seconds: 2592000, filter: { operator: "and", filters: [{ field: "url", operator: "i_contains", value: "" }] } }] }
-        });
-        payload.rule = ruleObj;
+        payload.rule = rule
+          ? (typeof rule === "string" ? rule : JSON.stringify(rule))
+          : JSON.stringify({
+              inclusions: { operator: "or", rules: [{ event_sources: [{ id: body.pixel_id, type: "pixel" }], retention_seconds: 2592000, filter: { operator: "and", filters: [{ field: "url", operator: "i_contains", value: "" }] } }] }
+            });
       }
       if (subtype === "ENGAGEMENT") {
         if (!rule && !body.page_id) throw new Error("rule or page_id is required for ENGAGEMENT audiences");
-        const ruleObj = rule ? (typeof rule === "string" ? rule : JSON.stringify(rule)) : JSON.stringify({
-          inclusions: { operator: "or", rules: [{ event_sources: [{ id: body.page_id, type: "page" }], retention_seconds: body.retention_seconds || 2592000 }] }
-        });
-        payload.rule = ruleObj;
+        payload.rule = rule
+          ? (typeof rule === "string" ? rule : JSON.stringify(rule))
+          : JSON.stringify({
+              inclusions: { operator: "or", rules: [{ event_sources: [{ id: body.page_id, type: "page" }], retention_seconds: body.retention_seconds || 2592000 }] }
+            });
       }
       if (customer_file_source) {
         payload.customer_file_source = customer_file_source;
       }
 
-      // Build URL with params for Meta API
-      const params = new URLSearchParams();
-      for (const [k, v] of Object.entries(payload)) {
-        params.append(k, String(v));
-      }
+      console.log("create_audience payload:", JSON.stringify(payload));
 
-      const res = await fetch(`${META_GRAPH_URL}/${ad_account_id}/customaudiences`, {
-        method: "POST",
-        body: params,
-      });
+      const res = await fetch(
+        `${META_GRAPH_URL}/${ad_account_id}/customaudiences?access_token=${token}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, access_token: undefined }),
+        }
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(`Create audience failed [${res.status}]: ${JSON.stringify(data)}`);
 
