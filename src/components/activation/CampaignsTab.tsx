@@ -446,6 +446,92 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
         preSelectedCampaignId={addAdsPreselectedCampaign}
         onCreated={fetchData}
       />
+
+      {/* Import from Meta Dialog */}
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="sm:max-w-lg" style={{ background: "hsl(var(--bg-surface1))", border: "1px solid hsl(var(--border-default))" }}>
+          <DialogHeader>
+            <DialogTitle className="text-sm" style={{ color: "hsl(var(--text-primary))", fontFamily: "'Syne'" }}>
+              Importar Campanhas do Meta
+            </DialogTitle>
+            {activationSlug && (
+              <p className="text-[10px] mt-1" style={{ color: "hsl(var(--text-muted))", fontFamily: "'JetBrains Mono', monospace" }}>
+                Filtro: "{activationSlug}"
+              </p>
+            )}
+          </DialogHeader>
+
+          {importLoading ? (
+            <div className="py-8 text-center text-xs" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
+              Buscando campanhas no Meta Ads...
+            </div>
+          ) : metaCampaigns.length === 0 ? (
+            <div className="py-8 text-center text-xs" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
+              Nenhuma campanha nova encontrada{activationSlug ? ` com "${activationSlug}" no nome` : ""}.
+            </div>
+          ) : (
+            <div className="max-h-[320px] overflow-y-auto space-y-2 pr-1">
+              {metaCampaigns.map((camp) => (
+                <label
+                  key={camp.id}
+                  className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors"
+                  style={{
+                    background: selectedImports.has(camp.id) ? "hsl(var(--accent) / 0.08)" : "hsl(var(--bg-surface2))",
+                    border: selectedImports.has(camp.id) ? "1px solid hsl(var(--accent) / 0.3)" : "1px solid transparent",
+                    borderRadius: 8,
+                  }}
+                >
+                  <Checkbox
+                    checked={selectedImports.has(camp.id)}
+                    onCheckedChange={() => toggleImportSelection(camp.id)}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs truncate" style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}>
+                      {camp.name}
+                    </p>
+                    <div className="flex items-center gap-3 mt-0.5">
+                      <span className="text-[10px] uppercase" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
+                        {camp.effective_status || camp.status}
+                      </span>
+                      {camp.objective && (
+                        <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
+                          {camp.objective}
+                        </span>
+                      )}
+                      {camp.daily_budget && (
+                        <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
+                          R$ {(parseInt(camp.daily_budget) / 100).toFixed(2)}/dia
+                        </span>
+                      )}
+                      {camp.adsets?.length > 0 && (
+                        <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
+                          {camp.adsets.length} adset(s)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setImportOpen(false)} className="text-xs" style={{ fontFamily: "'DM Sans'" }}>
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              className="text-xs gap-1.5"
+              style={{ background: "hsl(var(--accent))", color: "hsl(var(--accent-foreground))", fontFamily: "'DM Sans'", borderRadius: 6 }}
+              disabled={selectedImports.size === 0 || importSaving}
+              onClick={handleImportSelected}
+            >
+              <Download size={14} />
+              {importSaving ? "Importando..." : `Importar ${selectedImports.size > 0 ? selectedImports.size : ""} selecionada(s)`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
