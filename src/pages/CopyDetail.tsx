@@ -91,6 +91,18 @@ const CopyDetail = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm("Excluir este copy permanentemente?")) return;
+    await supabase.from("assets").update({ copy_id: null }).eq("copy_id", copyId!);
+    const { error } = await supabase.from("copies").delete().eq("id", copyId!);
+    if (error) {
+      toast.error("Erro ao excluir copy");
+    } else {
+      toast.success("Copy excluído");
+      navigate(`/activations/${activationId}/copies`);
+    }
+  };
+
   const handleRegenerate = async (block: string, feedback?: string) => {
     setRegeneratingBlock(block);
     try {
