@@ -36,6 +36,7 @@ interface AssetsTabProps {
 }
 
 export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
