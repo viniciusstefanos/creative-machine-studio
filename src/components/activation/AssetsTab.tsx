@@ -51,7 +51,36 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
       .select("*, asset_formats(name, category)")
       .eq("activation_id", activationId)
       .order("created_at", { ascending: false });
-    setAssets(data || []);
+
+    if (!data || data.length === 0) {
+      setAssets([]);
+      setLoading(false);
+      return;
+    }
+
+    // Fetch first render thumbnail for each asset
+    const assetIds = data.map(a => a.id);
+    const { data: renders } = await supabase
+      .from("asset_template_renders")
+      .select("asset_id, png_url, slide_index")
+      .in("asset_id", assetIds)
+      .order("slide_index", { ascending: true });
+
+    const thumbMap: Record<string, string> = {};
+    if (renders) {
+      for (const r of renders) {
+        if (r.png_url && !thumbMap[r.asset_id]) {
+          thumbMap[r.asset_id] = r.png_url;
+        }
+      }
+    }
+
+    const enriched = data.map(a => ({
+      ...a,
+      thumb_url: a.image_url || thumbMap[a.id] || null,
+    }));
+
+    setAssets(enriched);
     setLoading(false);
   };
 
