@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, FileText, Sparkles, Loader2 } from "lucide-react";
+import { Plus, FileText, Sparkles, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface CopiesTabProps {
@@ -42,6 +42,8 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [filter, setFilter] = useState<PurposeFilter>("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   // Generation dialog state
   const [showGenDialog, setShowGenDialog] = useState(false);
