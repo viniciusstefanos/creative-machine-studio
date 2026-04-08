@@ -4,9 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { TemplatePreview } from "@/components/ui/TemplatePreview";
 import { Switch } from "@/components/ui/switch";
-import { Plus } from "lucide-react";
+import { Plus, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TemplateEditorDialog } from "@/components/ui/TemplateEditorDialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function ClientTemplates({ clientId }: { clientId: string }) {
   const [globalTemplates, setGlobalTemplates] = useState<any[]>([]);
