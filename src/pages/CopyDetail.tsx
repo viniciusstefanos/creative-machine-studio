@@ -49,11 +49,13 @@ const CopyDetail = () => {
         setClientName((actRes.data as any).clients?.name || "");
       }
 
-      const [briefRes, copiesApprovedRes, assetsApprovedRes, scheduledRes] = await Promise.all([
+      const [briefRes, copiesApprovedRes, assetsApprovedRes, scheduledRes, pendingRes, totalRes] = await Promise.all([
         supabase.from("briefs").select("objectives").eq("activation_id", activationId).single(),
         supabase.from("copies").select("id", { count: "exact" }).eq("activation_id", activationId).eq("status", "approved"),
         supabase.from("assets").select("id", { count: "exact" }).eq("activation_id", activationId).eq("status", "approved"),
         supabase.from("scheduled_posts").select("id", { count: "exact" }).eq("activation_id", activationId),
+        supabase.from("copies").select("id", { count: "exact" }).eq("activation_id", activationId).in("status", ["review", "draft"]),
+        supabase.from("copies").select("id", { count: "exact" }).eq("activation_id", activationId),
       ]);
       setWorkflowData({
         briefDone: !!(briefRes.data?.objectives),
@@ -61,6 +63,8 @@ const CopyDetail = () => {
         assetsApproved: assetsApprovedRes.count || 0,
         scheduledCount: scheduledRes.count || 0,
       });
+      setPendingCount(pendingRes.count || 0);
+      setTotalCount(totalRes.count || 0);
 
       setLoading(false);
     };
