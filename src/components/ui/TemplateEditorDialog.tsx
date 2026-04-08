@@ -22,6 +22,15 @@ interface Props {
 const CATEGORIES = [
   { value: "static", label: "Estático" },
   { value: "carousel", label: "Carrossel" },
+  { value: "story", label: "Story" },
+  { value: "reels", label: "Reels" },
+];
+
+const FUNNEL_STAGES = [
+  { value: "", label: "Nenhum" },
+  { value: "top", label: "Topo de funil" },
+  { value: "middle", label: "Meio de funil" },
+  { value: "bottom", label: "Fundo de funil" },
 ];
 
 const RATIOS = ["4:5", "9:16", "1:1"];
@@ -60,6 +69,7 @@ export function TemplateEditorDialog({ open, onOpenChange, template, clients, on
   const [clientId, setClientId] = useState<string | "">("");
   const [visibility, setVisibility] = useState("global");
   const [slug, setSlug] = useState("");
+  const [funnelStage, setFunnelStage] = useState("");
 
   // AI generation
   const [aiDescription, setAiDescription] = useState("");
@@ -86,11 +96,12 @@ export function TemplateEditorDialog({ open, onOpenChange, template, clients, on
       setClientId(template.client_id || "");
       setVisibility(template.visibility || "global");
       setSlug(template.slug || "");
+      setFunnelStage(template.funnel_stage || "");
     } else {
       setName(""); setCategory("static"); setAspectRatio("4:5"); setGenType("html_only");
       setSlidesMin(3); setSlidesMax(5); setHtmlScaffold(""); setSystemPrompt("");
       setImagePromptTemplate(""); setEditableFieldsJson("{}"); setDescription("");
-      setClientId(""); setVisibility("global"); setSlug("");
+      setClientId(""); setVisibility("global"); setSlug(""); setFunnelStage("");
     }
   }, [template, open]);
 
@@ -173,6 +184,7 @@ export function TemplateEditorDialog({ open, onOpenChange, template, clients, on
       visibility,
       is_base: false,
       active: true,
+      funnel_stage: funnelStage || null,
     };
 
     setSaving(true);
@@ -404,11 +416,17 @@ export function TemplateEditorDialog({ open, onOpenChange, template, clients, on
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="mt-1 bg-[hsl(var(--bg-surface2))] border-[hsl(var(--border-subtle))]" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-mono-label">Visibilidade</Label>
               <select value={visibility} onChange={(e) => setVisibility(e.target.value)} className="field-input mt-1">
                 {VISIBILITIES.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label className="text-mono-label">Funil</Label>
+              <select value={funnelStage} onChange={(e) => setFunnelStage(e.target.value)} className="field-input mt-1">
+                {FUNNEL_STAGES.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
               </select>
             </div>
             <div>

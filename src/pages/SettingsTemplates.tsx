@@ -4,7 +4,7 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Eye, EyeOff, Trash2, Pencil } from "lucide-react";
+import { Plus, Eye, EyeOff, Trash2, Pencil, Copy } from "lucide-react";
 import { TemplatePreview } from "@/components/ui/TemplatePreview";
 import { TemplateEditorDialog } from "@/components/ui/TemplateEditorDialog";
 
@@ -12,7 +12,27 @@ const categoryLabel = (cat: string) => {
   switch (cat) {
     case "static": return "Estático";
     case "carousel": return "Carrossel";
+    case "story": return "Story";
+    case "reels": return "Reels";
     default: return "Vídeo";
+  }
+};
+
+const funnelLabel = (stage: string | null) => {
+  switch (stage) {
+    case "top": return "Topo";
+    case "middle": return "Meio";
+    case "bottom": return "Fundo";
+    default: return null;
+  }
+};
+
+const funnelColor = (stage: string | null) => {
+  switch (stage) {
+    case "top": return "bg-[hsl(var(--accent-surface))] text-[hsl(var(--accent))]";
+    case "middle": return "bg-[hsl(var(--bg-surface3))] text-[hsl(var(--status-review))]";
+    case "bottom": return "bg-[hsl(var(--bg-surface3))] text-[hsl(var(--status-approved))]";
+    default: return "";
   }
 };
 
@@ -22,6 +42,7 @@ const SettingsTemplates = () => {
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
+  const [filterFunnel, setFilterFunnel] = useState<string | "">("");
 
   const fetchData = async () => {
     const [tplRes, clientsRes] = await Promise.all([
@@ -54,6 +75,24 @@ const SettingsTemplates = () => {
     }
   };
 
+  const duplicateTemplate = async (tpl: any) => {
+    const { id, created_at, ...rest } = tpl;
+    const newRecord = {
+      ...rest,
+      name: `${tpl.name} (cópia)`,
+      slug: `${tpl.slug}-copy-${Date.now()}`,
+      is_base: false,
+      visibility: "global",
+    };
+    const { error } = await supabase.from("asset_templates").insert(newRecord);
+    if (error) {
+      toast({ title: "Erro", description: "Falha ao duplicar", variant: "destructive" });
+    } else {
+      toast({ title: "Template duplicado" });
+      fetchData();
+    }
+  };
+
   const openCreate = () => {
     setEditingTemplate(null);
     setEditorOpen(true);
@@ -64,7 +103,11 @@ const SettingsTemplates = () => {
     setEditorOpen(true);
   };
 
-  const categories = [...new Set(templates.map((t) => t.category))];
+  const filtered = filterFunnel
+    ? templates.filter((t) => t.funnel_stage === filterFunnel)
+    : templates;
+
+  const categories = [...new Set(filtered.map((t) => t.category))];
 
   return (
     <AppLayout breadcrumbs={[{ label: "Configurações" }, { label: "Templates" }]}>
@@ -73,6 +116,23 @@ const SettingsTemplates = () => {
         <Button size="sm" className="gap-2" onClick={openCreate}>
           <Plus size={14} /> Novo template
         </Button>
+      </div>
+
+      {/* Funnel filter */}
+      <div className="flex gap-2 mb-6">
+        {["", "top", "middle", "bottom"].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilterFunnel(f)}
+            className={`px-3 py-1.5 rounded-md text-mono text-xs transition-colors ${
+              filterFunnel === f
+                ? "bg-[hsl(var(--accent))] text-[hsl(var(--bg-base))]"
+                : "bg-[hsl(var(--bg-surface2))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-secondary))]"
+            }`}
+          >
+            {f === "" ? "Todos" : funnelLabel(f)}
+          </button>
+        ))}
       </div>
 
       {loading ? (
@@ -84,7 +144,7 @@ const SettingsTemplates = () => {
               <SectionLabel>{categoryLabel(cat)}</SectionLabel>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {templates
+              {filtered
                 .filter((t) => t.category === cat)
                 .map((t) => (
                   <div
@@ -109,13 +169,18 @@ const SettingsTemplates = () => {
                         )}
                       </div>
 
-                      <div className="flex gap-1 mb-2">
+                      <div className="flex gap-1 mb-2 flex-wrap">
                         <span className="text-mono px-1.5 py-0.5 rounded bg-[hsl(var(--bg-surface3))] text-[hsl(var(--text-muted))]">
                           {t.generation_type.replace(/_/g, " ")}
                         </span>
                         <span className="text-mono px-1.5 py-0.5 rounded bg-[hsl(var(--bg-surface3))] text-[hsl(var(--text-muted))]">
                           {t.width_px}×{t.height_px}
                         </span>
+                        {t.funnel_stage && funnelLabel(t.funnel_stage) && (
+                          <span className={`text-mono px-1.5 py-0.5 rounded ${funnelColor(t.funnel_stage)}`}>
+                            {funnelLabel(t.funnel_stage)}
+                          </span>
+                        )}
                       </div>
 
                       {t.description && (
@@ -129,6 +194,13 @@ const SettingsTemplates = () => {
                           title="Editar"
                         >
                           <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => duplicateTemplate(t)}
+                          className="p-1.5 rounded-md bg-[hsl(var(--bg-surface2))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--accent))] transition-colors"
+                          title="Duplicar"
+                        >
+                          <Copy size={14} />
                         </button>
                         <button
                           onClick={() => toggleActive(t)}

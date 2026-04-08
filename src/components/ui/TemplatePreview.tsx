@@ -1,4 +1,6 @@
-const TemplatePreview = ({ template }: { template: any }) => {
+import { useMemo } from "react";
+
+const AbstractPreview = ({ template }: { template: any }) => {
   const is916 = template.aspect_ratio === "9:16";
   const isCarousel = template.category === "carousel";
   const hasImage = template.generation_type?.includes("image");
@@ -96,6 +98,60 @@ const TemplatePreview = ({ template }: { template: any }) => {
       </div>
     </div>
   );
+};
+
+const ScaffoldPreview = ({ template }: { template: any }) => {
+  const dim = template.aspect_ratio === "9:16"
+    ? { w: 1080, h: 1920 }
+    : template.aspect_ratio === "1:1"
+    ? { w: 1080, h: 1080 }
+    : { w: 1080, h: 1350 };
+
+  const containerH = 140;
+  const scale = containerH / dim.h;
+  const containerW = Math.round(dim.w * scale);
+
+  const filledHtml = useMemo(() => {
+    let html = template.html_scaffold || "";
+    html = html.replace(/\{\{hook\}\}/g, "Título de exemplo");
+    html = html.replace(/\{\{body\}\}/g, "Texto de corpo para visualização do template.");
+    html = html.replace(/\{\{cta\}\}/g, "Saiba mais");
+    html = html.replace(/\{\{brand_color\}\}/g, "#00C9A7");
+    html = html.replace(/\{\{image_url\}\}/g, "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect fill='%23333' width='400' height='400'/%3E%3C/svg%3E");
+    return html;
+  }, [template.html_scaffold]);
+
+  const srcDoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0;box-sizing:border-box}</style></head><body style="margin:0;overflow:hidden;background:#111;width:${dim.w}px;height:${dim.h}px">${filledHtml}</body></html>`;
+
+  return (
+    <div className="flex items-center justify-center" style={{ height: containerH + 8 }}>
+      <div
+        className="rounded overflow-hidden border border-[hsl(var(--border-subtle))]"
+        style={{ width: containerW, height: containerH }}
+      >
+        <iframe
+          srcDoc={srcDoc}
+          className="border-0 pointer-events-none"
+          style={{
+            width: dim.w,
+            height: dim.h,
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+          }}
+          sandbox="allow-same-origin"
+          title={template.name}
+          tabIndex={-1}
+        />
+      </div>
+    </div>
+  );
+};
+
+const TemplatePreview = ({ template }: { template: any }) => {
+  if (template.html_scaffold) {
+    return <ScaffoldPreview template={template} />;
+  }
+  return <AbstractPreview template={template} />;
 };
 
 export { TemplatePreview };
