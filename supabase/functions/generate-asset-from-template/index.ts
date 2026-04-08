@@ -336,7 +336,7 @@ async function generateImage(
       return null;
     }
 
-    const imageBytes = decode(base64Data);
+    const imageBytes = decodeBase64(base64Data);
     const filePath = `generated/${assetId}/${Date.now()}.png`;
     const { error: uploadErr } = await supabase.storage
       .from("assets")
