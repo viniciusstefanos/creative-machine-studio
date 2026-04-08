@@ -64,9 +64,21 @@ const BatchAssets = () => {
       return { copy_id, template_id };
     });
 
+    // Get current asset count for sequential naming
+    const { count: existingCount } = await supabase
+      .from("assets")
+      .select("id", { count: "exact", head: true })
+      .eq("activation_id", id);
+    let seq = (existingCount || 0) + 1;
+
     // Process sequentially to avoid rate limits
     for (let i = 0; i < items.length; i++) {
       const { copy_id, template_id } = items[i];
+      const copy = copies.find((c) => c.id === copy_id);
+      const template = templates.find((t) => t.id === template_id);
+      const assetName = buildAssetName(seq, template?.category || "static", copy?.hook);
+      seq++;
+
       try {
         const { data: asset } = await supabase
           .from("assets")
@@ -75,8 +87,9 @@ const BatchAssets = () => {
             copy_id,
             template_id,
             status: "generating",
-            category: templates.find((t) => t.id === template_id)?.category || "static",
+            category: template?.category || "static",
             render_config: {},
+            name: assetName,
           })
           .select()
           .single();
