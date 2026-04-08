@@ -485,12 +485,19 @@ Deno.serve(async (req) => {
       );
 
       if (template.category === "carousel") {
-        const cleaned = rawContent.replace(/^```json?\s*/i, "").replace(/\s*```$/i, "").trim();
+        // Strip fences and any text before/after JSON array
+        let cleaned = rawContent.replace(/^```json?\s*/i, "").replace(/\s*```$/i, "").trim();
+        const jsonStart = cleaned.indexOf("[");
+        const jsonEnd = cleaned.lastIndexOf("]");
+        if (jsonStart !== -1 && jsonEnd > jsonStart) {
+          cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+        }
         let slides: Array<{ slide_index: number; html: string }>;
         try { slides = JSON.parse(cleaned); } catch {
-          slides = [{ slide_index: 0, html: cleaned }];
+          slides = [{ slide_index: 0, html: extractHtml(cleaned) }];
         }
         for (const slide of slides) {
+          slide.html = extractHtml(slide.html);
           await saveRender(slide.slide_index, { html_content: slide.html });
         }
       } else {
