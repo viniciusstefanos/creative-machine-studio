@@ -190,6 +190,21 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <SectionLabel>Copies</SectionLabel>
         <div className="flex gap-2">
+         <div className="flex items-center gap-1 mr-1" style={{ background: "hsl(var(--bg-surface2))", borderRadius: 6, padding: 2 }}>
+            {(["list", "grid"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className="p-1.5 rounded transition-all"
+                style={{
+                  background: viewMode === mode ? "hsl(var(--accent) / 0.12)" : "transparent",
+                  color: viewMode === mode ? "hsl(var(--accent))" : "hsl(var(--text-muted))",
+                }}
+              >
+                {mode === "list" ? <LayoutList size={14} /> : <LayoutGrid size={14} />}
+              </button>
+            ))}
+          </div>
           {selected.size > 0 && (
             <Button
               variant="destructive"
