@@ -1,57 +1,38 @@
 
 
-# Separação Orgânico vs Ads — Respostas e Plano Refinado
+# Formulário de geração IA com controles avançados
 
-## Suas perguntas respondidas
+## Resumo
 
-**1. A tag da copy na peça já vai dizer se é ad ou orgânico?**
-Sim. Cada copy terá um campo `purpose` ("organic" ou "ads"). No card da peça (asset), o badge da copy associada mostrará "ORG" ou "ADS". Assim, ao olhar qualquer peça, você sabe pra qual fluxo ela foi pensada.
+Substituir o mini-dropdown atual do "Gerar com IA" por um painel/dialog com campos configuráveis antes de gerar.
 
-**2. Posso gerar copies só pra um tipo?**
-Sim. O botão "Gerar com IA" ganhará um seletor: **Orgânico**, **Ads** ou **Ambos**. Você escolhe antes de gerar.
+## O que o usuário vai ver
 
-**3. Posso criar uma variação Ads a partir de uma copy orgânica (e vice-versa)?**
-Sim. Na tela de detalhe da copy, haverá um botão **"Criar variação Ads"** (ou "Criar variação Orgânica") que duplica a copy, ajusta o `purpose`, e opcionalmente chama a IA para adaptar o tom (CTA de engajamento → CTA de conversão, por exemplo).
+Ao clicar em "Gerar com IA", abre um dialog com:
 
----
+1. **Finalidade** — select: Orgânico / Ads / Ambos (já existe, muda de dropdown pra campo no dialog)
+2. **Etapas do funil** — checkboxes: Topo / Meio / Fundo (default: todas marcadas)
+3. **Quantidade** — input numérico: quantos copies gerar (default: 6, máx: 20)
+4. **Assunto / Dor** — textarea opcional: "Ex: insegurança sobre investimentos", "dor de quem não tem tempo de cozinhar"
 
-## Plano de implementação
+Botão "Gerar" no rodapé do dialog dispara a geração.
 
-### 1. Migration — campo `purpose` na tabela `copies`
-```sql
-ALTER TABLE copies ADD COLUMN purpose text DEFAULT 'organic';
-```
+## Mudanças técnicas
 
-### 2. `CopiesTab.tsx` — filtros e controle de geração
-- Chips de filtro: **Todos** | **Orgânico** | **Ads** (com contagem)
-- Badge "ORG" ou "ADS" em cada card da lista
-- Botão "Gerar com IA" abre mini-select: Orgânico / Ads / Ambos
-- Campo "Finalidade" no formulário de criação manual
+### `CopiesTab.tsx`
+- Remover o dropdown inline de purpose
+- Adicionar state para o dialog de geração (`showGenDialog`)
+- Novo estado com os 4 campos: `genPurpose`, `genFunnelStages`, `genQuantity`, `genTopic`
+- Dialog usando componentes existentes (Dialog, Checkbox, Input, Textarea, Select)
+- Ao confirmar, chama `handleAIGenerate` passando os novos parâmetros
 
-### 3. `CopyDetail.tsx` — variação entre tipos
-- Campo editável `purpose` (select)
-- Botão **"Criar variação Ads"** (se purpose=organic) ou **"Criar variação Orgânica"** (se purpose=ads)
-  - Duplica a copy no banco com o purpose invertido
-  - Opcionalmente chama a edge function `regenerate-copy-block` para adaptar tom/CTA
+### `generate-copies/index.ts`
+- Aceitar novos parâmetros: `quantity` (number), `topic` (string opcional)
+- Usar `quantity` no prompt: "Gere no máximo {quantity} copies"
+- Se `topic` informado, adicionar ao prompt: `ASSUNTO/DOR ESPECÍFICA: {topic}. Todas as copies devem abordar esse tema/dor.`
+- `funnel_stages` já é recebido mas hoje é hardcoded no front — passa a ser dinâmico
 
-### 4. `StatusBadge.tsx` — novos status
-- `published_organic` → "Publicado · Orgânico" (verde)
-- `published_ads` → "Publicado · Ads" (cor accent)
-
-### 5. `generate-copies` edge function
-- Recebe novo parâmetro `purpose`: `"organic"`, `"ads"` ou `"both"`
-- Se `"both"`: gera 2 variações por combinação (uma orgânica, uma ads)
-- Se `"organic"` ou `"ads"`: gera só aquele tipo
-- Diferença no prompt: orgânico = caption longo, hashtags, CTA de engajamento; ads = direto, curto, CTA de conversão
-
-### 6. Integração nos fluxos de publicação (sem mudança estrutural)
-- `ScheduleTab` / `BulkScheduleDialog`: ao publicar → status `published_organic`
-- `CreateCampaignWizard` / `AddAdsToCampaignDialog`: ao subir → status `published_ads`
-
-## Arquivos modificados
-- **Migration SQL** — 1 coluna nova
-- **`CopiesTab.tsx`** — filtros, badge, seletor de geração
-- **`CopyDetail.tsx`** — botão "Criar variação", select purpose
-- **`StatusBadge.tsx`** — 2 novos status
-- **`generate-copies/index.ts`** — parâmetro purpose, prompt condicional
+### Arquivos modificados
+- **`src/components/activation/CopiesTab.tsx`** — dialog de configuração substituindo dropdown
+- **`supabase/functions/generate-copies/index.ts`** — parâmetros `quantity` e `topic`
 
