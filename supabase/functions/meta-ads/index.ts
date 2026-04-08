@@ -40,9 +40,41 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─── List pixels ───
+    if (action === "list_pixels") {
+      const ad_account_id = ensureActPrefix(body.ad_account_id);
+      if (!ad_account_id) throw new Error("ad_account_id is required");
+
+      const res = await fetch(
+        `${META_GRAPH_URL}/${ad_account_id}/adspixels?fields=id,name,is_unavailable&access_token=${token}`
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(`List pixels failed [${res.status}]: ${JSON.stringify(data)}`);
+
+      return new Response(JSON.stringify({ pixels: data.data || [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── List custom conversions ───
+    if (action === "list_custom_conversions") {
+      const ad_account_id = ensureActPrefix(body.ad_account_id);
+      if (!ad_account_id) throw new Error("ad_account_id is required");
+
+      const res = await fetch(
+        `${META_GRAPH_URL}/${ad_account_id}/customconversions?fields=id,name,pixel,rule&access_token=${token}`
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(`List custom conversions failed [${res.status}]: ${JSON.stringify(data)}`);
+
+      return new Response(JSON.stringify({ custom_conversions: data.data || [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ─── Create campaign ───
     if (action === "create_campaign") {
-      const { name, objective, status: campStatus, daily_budget, activation_id } = body;
+      const { name, objective, status: campStatus, daily_budget, activation_id, special_ad_categories } = body;
       const ad_account_id = ensureActPrefix(body.ad_account_id);
 
       const res = await fetch(`${META_GRAPH_URL}/${ad_account_id}/campaigns`, {
@@ -52,7 +84,7 @@ Deno.serve(async (req) => {
           name,
           objective: objective || "OUTCOME_ENGAGEMENT",
           status: campStatus || "PAUSED",
-          special_ad_categories: [],
+          special_ad_categories: special_ad_categories || [],
           access_token: token,
         }),
       });
@@ -93,6 +125,9 @@ Deno.serve(async (req) => {
         start_date, end_date,
         age_min, age_max, genders,
         db_campaign_id,
+        promoted_object,
+        bid_strategy, bid_amount,
+        publisher_platforms, facebook_positions, instagram_positions,
       } = body;
 
       const targetingObj: Record<string, unknown> = {
@@ -108,6 +143,15 @@ Deno.serve(async (req) => {
       if (targeting?.custom_audiences) {
         targetingObj.custom_audiences = targeting.custom_audiences;
       }
+      if (publisher_platforms && publisher_platforms.length > 0) {
+        targetingObj.publisher_platforms = publisher_platforms;
+      }
+      if (facebook_positions && facebook_positions.length > 0) {
+        targetingObj.facebook_positions = facebook_positions;
+      }
+      if (instagram_positions && instagram_positions.length > 0) {
+        targetingObj.instagram_positions = instagram_positions;
+      }
 
       const adsetPayload: Record<string, unknown> = {
         name,
@@ -115,12 +159,18 @@ Deno.serve(async (req) => {
         daily_budget: budget || 2000,
         billing_event: "IMPRESSIONS",
         optimization_goal: optimization_goal || "REACH",
-        bid_strategy: "LOWEST_COST_WITHOUT_CAP",
+        bid_strategy: bid_strategy || "LOWEST_COST_WITHOUT_CAP",
         targeting: targetingObj,
         status: "PAUSED",
         access_token: token,
       };
 
+      if (bid_amount && (bid_strategy === "COST_CAP" || bid_strategy === "BID_CAP")) {
+        adsetPayload.bid_amount = bid_amount;
+      }
+      if (promoted_object) {
+        adsetPayload.promoted_object = promoted_object;
+      }
       if (start_date) adsetPayload.start_time = new Date(start_date).toISOString();
       if (end_date) adsetPayload.end_time = new Date(end_date).toISOString();
 
@@ -150,7 +200,7 @@ Deno.serve(async (req) => {
       const {
         adset_id, name, image_url, image_urls, caption, link,
         instagram_page_id, db_campaign_id, asset_id,
-        facebook_page_id,
+        facebook_page_id, call_to_action, url_tags,
       } = body;
 
       const fbPageId = (facebook_page_id || "").trim();
@@ -198,6 +248,9 @@ Deno.serve(async (req) => {
         } else {
           attachment.picture = url;
         }
+        if (call_to_action) {
+          attachment.call_to_action = { type: call_to_action, value: { link: link || "https://example.com" } };
+        }
         return attachment;
       };
 
@@ -210,6 +263,10 @@ Deno.serve(async (req) => {
         message: caption,
         link: link || "https://example.com",
       };
+
+      if (call_to_action && attachments.length <= 1) {
+        linkData.call_to_action = { type: call_to_action, value: { link: link || "https://example.com" } };
+      }
 
       if (attachments.length > 1) {
         linkData.child_attachments = attachments;
@@ -227,14 +284,19 @@ Deno.serve(async (req) => {
           storySpec.instagram_actor_id = igActorId;
         }
 
+        const creativePayload: Record<string, unknown> = {
+          name: `Creative - ${name}`,
+          object_story_spec: storySpec,
+          access_token: token,
+        };
+        if (url_tags) {
+          creativePayload.url_tags = url_tags;
+        }
+
         const res = await fetch(`${META_GRAPH_URL}/${ad_account_id}/adcreatives`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: `Creative - ${name}`,
-            object_story_spec: storySpec,
-            access_token: token,
-          }),
+          body: JSON.stringify(creativePayload),
         });
 
         return {
@@ -258,16 +320,21 @@ Deno.serve(async (req) => {
       }
       const creativeData = creativeAttempt.data;
 
+      const adPayload: Record<string, unknown> = {
+        name,
+        adset_id,
+        creative: { creative_id: creativeData.id },
+        status: "PAUSED",
+        access_token: token,
+      };
+      if (url_tags) {
+        adPayload.tracking_specs = JSON.stringify([{ "action.type": ["offsite_conversion"], fb_pixel: [body.pixel_id] }]);
+      }
+
       const adRes = await fetch(`${META_GRAPH_URL}/${ad_account_id}/ads`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          adset_id,
-          creative: { creative_id: creativeData.id },
-          status: "PAUSED",
-          access_token: token,
-        }),
+        body: JSON.stringify(adPayload),
       });
       const adData = await adRes.json();
       if (!adRes.ok) throw new Error(`Create ad failed [${adRes.status}]: ${JSON.stringify(adData)}`);
@@ -331,7 +398,6 @@ Deno.serve(async (req) => {
       
       if (!activation) throw new Error("Activation not found");
 
-      // Fetch ALL meta records for this client
       const { data: metaRecords } = await supabase
         .from("client_meta_accounts")
         .select("*")
@@ -349,10 +415,10 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Default: merge ads + organic fields (ad creation needs page IDs from organic)
       const merged = adsRec || orgRec ? {
         ...(adsRec || {}),
         ad_account_id: adsRec?.ad_account_id || null,
+        pixel_id: adsRec?.pixel_id || null,
         page_access_token: adsRec?.page_access_token || orgRec?.page_access_token || null,
         facebook_page_id: orgRec?.facebook_page_id || adsRec?.facebook_page_id || null,
         instagram_page_id: orgRec?.instagram_page_id || adsRec?.instagram_page_id || null,
@@ -431,7 +497,6 @@ Deno.serve(async (req) => {
       const data = await res.json();
       if (!res.ok) throw new Error(`Update status failed [${res.status}]: ${JSON.stringify(data)}`);
 
-      // Update local DB if db_id provided
       const { db_id, db_table } = body;
       if (db_id && db_table) {
         const table = db_table === "ad_creatives" ? "ad_creatives" : "ad_campaigns";
@@ -457,7 +522,6 @@ Deno.serve(async (req) => {
       const data = await res.json();
       if (!res.ok) throw new Error(`Update budget failed [${res.status}]: ${JSON.stringify(data)}`);
 
-      // Update local DB
       const { db_campaign_id } = body;
       if (db_campaign_id) {
         await supabase.from("ad_campaigns").update({ daily_budget_cents }).eq("id", db_campaign_id);
@@ -485,7 +549,6 @@ Deno.serve(async (req) => {
         url += `&date_preset=last_30d`;
       }
 
-      // Also get daily breakdown
       const dailyUrl = `${META_GRAPH_URL}/${object_id}/insights?fields=impressions,reach,clicks,spend,actions,ctr,cpc&time_increment=1&date_preset=${date_preset || "last_30d"}&access_token=${token}&limit=90`;
 
       const [summaryRes, dailyRes] = await Promise.all([
