@@ -37,6 +37,7 @@ const FUNNEL_OPTIONS = [
 ] as const;
 
 export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
+  const queryClient = useQueryClient();
   const [copies, setCopies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -97,6 +98,7 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
       toast.success(`${ids.length} copy(ies) excluído(s)`);
       setSelected(new Set());
       fetchCopies();
+      queryClient.invalidateQueries({ queryKey: ["activation-hub", activationId] });
     }
     setDeleting(false);
   };
