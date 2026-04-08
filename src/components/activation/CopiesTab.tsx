@@ -420,38 +420,48 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
         <div className="grid grid-cols-1 gap-3">
           {filtered.map((copy) => {
             const purpose = copy.purpose || "organic";
+            const isSelected = selected.has(copy.id);
             return (
-              <Link
-                key={copy.id}
-                to={`/activations/${activationId}/copies/${copy.id}`}
-                className="card-base card-interactive block"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="text-[9px] font-bold px-1.5 py-0.5 rounded"
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        background: `hsl(var(${purposeColor[purpose]}) / 0.12)`,
-                        color: `hsl(var(${purposeColor[purpose]}))`,
-                        border: `1px solid hsl(var(${purposeColor[purpose]}) / 0.25)`,
-                      }}
-                    >
-                      {purposeLabel[purpose]}
-                    </span>
-                    <span className="text-mono-label">
-                      {copy.type} · {copy.channel || "—"} · v{copy.version}
-                    </span>
-                  </div>
-                  <StatusBadge status={copy.status} />
+              <div key={copy.id} className="flex items-start gap-2">
+                <div className="pt-4">
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleSelect(copy.id)}
+                  />
                 </div>
-                <p className="text-body line-clamp-2">{copy.hook || "Copy sem gancho"}</p>
-                {copy.funnel_stage && (
-                  <span className="text-mono mt-2 inline-block px-1.5 py-0.5 rounded bg-surface-2 text-txt-muted">
-                    {copy.funnel_stage}
-                  </span>
-                )}
-              </Link>
+                <Link
+                  to={`/activations/${activationId}/copies/${copy.id}`}
+                  className="card-base card-interactive block flex-1"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          background: `hsl(var(${purposeColor[purpose]}) / 0.12)`,
+                          color: `hsl(var(${purposeColor[purpose]}))`,
+                          border: `1px solid hsl(var(${purposeColor[purpose]}) / 0.25)`,
+                        }}
+                      >
+                        {purposeLabel[purpose]}
+                      </span>
+                      <span className="text-mono-label">
+                        {copy.type} · {copy.channel || "—"} · v{copy.version}
+                      </span>
+                    </div>
+                    <StatusBadge status={copy.status} />
+                  </div>
+                  <p className="text-body line-clamp-2">{copy.hook || "Copy sem gancho"}</p>
+                  {copy.funnel_stage && (
+                    <span className="text-mono mt-2 inline-block px-1.5 py-0.5 rounded bg-surface-2 text-txt-muted">
+                      {copy.funnel_stage}
+                    </span>
+                  )}
+                </Link>
+              </div>
+            );
+          })}
             );
           })}
         </div>
