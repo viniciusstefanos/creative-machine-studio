@@ -12,16 +12,33 @@ interface CopiesTabProps {
   briefDone?: boolean;
 }
 
+type PurposeFilter = "all" | "organic" | "ads";
+type GeneratePurpose = "organic" | "ads" | "both";
+
+const purposeLabel: Record<string, string> = {
+  organic: "ORG",
+  ads: "ADS",
+};
+
+const purposeColor: Record<string, string> = {
+  organic: "--status-published",
+  ads: "--accent",
+};
+
 export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
   const [copies, setCopies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [filter, setFilter] = useState<PurposeFilter>("all");
+  const [genPurpose, setGenPurpose] = useState<GeneratePurpose>("both");
+  const [showGenSelect, setShowGenSelect] = useState(false);
   const [form, setForm] = useState({
     type: "post",
     channel: "",
     funnel_stage: "top",
+    purpose: "organic" as "organic" | "ads",
     hook: "",
     body: "",
     cta: "",
@@ -40,6 +57,10 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
 
   useEffect(() => { fetchCopies(); }, [activationId]);
 
+  const filtered = filter === "all" ? copies : copies.filter(c => (c.purpose || "organic") === filter);
+  const orgCount = copies.filter(c => (c.purpose || "organic") === "organic").length;
+  const adsCount = copies.filter(c => (c.purpose || "organic") === "ads").length;
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -50,7 +71,7 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
     }]);
     if (!error) {
       setShowForm(false);
-      setForm({ type: "post", channel: "", funnel_stage: "top", hook: "", body: "", cta: "", landing_page_url: "" });
+      setForm({ type: "post", channel: "", funnel_stage: "top", purpose: "organic", hook: "", body: "", cta: "", landing_page_url: "" });
       fetchCopies();
     }
     setSaving(false);
@@ -58,6 +79,7 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
 
   const handleAIGenerate = async () => {
     setGenerating(true);
+    setShowGenSelect(false);
     try {
       const [briefRes, actRes] = await Promise.all([
         supabase.from("briefs").select("*").eq("activation_id", activationId).single(),
@@ -77,6 +99,7 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
           brief: briefRes.data,
           channels: ["instagram", "facebook"],
           funnel_stages: ["top", "mid", "bottom"],
+          purpose: genPurpose,
         },
       });
 
@@ -98,26 +121,81 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <SectionLabel>Copies</SectionLabel>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={handleAIGenerate}
-            disabled={generating}
-          >
-            {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-            {generating ? "Gerando..." : "Gerar com IA"}
-          </Button>
+          {/* Generation with purpose selector */}
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setShowGenSelect(!showGenSelect)}
+              disabled={generating}
+            >
+              {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+              {generating ? "Gerando..." : "Gerar com IA"}
+            </Button>
+            {showGenSelect && !generating && (
+              <div
+                className="absolute right-0 top-full mt-1 z-20 rounded-md py-1 min-w-[160px]"
+                style={{
+                  background: "hsl(var(--bg-surface2))",
+                  border: "1px solid hsl(var(--border-subtle))",
+                  boxShadow: "0 8px 24px hsl(var(--bg-base) / 0.5)",
+                }}
+              >
+                {(["organic", "ads", "both"] as GeneratePurpose[]).map((p) => (
+                  <button
+                    key={p}
+                    className="w-full text-left px-3 py-2 text-body-sm transition-colors"
+                    style={{
+                      color: genPurpose === p ? "hsl(var(--accent))" : "hsl(var(--text-primary))",
+                      background: genPurpose === p ? "hsl(var(--accent) / 0.08)" : "transparent",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "hsl(var(--accent) / 0.08)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = genPurpose === p ? "hsl(var(--accent) / 0.08)" : "transparent")}
+                    onClick={() => {
+                      setGenPurpose(p);
+                      handleAIGenerate();
+                    }}
+                  >
+                    {p === "organic" ? "🌱 Orgânico" : p === "ads" ? "📢 Ads" : "🌱📢 Ambos"}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <Button size="sm" className="gap-2" onClick={() => setShowForm(!showForm)}>
             <Plus size={14} /> Novo copy
           </Button>
         </div>
       </div>
 
+      {/* Filter chips */}
+      <div className="flex gap-2 mb-4">
+        {([
+          { key: "all" as PurposeFilter, label: "Todos", count: copies.length },
+          { key: "organic" as PurposeFilter, label: "Orgânico", count: orgCount },
+          { key: "ads" as PurposeFilter, label: "Ads", count: adsCount },
+        ]).map((chip) => (
+          <button
+            key={chip.key}
+            onClick={() => setFilter(chip.key)}
+            className="px-3 py-1.5 rounded-md text-[11px] font-medium transition-all"
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              background: filter === chip.key ? "hsl(var(--accent) / 0.12)" : "hsl(var(--bg-surface2))",
+              color: filter === chip.key ? "hsl(var(--accent))" : "hsl(var(--text-muted))",
+              border: `1px solid ${filter === chip.key ? "hsl(var(--accent) / 0.3)" : "hsl(var(--border-subtle))"}`,
+            }}
+          >
+            {chip.label} ({chip.count})
+          </button>
+        ))}
+      </div>
+
       {/* New Copy Form */}
       {showForm && (
         <form onSubmit={handleCreate} className="card-base mb-6 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div>
               <label className="field-label">Tipo</label>
               <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="field-input">
@@ -137,6 +215,13 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
                 <option value="top">Topo</option>
                 <option value="mid">Meio</option>
                 <option value="bottom">Fundo</option>
+              </select>
+            </div>
+            <div>
+              <label className="field-label">Finalidade</label>
+              <select value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value as "organic" | "ads" })} className="field-input">
+                <option value="organic">🌱 Orgânico</option>
+                <option value="ads">📢 Ads</option>
               </select>
             </div>
           </div>
@@ -164,10 +249,12 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
       )}
 
       {/* Copies List */}
-      {copies.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="empty-state card-base">
           <FileText size={32} className="text-txt-ghost" />
-          <p className="empty-state__title">Nenhum copy ainda</p>
+          <p className="empty-state__title">
+            {filter !== "all" ? `Nenhum copy ${filter === "organic" ? "orgânico" : "ads"} ainda` : "Nenhum copy ainda"}
+          </p>
           <p className="empty-state__desc">
             {briefDone === false
               ? "Preencha o brief primeiro para gerar copies com IA."
@@ -185,26 +272,42 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3">
-          {copies.map((copy) => (
-            <Link
-              key={copy.id}
-              to={`/activations/${activationId}/copies/${copy.id}`}
-              className="card-base card-interactive block"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-mono-label">
-                  {copy.type} · {copy.channel || "—"} · v{copy.version}
-                </span>
-                <StatusBadge status={copy.status} />
-              </div>
-              <p className="text-body line-clamp-2">{copy.hook || "Copy sem gancho"}</p>
-              {copy.funnel_stage && (
-                <span className="text-mono mt-2 inline-block px-1.5 py-0.5 rounded bg-surface-2 text-txt-muted">
-                  {copy.funnel_stage}
-                </span>
-              )}
-            </Link>
-          ))}
+          {filtered.map((copy) => {
+            const purpose = copy.purpose || "organic";
+            return (
+              <Link
+                key={copy.id}
+                to={`/activations/${activationId}/copies/${copy.id}`}
+                className="card-base card-interactive block"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                      style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        background: `hsl(var(${purposeColor[purpose]}) / 0.12)`,
+                        color: `hsl(var(${purposeColor[purpose]}))`,
+                        border: `1px solid hsl(var(${purposeColor[purpose]}) / 0.25)`,
+                      }}
+                    >
+                      {purposeLabel[purpose]}
+                    </span>
+                    <span className="text-mono-label">
+                      {copy.type} · {copy.channel || "—"} · v{copy.version}
+                    </span>
+                  </div>
+                  <StatusBadge status={copy.status} />
+                </div>
+                <p className="text-body line-clamp-2">{copy.hook || "Copy sem gancho"}</p>
+                {copy.funnel_stage && (
+                  <span className="text-mono mt-2 inline-block px-1.5 py-0.5 rounded bg-surface-2 text-txt-muted">
+                    {copy.funnel_stage}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

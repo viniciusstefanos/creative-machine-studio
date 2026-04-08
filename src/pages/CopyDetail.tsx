@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button";
 import { NextStepBar } from "@/components/activation/NextStepBar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Check, Send, X } from "lucide-react";
+import { ArrowLeft, Check, Send, X, Copy, Loader2 } from "lucide-react";
+
+const purposeLabel: Record<string, string> = { organic: "Orgânico", ads: "Ads" };
+const purposeColor: Record<string, string> = { organic: "--status-published", ads: "--accent" };
 
 const CopyDetail = () => {
   const { id: activationId, copyId } = useParams<{ id: string; copyId: string }>();
@@ -23,6 +26,7 @@ const CopyDetail = () => {
   const [cta, setCta] = useState("");
   const [saving, setSaving] = useState(false);
   const [regeneratingBlock, setRegeneratingBlock] = useState<string | null>(null);
+  const [creatingVariation, setCreatingVariation] = useState(false);
   const [workflowData, setWorkflowData] = useState({ briefDone: false, copiesApproved: 0, assetsApproved: 0, scheduledCount: 0 });
 
   useEffect(() => {
@@ -43,7 +47,6 @@ const CopyDetail = () => {
         setClientName((actRes.data as any).clients?.name || "");
       }
 
-      // Fetch workflow counts
       const [briefRes, copiesApprovedRes, assetsApprovedRes, scheduledRes] = await Promise.all([
         supabase.from("briefs").select("objectives").eq("activation_id", activationId).single(),
         supabase.from("copies").select("id", { count: "exact" }).eq("activation_id", activationId).eq("status", "approved"),
@@ -75,22 +78,15 @@ const CopyDetail = () => {
     }
     setSaving(false);
 
-    // Actionable toasts
     if (updates.status === "approved") {
       toast.success("Copy aprovado!", {
         description: "Agora crie peças visuais com este copy.",
-        action: {
-          label: "Criar peça →",
-          onClick: () => navigate(`/activations/${activationId}/assets/new`),
-        },
+        action: { label: "Criar peça →", onClick: () => navigate(`/activations/${activationId}/assets/new`) },
       });
     } else if (updates.status === "rejected") {
       toast("Copy rejeitado", {
         description: "Volte para a lista de copies.",
-        action: {
-          label: "Ver copies",
-          onClick: () => navigate(`/activations/${activationId}/copies`),
-        },
+        action: { label: "Ver copies", onClick: () => navigate(`/activations/${activationId}/copies`) },
       });
     }
   };
@@ -118,6 +114,7 @@ const CopyDetail = () => {
           brief_context: briefContext,
           channel: copy?.channel,
           funnel_stage: copy?.funnel_stage,
+          purpose: copy?.purpose || "organic",
         },
       });
 
@@ -133,6 +130,36 @@ const CopyDetail = () => {
       toast.error("Erro ao regenerar. Tente novamente.");
     }
     setRegeneratingBlock(null);
+  };
+
+  const handleCreateVariation = async () => {
+    if (!copy) return;
+    setCreatingVariation(true);
+    const newPurpose = (copy.purpose || "organic") === "organic" ? "ads" : "organic";
+    try {
+      const { data, error } = await supabase.from("copies").insert([{
+        activation_id: activationId,
+        hook: copy.hook,
+        body: copy.body,
+        cta: copy.cta,
+        full_copy: copy.full_copy,
+        type: copy.type,
+        channel: copy.channel,
+        funnel_stage: copy.funnel_stage,
+        purpose: newPurpose,
+        status: "draft",
+      }]).select().single();
+
+      if (error) throw error;
+      toast.success(`Variação ${purposeLabel[newPurpose]} criada!`, {
+        description: "Abra para editar e adaptar o tom.",
+        action: { label: "Abrir →", onClick: () => navigate(`/activations/${activationId}/copies/${data.id}`) },
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao criar variação.");
+    }
+    setCreatingVariation(false);
   };
 
   const handleSave = () => updateCopy({ hook, body, cta });
@@ -156,6 +183,9 @@ const CopyDetail = () => {
     );
   }
 
+  const currentPurpose = copy.purpose || "organic";
+  const oppositePurpose = currentPurpose === "organic" ? "ads" : "organic";
+
   return (
     <AppLayout
       breadcrumbs={[
@@ -165,7 +195,6 @@ const CopyDetail = () => {
         { label: `Copy v${copy.version}` },
       ]}
     >
-      {/* Mini workflow progress */}
       <NextStepBar
         activationId={activationId!}
         currentStep="copies"
@@ -176,75 +205,59 @@ const CopyDetail = () => {
       />
 
       <div className="grid gap-0" style={{ gridTemplateColumns: "1fr 300px", minHeight: "calc(100vh - 180px)" }}>
-        {/* ── Main Content ── */}
+        {/* Main Content */}
         <div className="pr-8 space-y-4" style={{ borderRight: "1px solid hsl(var(--border-subtle))" }}>
           {/* Header */}
           <div className="pb-5 mb-6" style={{ borderBottom: "1px solid hsl(var(--border-subtle))" }}>
             <div className="flex items-center gap-3 mb-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => navigate(`/activations/${activationId}/copies`)}
-              >
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/activations/${activationId}/copies`)}>
                 <ArrowLeft size={16} />
               </Button>
               <h1 className="text-display-md">Copy v{copy.version}</h1>
               <StatusBadge status={copy.status} />
+              <span
+                className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  background: `hsl(var(${purposeColor[currentPurpose]}) / 0.12)`,
+                  color: `hsl(var(${purposeColor[currentPurpose]}))`,
+                  border: `1px solid hsl(var(${purposeColor[currentPurpose]}) / 0.25)`,
+                }}
+              >
+                {currentPurpose === "organic" ? "🌱 ORG" : "📢 ADS"}
+              </span>
             </div>
-            <div className="pl-11">
+            <div className="pl-11 flex items-center gap-3">
               <span className="text-mono-label">
                 {copy.type} · {copy.channel || "—"} · {copy.funnel_stage || "—"}
               </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 h-7 text-[11px]"
+                onClick={handleCreateVariation}
+                disabled={creatingVariation}
+              >
+                {creatingVariation ? <Loader2 size={12} className="animate-spin" /> : <Copy size={12} />}
+                Criar variação {purposeLabel[oppositePurpose]}
+              </Button>
             </div>
           </div>
 
           {/* Copy Blocks */}
-          <CopyBlock
-            label="Gancho"
-            content={hook}
-            status={copy.status}
-            onChange={setHook}
-            onApprove={() => {}}
-            onReject={(fb) => handleRegenerate("hook", fb)}
-            onRegenerate={(fb) => handleRegenerate("hook", fb)}
-            regenerating={regeneratingBlock === "hook"}
-          />
-          <CopyBlock
-            label="Corpo"
-            content={body}
-            status={copy.status}
-            onChange={setBody}
-            onApprove={() => {}}
-            onReject={(fb) => handleRegenerate("body", fb)}
-            onRegenerate={(fb) => handleRegenerate("body", fb)}
-            regenerating={regeneratingBlock === "body"}
-          />
-          <CopyBlock
-            label="CTA"
-            content={cta}
-            status={copy.status}
-            onChange={setCta}
-            onApprove={() => {}}
-            onReject={(fb) => handleRegenerate("cta", fb)}
-            onRegenerate={(fb) => handleRegenerate("cta", fb)}
-            regenerating={regeneratingBlock === "cta"}
-          />
+          <CopyBlock label="Gancho" content={hook} status={copy.status} onChange={setHook} onApprove={() => {}} onReject={(fb) => handleRegenerate("hook", fb)} onRegenerate={(fb) => handleRegenerate("hook", fb)} regenerating={regeneratingBlock === "hook"} />
+          <CopyBlock label="Corpo" content={body} status={copy.status} onChange={setBody} onApprove={() => {}} onReject={(fb) => handleRegenerate("body", fb)} onRegenerate={(fb) => handleRegenerate("body", fb)} regenerating={regeneratingBlock === "body"} />
+          <CopyBlock label="CTA" content={cta} status={copy.status} onChange={setCta} onApprove={() => {}} onReject={(fb) => handleRegenerate("cta", fb)} onRegenerate={(fb) => handleRegenerate("cta", fb)} regenerating={regeneratingBlock === "cta"} />
 
           {copy.landing_page_url && (
             <div className="card-base">
               <SectionLabel>Landing Page</SectionLabel>
-              <p className="text-mono mt-2 break-all" style={{ color: "hsl(var(--accent))" }}>
-                {copy.landing_page_url}
-              </p>
+              <p className="text-mono mt-2 break-all" style={{ color: "hsl(var(--accent))" }}>{copy.landing_page_url}</p>
             </div>
           )}
 
           {/* Sticky footer */}
-          <div
-            className="form__footer sticky bottom-0"
-            style={{ background: "hsl(var(--bg-base))", paddingBottom: 20 }}
-          >
+          <div className="form__footer sticky bottom-0" style={{ background: "hsl(var(--bg-base))", paddingBottom: 20 }}>
             {copy.status === "review" && (
               <Button variant="destructive" size="sm" onClick={handleReject} disabled={saving} className="gap-2">
                 <X size={14} /> Rejeitar
@@ -266,8 +279,21 @@ const CopyDetail = () => {
           </div>
         </div>
 
-        {/* ── Sidebar ── */}
+        {/* Sidebar */}
         <div className="pl-6 space-y-6" style={{ background: "hsl(var(--bg-surface1))", padding: "24px 20px" }}>
+          {/* Purpose selector */}
+          <div>
+            <SectionLabel>Finalidade</SectionLabel>
+            <select
+              className="field-input mt-2"
+              value={currentPurpose}
+              onChange={(e) => updateCopy({ purpose: e.target.value })}
+            >
+              <option value="organic">🌱 Orgânico</option>
+              <option value="ads">📢 Ads</option>
+            </select>
+          </div>
+
           <CommentThread entityType="copy" entityId={copyId!} />
 
           <div>

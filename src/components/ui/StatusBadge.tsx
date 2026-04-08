@@ -14,6 +14,8 @@ const statusMap: Record<string, { cssVar: string; label: string }> = {
   paused: { cssVar: "--status-review", label: "Pausado" },
   done: { cssVar: "--status-draft", label: "Concluído" },
   failed: { cssVar: "--status-rejected", label: "Falhou" },
+  published_organic: { cssVar: "--status-published", label: "Publicado · Orgânico" },
+  published_ads: { cssVar: "--accent", label: "Publicado · Ads" },
 };
 
 export const StatusBadge = ({ status }: StatusBadgeProps) => {
