@@ -354,7 +354,7 @@ function fillTemplate(tpl: string, ctx: Record<string, any>): string {
   return tpl.replace(/\{\{(\w+)\}\}/g, (_, key) => ctx[key] || "");
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
