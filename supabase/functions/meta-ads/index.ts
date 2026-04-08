@@ -616,30 +616,46 @@ Deno.serve(async (req) => {
       const { name, description, subtype, rule, customer_file_source } = body;
       if (!name) throw new Error("name is required");
 
-      const payload: Record<string, unknown> = {
+      const payload: Record<string, string> = {
         name,
         description: description || "",
-        subtype: subtype || "CUSTOM",
         access_token: token,
       };
 
+      if (subtype && subtype !== "CUSTOM") {
+        payload.subtype = subtype;
+      }
+
       if (subtype === "WEBSITE") {
-        payload.rule = rule || JSON.stringify({ inclusions: { operator: "or", rules: [{ event_sources: [{ id: body.pixel_id }], retention_seconds: 2592000, filter: { operator: "and", filters: [{ field: "url", operator: "i_contains", value: "" }] } }] } });
+        payload.rule = rule
+          ? (typeof rule === "string" ? rule : JSON.stringify(rule))
+          : JSON.stringify({
+              inclusions: { operator: "or", rules: [{ event_sources: [{ id: body.pixel_id, type: "pixel" }], retention_seconds: 2592000, filter: { operator: "and", filters: [{ field: "url", operator: "i_contains", value: "" }] } }] }
+            });
       }
       if (subtype === "ENGAGEMENT") {
-        if (!rule && !body.page_id) throw new Error("rule or page_id is required for ENGAGEMENT audiences");
-        payload.rule = rule || JSON.stringify({
-          inclusions: { operator: "or", rules: [{ object_id: body.page_id, event_sources: [{ id: body.page_id, type: "page" }], retention_seconds: body.retention_seconds || 2592000 }] }
-        });
+        if (!rule) throw new Error("Para audiências de engajamento, forneça a regra completa (rule) no formato JSON do Meta. Use audiências existentes listadas na aba Audiências.");
+        payload.rule = typeof rule === "string" ? rule : JSON.stringify(rule);
+        payload.prefill = "true";
       }
       if (customer_file_source) {
         payload.customer_file_source = customer_file_source;
       }
 
+      // Use URLSearchParams — Meta expects form-data style
+      const params = new URLSearchParams();
+      params.append("name", payload.name);
+      if (payload.description) params.append("description", payload.description);
+      if (payload.subtype) params.append("subtype", payload.subtype);
+      if (payload.rule) params.append("rule", payload.rule);
+      if (payload.customer_file_source) params.append("customer_file_source", payload.customer_file_source);
+      params.append("access_token", token);
+
+      console.log("create_audience rule:", payload.rule);
+
       const res = await fetch(`${META_GRAPH_URL}/${ad_account_id}/customaudiences`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: params,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(`Create audience failed [${res.status}]: ${JSON.stringify(data)}`);

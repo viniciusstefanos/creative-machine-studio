@@ -14,6 +14,7 @@ interface AudienceManagerProps {
   metaAccount: {
     ad_account_id: string | null;
     page_access_token: string | null;
+    facebook_page_id?: string | null;
   } | null;
 }
 
@@ -89,6 +90,7 @@ export const AudienceManager = ({ metaAccount }: AudienceManagerProps) => {
           description: newDescription.trim(),
           subtype: newSubtype,
           page_access_token: metaAccount?.page_access_token,
+          page_id: metaAccount?.facebook_page_id,
         },
       });
       if (error || data?.error) throw new Error(data?.error || error?.message);
