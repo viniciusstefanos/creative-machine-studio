@@ -812,38 +812,61 @@ const AssetDetail = () => {
         </Button>
         <h1 className="text-display-md">{asset.name || `Peça v${asset.version || 1}`}</h1>
         <StatusBadge status={asset.status} />
-        <div className="ml-auto flex items-center gap-1">
-          {siblingAssets.length > 1 && (() => {
-            const reviewCount = siblingAssets.filter(a => a.status === "review").length;
-            return (
-              <span className="text-mono text-txt-muted mr-2">
-                {currentAssetIndex + 1}/{siblingAssets.length}
-                {reviewCount > 0 && (
-                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px]" style={{ background: "hsl(var(--status-review) / 0.15)", color: "hsl(var(--status-review))" }}>
-                    {reviewCount} p/ revisar
-                  </span>
-                )}
-              </span>
-            );
-          })()}
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            disabled={!prevAsset}
-            onClick={() => prevAsset && navigate(`/activations/${id}/assets/${prevAsset.id}`)}
-          >
-            <ChevronLeft size={16} />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            disabled={!nextAsset}
-            onClick={() => nextAsset && navigate(`/activations/${id}/assets/${nextAsset.id}`)}
-          >
-            <ChevronRight size={16} />
-          </Button>
+        <div className="ml-auto flex items-center gap-3">
+          {/* Progress bar */}
+          {siblingAssets.length > 1 && (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <div className="w-24 h-1.5 rounded-full overflow-hidden" style={{ background: "hsl(var(--surface-3))" }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{
+                      width: `${((reviewStats.total - reviewStats.pending) / reviewStats.total) * 100}%`,
+                      background: "hsl(var(--accent))",
+                    }}
+                  />
+                </div>
+                <span className="text-mono text-txt-muted text-[10px]">
+                  {reviewStats.total - reviewStats.pending}/{reviewStats.total}
+                </span>
+              </div>
+              {reviewStats.pending > 0 && (
+                <span
+                  className="px-1.5 py-0.5 rounded-full text-[9px]"
+                  style={{
+                    background: "hsl(var(--status-review) / 0.15)",
+                    color: "hsl(var(--status-review))",
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {reviewStats.pending} p/ revisar
+                </span>
+              )}
+            </div>
+          )}
+          {/* Nav arrows */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={!prevAsset}
+              onClick={() => prevAsset && navigate(`/activations/${id}/assets/${prevAsset.id}`)}
+              title="← Peça anterior"
+            >
+              <ChevronLeft size={16} />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={!nextAsset}
+              onClick={() => nextAsset && navigate(`/activations/${id}/assets/${nextAsset.id}`)}
+              title="→ Próxima peça"
+            >
+              <ChevronRight size={16} />
+            </Button>
+          </div>
         </div>
       </div>
 
