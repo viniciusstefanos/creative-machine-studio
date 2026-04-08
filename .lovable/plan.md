@@ -1,65 +1,92 @@
 
 
-# Separar conexões Orgânico e Ads em `client_meta_accounts`
+# Análise detalhada de melhorias nos Templates
 
-## Problema
+## Estado atual — 13 templates ativos
 
-Hoje existe **uma única linha** por cliente na tabela `client_meta_accounts`, misturando campos de orgânico (Facebook Page, Instagram Actor, username, page_access_token) com campos de ads (ad_account_id, ad_account_name). Quando o cliente usa BMs diferentes para orgânico e tráfego, os tokens e IDs conflitam.
+| Template | Categoria | Ratio | Tipo geração | Scaffold HTML | Prompt IA | Campos editáveis | Prompt imagem |
+|----------|-----------|-------|-------------|---------------|-----------|-----------------|---------------|
+| Banner — Só Imagem | static | 4:5 | image_only | ❌ | ❌ | ✅ (1 campo) | ✅ |
+| Carrossel Antes/Depois | carousel | 4:5 | html_and_image | ❌ | ✅ | ✅ (4 campos) | ✅ |
+| Carrossel de Imagens | carousel | 4:5 | image_only | ❌ | ❌ | ✅ (2 campos) | ✅ |
+| Carrossel Educativo | carousel | 4:5 | html_only | ❌ | ✅ | ✅ (5 campos) | ❌ |
+| Carrossel Estilo Twitter | carousel | 4:5 | html_only | ❌ | ✅ | ✅ (3 campos) | ❌ |
+| Carrossel Listicle | carousel | 4:5 | html_only | ❌ | ✅ | ✅ (4 campos) | ❌ |
+| Post CTA Direto | static | 4:5 | html_and_image | ❌ | ✅ | ✅ (4 campos) | ✅ |
+| Post Dado/Estatística | static | 4:5 | html_only | ❌ | ✅ | ✅ (4 campos) | ❌ |
+| Post Feed — Imagem + Texto | static | 4:5 | html_and_image | ❌ | ✅ | ✅ | ✅ |
+| Post Frase Forte | static | 4:5 | html_only | ❌ | ✅ | ✅ | ❌ |
+| Reels Cover | static | 9:16 | html_and_image | ❌ | ✅ | ✅ | ✅ |
+| Story — Texto sobre Gradiente | static | 9:16 | html_only | ❌ | ✅ | ✅ | ❌ |
+| Story Interativo | static | 9:16 | html_only | ❌ | ✅ | ✅ | ❌ |
 
-## Solução
+---
 
-Separar em **duas linhas por cliente**: uma com `platform = "meta_organic"` e outra com `platform = "meta_ads"`. Cada uma com seu próprio `page_access_token` opcional.
+## Problemas identificados (por prioridade)
 
-### 1. Migration: adicionar coluna `page_access_token` para ads e permitir múltiplas linhas
+### 🔴 Críticos — impactam qualidade de geração
 
-- Não precisa alterar schema (já permite múltiplas linhas, `maybeSingle()` é só no código)
-- A coluna `page_access_token` já existe
-- Apenas garantir que o combo `(client_id, platform)` seja unique:
+**1. Nenhum template tem `html_scaffold` preenchido**
+Todos têm `scaffold_len: null`. A IA gera o layout inteiro do zero a cada peça, causando:
+- Inconsistência visual entre peças do mesmo template
+- Maior custo de tokens (a IA "inventa" todo o HTML)
+- Impossibilidade de preview real no `TemplatePreview`
 
-```sql
-ALTER TABLE public.client_meta_accounts 
-  DROP CONSTRAINT IF EXISTS client_meta_accounts_client_id_platform_key;
-ALTER TABLE public.client_meta_accounts 
-  ADD CONSTRAINT client_meta_accounts_client_id_platform_key 
-  UNIQUE (client_id, platform);
-```
+**2. Preview genérico e abstrato**
+O `TemplatePreview` renderiza ícones/barras abstratas. Não usa o scaffold (que não existe) nem gera thumbnail. O usuário não tem ideia visual do que cada template produz.
 
-### 2. `MetaAccountSettings.tsx` — UI separada
+**3. Campos editáveis inconsistentes entre templates**
+Alguns usam array de objetos `[{key, type, label}]`, outros usam objeto `{key: {type, label}}`. Isso pode causar bugs no editor e na geração.
 
-Refatorar para gerenciar **dois registros independentes**:
+### 🟡 Importantes — impactam usabilidade
 
-- **Card "Orgânico"** (platform = `meta_organic`): Facebook Page ID, Instagram Actor ID, Username, Page Access Token (opcional)
-  - Botão "Auto-detectar" via `get_pages`
-  - Botão "Salvar" próprio
+**4. Categorias incompletas**
+Stories e Reels Cover estão como `category: "static"`. Deveria haver categorias `story` e `reels` para filtrar corretamente na criação de peças.
 
-- **Card "Conta de Anúncios"** (platform = `meta_ads`): Ad Account ID, Nome da conta, Access Token (opcional, para BM diferente)
-  - Botão "Auto-detectar" via `get_ad_accounts`
-  - Botão "Salvar" próprio
+**5. Sem tags de funil**
+Nenhum template indica se é topo, meio ou fundo de funil. O usuário precisa saber de cabeça qual template serve para qual etapa.
 
-Estado: dois forms independentes (`organicForm` e `adsForm`), cada um com load/save separado buscando por `eq("platform", "meta_organic")` / `eq("platform", "meta_ads")`.
+**6. Sem funcionalidade de duplicar**
+Para customizar um template global por cliente, o usuário precisa criar do zero. Não há "duplicar e ajustar".
 
-### 3. Atualizar consumidores
+**7. Sem ordenação/prioridade**
+Todos os templates aparecem em ordem alfabética. Templates mais usados ou recomendados não têm destaque.
 
-Cada ponto que lê `client_meta_accounts` precisa filtrar pelo `platform` correto:
+### 🟢 Nice-to-have
 
-| Arquivo | Uso | Filtro |
-|---------|-----|--------|
-| `ScheduleTab.tsx` (publicação orgânica) | instagram_page_id, facebook_page_id | `eq("platform", "meta_organic")` |
-| `auto-publish-scheduled/index.ts` | publicação orgânica | `eq("platform", "meta_organic")` |
-| `AssetDetail.tsx` | busca ad_account_id para ads + instagram para orgânico | Buscar **ambos** registros |
-| `meta-ads/index.ts` (get_meta_account) | ad_account_id | `eq("platform", "meta_ads")` |
-| `meta-ads/index.ts` (outras actions que usam token) | token de ads | `eq("platform", "meta_ads")` |
+**8. Sem thumbnail estático**
+Campo `thumbnail_url` existe na tabela mas nunca é preenchido. Seria útil para preview rápido sem renderizar HTML.
 
-### 4. Fallback de compatibilidade
+**9. Sem versionamento de prompts**
+Quando o system_prompt é editado, a versão anterior se perde. Sem rollback.
 
-Se o cliente só tem um registro com `platform = "meta"` (dados antigos), tratar como fallback: ler esse registro para ambos os contextos até que o usuário salve separadamente.
+**10. Nenhum template 1:1**
+Apesar do sistema suportar 1:1, não existe nenhum template nesse formato.
 
-## Arquivos modificados
+---
 
-- **Migration SQL** — unique constraint `(client_id, platform)`
-- **`src/components/client/MetaAccountSettings.tsx`** — dois cards independentes com save separado
-- **`src/components/activation/ScheduleTab.tsx`** — filtrar `meta_organic`
-- **`src/pages/AssetDetail.tsx`** — buscar ambos registros (organic para schedule, ads para campaigns)
-- **`supabase/functions/auto-publish-scheduled/index.ts`** — filtrar `meta_organic`
-- **`supabase/functions/meta-ads/index.ts`** — filtrar `meta_ads`
+## Plano de melhorias (se aprovado)
+
+### Fase 1 — Scaffolds HTML base (maior impacto)
+Gerar e popular `html_scaffold` para os 10 templates que usam HTML (`html_only` e `html_and_image`). Cada scaffold será um HTML completo com variáveis `{{hook}}`, `{{body}}`, `{{cta}}`, `{{brand_color}}` etc., definindo layout, tipografia e espaçamento fixos. A IA só preenche o conteúdo.
+
+### Fase 2 — Preview real
+Alterar `TemplatePreview` para renderizar o scaffold HTML real (em miniatura via CSS transform scale) quando disponível. Fallback para o preview abstrato atual quando scaffold é null.
+
+### Fase 3 — Normalizar editable_fields
+Padronizar todos para formato objeto `{key: {label, type, default}}`. Migration para converter os que estão em array.
+
+### Fase 4 — Categorias + funil
+- Adicionar coluna `funnel_stage` (enum: `top`, `middle`, `bottom`) nos templates
+- Separar categories: `static`, `carousel`, `story`, `reels`
+- Atualizar os templates existentes
+
+### Fase 5 — Duplicar template
+Botão "Duplicar" na listagem que copia o template com `is_base: false`, `visibility: client_only`, permitindo customização.
+
+### Arquivos modificados
+- Migration SQL — popular scaffolds, normalizar campos, adicionar `funnel_stage`
+- `src/components/ui/TemplatePreview.tsx` — renderizar scaffold real
+- `src/pages/SettingsTemplates.tsx` — botão duplicar, filtros por categoria/funil
+- `src/components/ui/TemplateEditorDialog.tsx` — campo funnel_stage
 
