@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
-import { Megaphone, Plus, RefreshCw, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { Megaphone, Plus, RefreshCw, ChevronDown, ChevronRight, ExternalLink, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreateCampaignWizard } from "./CreateCampaignWizard";
+import { AddAdsToCampaignDialog } from "./AddAdsToCampaignDialog";
 import { toast } from "sonner";
 
 interface CampaignsTabProps {
@@ -16,6 +17,8 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
   const [creatives, setCreatives] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [addAdsOpen, setAddAdsOpen] = useState(false);
+  const [addAdsPreselectedCampaign, setAddAdsPreselectedCampaign] = useState<string | null>(null);
   const [metaAccount, setMetaAccount] = useState<any>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [landingPageUrl, setLandingPageUrl] = useState<string | null>(null);
@@ -107,19 +110,35 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
             </span>
           )}
         </SectionLabel>
-        <Button
-          size="sm"
-          className="text-xs gap-1.5"
-          style={{
-            background: "hsl(var(--accent))",
-            color: "hsl(var(--accent-foreground))",
-            fontFamily: "'DM Sans'",
-            borderRadius: 6,
-          }}
-          onClick={() => setWizardOpen(true)}
-        >
-          <Plus size={14} /> Criar Campanha
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs gap-1.5"
+            style={{
+              color: "hsl(var(--text-secondary))",
+              fontFamily: "'DM Sans'",
+              borderRadius: 6,
+              border: "1px solid hsl(var(--border-default))",
+            }}
+            onClick={() => { setAddAdsPreselectedCampaign(null); setAddAdsOpen(true); }}
+          >
+            <Upload size={14} /> Adicionar Anúncios
+          </Button>
+          <Button
+            size="sm"
+            className="text-xs gap-1.5"
+            style={{
+              background: "hsl(var(--accent))",
+              color: "hsl(var(--accent-foreground))",
+              fontFamily: "'DM Sans'",
+              borderRadius: 6,
+            }}
+            onClick={() => setWizardOpen(true)}
+          >
+            <Plus size={14} /> Criar Campanha
+          </Button>
+        </div>
       </div>
 
       {!metaAccount?.ad_account_id && (
@@ -237,9 +256,20 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
                     {/* Creatives list */}
                     {campCreatives.length > 0 ? (
                       <div className="space-y-2">
-                        <p className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
-                          Anúncios ({campCreatives.length})
-                        </p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
+                            Anúncios ({campCreatives.length})
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-[10px] gap-1 h-6"
+                            style={{ color: "hsl(var(--accent))", fontFamily: "'DM Sans'" }}
+                            onClick={(e) => { e.stopPropagation(); setAddAdsPreselectedCampaign(campaign.id); setAddAdsOpen(true); }}
+                          >
+                            <Plus size={10} /> Adicionar
+                          </Button>
+                        </div>
                         {campCreatives.map(creative => (
                           <div
                             key={creative.id}
@@ -273,9 +303,20 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-[10px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
-                        Nenhum anúncio vinculado
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
+                          Nenhum anúncio vinculado
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-[10px] gap-1 h-7"
+                          style={{ color: "hsl(var(--accent))", fontFamily: "'DM Sans'" }}
+                          onClick={(e) => { e.stopPropagation(); setAddAdsPreselectedCampaign(campaign.id); setAddAdsOpen(true); }}
+                        >
+                          <Plus size={10} /> Adicionar anúncio
+                        </Button>
+                      </div>
                     )}
                   </div>
                 )}
@@ -291,6 +332,16 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
         activationId={activationId}
         metaAccount={metaAccount}
         landingPageUrl={landingPageUrl}
+        onCreated={fetchData}
+      />
+
+      <AddAdsToCampaignDialog
+        open={addAdsOpen}
+        onOpenChange={setAddAdsOpen}
+        activationId={activationId}
+        metaAccount={metaAccount}
+        landingPageUrl={landingPageUrl}
+        preSelectedCampaignId={addAdsPreselectedCampaign}
         onCreated={fetchData}
       />
     </div>
