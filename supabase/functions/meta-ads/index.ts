@@ -638,7 +638,7 @@ Deno.serve(async (req) => {
         payload.rule = rule
           ? (typeof rule === "string" ? rule : JSON.stringify(rule))
           : JSON.stringify({
-              inclusions: { operator: "or", rules: [{ event_sources: [{ id: body.page_id, type: "page" }], retention_seconds: body.retention_seconds || 2592000 }] }
+              inclusions: { operator: "or", rules: [{ object_id: body.page_id, event_sources: [{ id: body.page_id, type: "page" }], retention_seconds: body.retention_seconds || 2592000, filter: { operator: "and", filters: [{ field: "event", operator: "eq", value: "page_engaged" }] } }] }
             });
       }
       if (customer_file_source) {
