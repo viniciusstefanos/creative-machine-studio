@@ -17,6 +17,8 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
   const [creatives, setCreatives] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [addAdsOpen, setAddAdsOpen] = useState(false);
+  const [addAdsPreselectedCampaign, setAddAdsPreselectedCampaign] = useState<string | null>(null);
   const [metaAccount, setMetaAccount] = useState<any>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [landingPageUrl, setLandingPageUrl] = useState<string | null>(null);
