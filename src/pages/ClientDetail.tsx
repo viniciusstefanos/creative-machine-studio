@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, FileText, Image, CheckCircle } from "lucide-react";
 import { MetaAccountSettings } from "@/components/client/MetaAccountSettings";
+import { ClientTemplates } from "@/components/client/ClientTemplates";
 
 const ClientDetail = () => {
   const { id } = useParams<{ id: string }>();
