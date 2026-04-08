@@ -2,6 +2,22 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { decodeBase64 } from "jsr:@std/encoding@1/base64";
 
+/** Strip code fences and any markdown/explanation text around HTML */
+function extractHtml(raw: string): string {
+  let s = raw.replace(/^```html?\s*/i, "").replace(/\s*```$/i, "").trim();
+  // Find first HTML tag and last closing tag
+  const startMatch = s.match(/(<(!DOCTYPE|html|head|body|div|section|link|style|meta)\b)/i);
+  const endMatch = s.match(/.*(\/\s*(html|body|div|section|style)>)/is);
+  if (startMatch?.index !== undefined && endMatch) {
+    const endIdx = s.lastIndexOf(endMatch[2].startsWith("/") ? endMatch[2] : "</" + endMatch[2]);
+    const lastClose = s.indexOf(">", endIdx) + 1;
+    if (lastClose > startMatch.index) {
+      s = s.substring(startMatch.index, lastClose);
+    }
+  }
+  return s.trim();
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -88,7 +104,8 @@ Generate a self-contained HTML document for this creative piece. Requirements:
 - Display the CTA as a prominent teal button
 - Layout should feel like a polished social media ad
 - Add subtle gradient background and card shadows
-- Output ONLY the complete HTML document, no markdown, no explanation`;
+- Output ONLY the complete HTML document, no markdown, no explanation
+- ZERO texto explicativo antes ou depois do HTML. ZERO markdown. Apenas o código HTML puro.`;
 
     const htmlResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -129,11 +146,7 @@ Generate a self-contained HTML document for this creative piece. Requirements:
     const htmlData = await htmlResponse.json();
     let htmlContent: string = htmlData.choices?.[0]?.message?.content || "";
 
-    // Strip markdown code fences if the model wrapped the output
-    htmlContent = htmlContent
-      .replace(/^```html?\s*/i, "")
-      .replace(/\s*```$/i, "")
-      .trim();
+    htmlContent = extractHtml(htmlContent);
 
     // ─── 2. Generate image via Lovable AI (optional — continues without it) ──
     let imageUrl: string | null = null;
