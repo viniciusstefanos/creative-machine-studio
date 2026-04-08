@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { decode } from "jsr:@std/encoding@1/base64";
+import { decodeBase64 } from "jsr:@std/encoding@1/base64";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -336,7 +336,7 @@ async function generateImage(
       return null;
     }
 
-    const imageBytes = decode(base64Data);
+    const imageBytes = decodeBase64(base64Data);
     const filePath = `generated/${assetId}/${Date.now()}.png`;
     const { error: uploadErr } = await supabase.storage
       .from("assets")
