@@ -156,6 +156,18 @@ const AssetDetail = () => {
     setShowFeedback(false);
   };
 
+  const handleDeleteAsset = async () => {
+    if (!confirm("Excluir esta peça permanentemente?")) return;
+    await supabase.from("asset_template_renders").delete().eq("asset_id", assetId!);
+    const { error } = await supabase.from("assets").delete().eq("id", assetId!);
+    if (error) {
+      toast.error("Erro ao excluir peça");
+    } else {
+      toast.success("Peça excluída");
+      navigate(`/activations/${id}/assets`);
+    }
+  };
+
   const handleRegenerate = async () => {
     if (!asset || !id) return;
     setActionLoading(true);
