@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ const FUNNEL_OPTIONS = [
 ] as const;
 
 export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
+  const queryClient = useQueryClient();
   const [copies, setCopies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -96,6 +98,7 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
       toast.success(`${ids.length} copy(ies) excluído(s)`);
       setSelected(new Set());
       fetchCopies();
+      queryClient.invalidateQueries({ queryKey: ["activation-hub", activationId] });
     }
     setDeleting(false);
   };

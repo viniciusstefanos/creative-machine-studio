@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -36,6 +37,7 @@ interface AssetsTabProps {
 
 export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
@@ -124,6 +126,7 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
       toast({ title: `${ids.length} peça(s) excluída(s)` });
       setSelected(new Set());
       fetchAssets();
+      queryClient.invalidateQueries({ queryKey: ["activation-hub", activationId] });
     } catch (e: any) {
       toast({
         title: "Erro ao excluir",
