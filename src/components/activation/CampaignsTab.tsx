@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
-import { Megaphone, Plus, RefreshCw, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { Megaphone, Plus, RefreshCw, ChevronDown, ChevronRight, ExternalLink, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreateCampaignWizard } from "./CreateCampaignWizard";
+import { AddAdsToCampaignDialog } from "./AddAdsToCampaignDialog";
 import { toast } from "sonner";
 
 interface CampaignsTabProps {
