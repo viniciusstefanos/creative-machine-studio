@@ -640,15 +640,15 @@ Deno.serve(async (req) => {
         payload.customer_file_source = customer_file_source;
       }
 
-      // Send as form-urlencoded for Meta API compatibility
-      const formBody = Object.entries(payload)
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
-        .join("&");
+      // Build URL with params for Meta API
+      const params = new URLSearchParams();
+      for (const [k, v] of Object.entries(payload)) {
+        params.append(k, String(v));
+      }
 
       const res = await fetch(`${META_GRAPH_URL}/${ad_account_id}/customaudiences`, {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: formBody,
+        body: params,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(`Create audience failed [${res.status}]: ${JSON.stringify(data)}`);
