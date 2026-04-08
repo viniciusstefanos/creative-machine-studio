@@ -65,6 +65,8 @@ export function TemplateEditorDialog({ open, onOpenChange, template, clients, on
   const [aiDescription, setAiDescription] = useState("");
   const [aiImageFile, setAiImageFile] = useState<File | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [saving, setSaving] = useState(false);
 
