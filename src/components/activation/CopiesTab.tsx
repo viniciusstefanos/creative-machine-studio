@@ -9,7 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, FileText, Sparkles, Loader2, Trash2 } from "lucide-react";
+import { Plus, FileText, Sparkles, Loader2, Trash2, LayoutGrid, LayoutList } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 
 interface CopiesTabProps {
@@ -46,6 +47,7 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
   const [filter, setFilter] = useState<PurposeFilter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   // Generation dialog state
   const [showGenDialog, setShowGenDialog] = useState(false);
@@ -106,6 +108,15 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
   const filtered = filter === "all" ? copies : copies.filter(c => (c.purpose || "organic") === filter);
   const orgCount = copies.filter(c => (c.purpose || "organic") === "organic").length;
   const adsCount = copies.filter(c => (c.purpose || "organic") === "ads").length;
+
+  const allSelected = filtered.length > 0 && filtered.every(c => selected.has(c.id));
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map(c => c.id)));
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,6 +190,21 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <SectionLabel>Copies</SectionLabel>
         <div className="flex gap-2">
+         <div className="flex items-center gap-1 mr-1" style={{ background: "hsl(var(--bg-surface2))", borderRadius: 6, padding: 2 }}>
+            {(["list", "grid"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className="p-1.5 rounded transition-all"
+                style={{
+                  background: viewMode === mode ? "hsl(var(--accent) / 0.12)" : "transparent",
+                  color: viewMode === mode ? "hsl(var(--accent))" : "hsl(var(--text-muted))",
+                }}
+              >
+                {mode === "list" ? <LayoutList size={14} /> : <LayoutGrid size={14} />}
+              </button>
+            ))}
+          </div>
           {selected.size > 0 && (
             <Button
               variant="destructive"
@@ -419,6 +445,72 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
             </Button>
           )}
         </div>
+      ) : viewMode === "list" ? (
+        <Table>
+          <TableHeader>
+            <TableRow style={{ borderColor: "hsl(var(--border-subtle))" }}>
+              <TableHead className="w-10">
+                <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
+              </TableHead>
+              <TableHead className="w-20 text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Tipo</TableHead>
+              <TableHead className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Gancho</TableHead>
+              <TableHead className="w-28 text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Canal</TableHead>
+              <TableHead className="w-20 text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Funil</TableHead>
+              <TableHead className="w-24 text-[10px] text-right" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map((copy) => {
+              const purpose = copy.purpose || "organic";
+              const isSelected = selected.has(copy.id);
+              return (
+                <TableRow
+                  key={copy.id}
+                  className="cursor-pointer"
+                  style={{ borderColor: "hsl(var(--border-subtle))" }}
+                  data-state={isSelected ? "selected" : undefined}
+                >
+                  <TableCell className="py-2">
+                    <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(copy.id)} />
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                      style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        background: `hsl(var(${purposeColor[purpose]}) / 0.12)`,
+                        color: `hsl(var(${purposeColor[purpose]}))`,
+                        border: `1px solid hsl(var(${purposeColor[purpose]}) / 0.25)`,
+                      }}
+                    >
+                      {purposeLabel[purpose]}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <Link
+                      to={`/activations/${activationId}/copies/${copy.id}`}
+                      className="text-body text-sm hover:underline line-clamp-1"
+                      style={{ color: "hsl(var(--text-primary))" }}
+                    >
+                      {copy.hook || "Copy sem gancho"}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span className="text-mono-label">{copy.type} · {copy.channel || "—"}</span>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <span className="text-mono text-[10px] px-1.5 py-0.5 rounded" style={{ background: "hsl(var(--bg-surface2))", color: "hsl(var(--text-muted))" }}>
+                      {copy.funnel_stage || "—"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-2 text-right">
+                    <StatusBadge status={copy.status} />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       ) : (
         <div className="grid grid-cols-1 gap-3">
           {filtered.map((copy) => {
