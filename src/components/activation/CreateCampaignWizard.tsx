@@ -149,6 +149,10 @@ export const CreateCampaignWizard = ({
   const [utmSource, setUtmSource] = useState("facebook");
   const [utmMedium, setUtmMedium] = useState("paid");
   const [utmCampaign, setUtmCampaign] = useState("");
+  const [utmContent, setUtmContent] = useState("");
+  const [utmTerm, setUtmTerm] = useState("");
+  const [utmDynamic, setUtmDynamic] = useState(false);
+  const [utmLoaded, setUtmLoaded] = useState(false);
 
   const objConfig = OBJECTIVE_CONFIG[objective];
 
@@ -156,6 +160,22 @@ export const CreateCampaignWizard = ({
     if (open && activationId) {
       supabase.from("activations").select("slug").eq("id", activationId).single()
         .then(({ data }) => { if (data?.slug) setActivationSlug(data.slug); });
+
+      // Load meta_ads UTM config
+      if (!utmLoaded) {
+        supabase.from("utm_configs").select("*").eq("activation_id", activationId).eq("channel", "meta_ads").single()
+          .then(({ data: utmData }) => {
+            if (utmData) {
+              if (utmData.utm_source) setUtmSource(utmData.utm_source);
+              if (utmData.utm_medium) setUtmMedium(utmData.utm_medium);
+              if (utmData.utm_campaign) setUtmCampaign(utmData.utm_campaign);
+              if (utmData.utm_content) setUtmContent(utmData.utm_content);
+              if (utmData.utm_term) setUtmTerm(utmData.utm_term);
+              setUtmDynamic(utmData.use_dynamic_params || false);
+            }
+            setUtmLoaded(true);
+          });
+      }
     }
   }, [open, activationId]);
 
@@ -247,9 +267,11 @@ export const CreateCampaignWizard = ({
 
   const buildUtmTags = () => {
     const parts: string[] = [];
-    if (utmSource) parts.push(`utm_source=${encodeURIComponent(utmSource)}`);
-    if (utmMedium) parts.push(`utm_medium=${encodeURIComponent(utmMedium)}`);
-    if (utmCampaign) parts.push(`utm_campaign=${encodeURIComponent(utmCampaign)}`);
+    if (utmSource) parts.push(`utm_source=${utmDynamic ? utmSource : encodeURIComponent(utmSource)}`);
+    if (utmMedium) parts.push(`utm_medium=${utmDynamic ? utmMedium : encodeURIComponent(utmMedium)}`);
+    if (utmCampaign) parts.push(`utm_campaign=${utmDynamic ? utmCampaign : encodeURIComponent(utmCampaign)}`);
+    if (utmContent) parts.push(`utm_content=${utmDynamic ? utmContent : encodeURIComponent(utmContent)}`);
+    if (utmTerm) parts.push(`utm_term=${utmDynamic ? utmTerm : encodeURIComponent(utmTerm)}`);
     return parts.join("&");
   };
 
@@ -704,7 +726,17 @@ export const CreateCampaignWizard = ({
             </div>
 
             <div>
-              <Label className="text-xs mb-1.5 block" style={labelStyle}>UTM Tracking</Label>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Label className="text-xs" style={labelStyle}>UTM Tracking</Label>
+                {utmDynamic && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: "hsl(var(--accent) / 0.15)", color: "hsl(var(--accent))", fontFamily: "'JetBrains Mono'" }}>
+                    Dinâmico
+                  </span>
+                )}
+                {utmLoaded && !utmDynamic && (
+                  <span className="text-[9px]" style={{ color: "hsl(var(--text-muted))" }}>da aba UTMs</span>
+                )}
+              </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <span className="text-[10px] block mb-0.5" style={{ color: "hsl(var(--text-muted))" }}>Source</span>
@@ -717,6 +749,14 @@ export const CreateCampaignWizard = ({
                 <div>
                   <span className="text-[10px] block mb-0.5" style={{ color: "hsl(var(--text-muted))" }}>Campaign</span>
                   <Input value={utmCampaign} onChange={e => setUtmCampaign(e.target.value)} placeholder={campaignName.toLowerCase().replace(/\s+/g, "-")} style={{ ...monoInputStyle, fontSize: "11px" }} />
+                </div>
+                <div>
+                  <span className="text-[10px] block mb-0.5" style={{ color: "hsl(var(--text-muted))" }}>Content</span>
+                  <Input value={utmContent} onChange={e => setUtmContent(e.target.value)} placeholder={utmDynamic ? "{{ad.name}}" : "banner-hero"} style={{ ...monoInputStyle, fontSize: "11px" }} />
+                </div>
+                <div>
+                  <span className="text-[10px] block mb-0.5" style={{ color: "hsl(var(--text-muted))" }}>Term</span>
+                  <Input value={utmTerm} onChange={e => setUtmTerm(e.target.value)} placeholder={utmDynamic ? "{{adset.name}}" : ""} style={{ ...monoInputStyle, fontSize: "11px" }} />
                 </div>
               </div>
             </div>
