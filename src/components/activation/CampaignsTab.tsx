@@ -256,9 +256,20 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
                     {/* Creatives list */}
                     {campCreatives.length > 0 ? (
                       <div className="space-y-2">
-                        <p className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
-                          Anúncios ({campCreatives.length})
-                        </p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] uppercase tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
+                            Anúncios ({campCreatives.length})
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-[10px] gap-1 h-6"
+                            style={{ color: "hsl(var(--accent))", fontFamily: "'DM Sans'" }}
+                            onClick={(e) => { e.stopPropagation(); setAddAdsPreselectedCampaign(campaign.id); setAddAdsOpen(true); }}
+                          >
+                            <Plus size={10} /> Adicionar
+                          </Button>
+                        </div>
                         {campCreatives.map(creative => (
                           <div
                             key={creative.id}
