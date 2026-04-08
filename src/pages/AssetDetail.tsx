@@ -117,6 +117,32 @@ const AssetDetail = () => {
 
   useEffect(() => { fetchAsset(); }, [fetchAsset]);
 
+  // Keyboard shortcuts for approval flow
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Don't trigger if typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (editMode !== "none") return;
+
+      if (e.key === "a" && asset?.status === "review" && !actionLoading) {
+        e.preventDefault();
+        updateStatus("approved");
+      } else if (e.key === "r" && asset?.status === "review" && !actionLoading) {
+        e.preventDefault();
+        setShowFeedback(true);
+      } else if (e.key === "ArrowRight" && nextAsset) {
+        e.preventDefault();
+        navigate(`/activations/${id}/assets/${nextAsset.id}`);
+      } else if (e.key === "ArrowLeft" && prevAsset) {
+        e.preventDefault();
+        navigate(`/activations/${id}/assets/${prevAsset.id}`);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [asset?.status, actionLoading, editMode, nextAsset, prevAsset, id, navigate]);
+
   // Fetch sibling assets for prev/next navigation
   useEffect(() => {
     if (!id) return;
