@@ -688,6 +688,7 @@ export type Database = {
           hook: string | null
           id: string
           landing_page_url: string | null
+          purpose: string | null
           status: string | null
           tags: string[] | null
           type: string | null
@@ -705,6 +706,7 @@ export type Database = {
           hook?: string | null
           id?: string
           landing_page_url?: string | null
+          purpose?: string | null
           status?: string | null
           tags?: string[] | null
           type?: string | null
@@ -722,6 +724,7 @@ export type Database = {
           hook?: string | null
           id?: string
           landing_page_url?: string | null
+          purpose?: string | null
           status?: string | null
           tags?: string[] | null
           type?: string | null
