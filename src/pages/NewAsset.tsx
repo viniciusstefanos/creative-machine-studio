@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Check, ChevronRight, Loader2, Sparkles, Layout, Image, Layers, Eye, Pencil } from "lucide-react";
+import { Check, ChevronRight, Loader2, Sparkles, Eye, Pencil } from "lucide-react";
 import { buildAssetName } from "@/lib/assetNaming";
+import { TemplatePreview } from "@/components/ui/TemplatePreview";
 
 interface EditableField {
   label: string;
@@ -18,14 +19,6 @@ interface EditableField {
   min?: number;
   max?: number;
 }
-
-const categoryIcon = (cat: string) => {
-  switch (cat) {
-    case "carousel": return <Layers size={28} className="text-txt-ghost" />;
-    case "static": return <Image size={28} className="text-txt-ghost" />;
-    default: return <Layout size={28} className="text-txt-ghost" />;
-  }
-};
 
 /** Fill {{key}} placeholders in a template string */
 const fillTemplate = (tpl: string, ctx: Record<string, any>): string =>
@@ -309,11 +302,8 @@ const NewAsset = () => {
                 }`}
                 style={{ padding: 0 }}
               >
-                <div
-                  className="flex items-center justify-center bg-surface-2 border-b border-line-subtle"
-                  style={{ maxHeight: 160, aspectRatio: t.aspect_ratio === "9:16" ? "9/16" : "1/1" }}
-                >
-                  {categoryIcon(t.category)}
+                <div className="bg-surface-2 border-b border-line-subtle flex items-center justify-center" style={{ minHeight: 120 }}>
+                  <TemplatePreview template={t} />
                 </div>
                 <div className="p-3">
                   <p className="text-body font-medium mb-2">{t.name}</p>
