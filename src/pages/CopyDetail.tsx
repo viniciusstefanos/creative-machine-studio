@@ -28,6 +28,8 @@ const CopyDetail = () => {
   const [regeneratingBlock, setRegeneratingBlock] = useState<string | null>(null);
   const [creatingVariation, setCreatingVariation] = useState(false);
   const [workflowData, setWorkflowData] = useState({ briefDone: false, copiesApproved: 0, assetsApproved: 0, scheduledCount: 0 });
+  const [pendingCount, setPendingCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     if (!copyId || !activationId) return;
