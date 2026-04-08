@@ -75,6 +75,31 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
 
   useEffect(() => { fetchCopies(); }, [activationId]);
 
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!confirm(`Excluir ${selected.size} copy(ies) permanentemente?`)) return;
+    setDeleting(true);
+    const ids = Array.from(selected);
+    // Remove associated assets' copy_id references first
+    await supabase.from("assets").update({ copy_id: null }).in("copy_id", ids);
+    const { error } = await supabase.from("copies").delete().in("id", ids);
+    if (error) {
+      toast.error("Erro ao excluir copies");
+    } else {
+      toast.success(`${ids.length} copy(ies) excluído(s)`);
+      setSelected(new Set());
+      fetchCopies();
+    }
+    setDeleting(false);
+  };
+
   const filtered = filter === "all" ? copies : copies.filter(c => (c.purpose || "organic") === filter);
   const orgCount = copies.filter(c => (c.purpose || "organic") === "organic").length;
   const adsCount = copies.filter(c => (c.purpose || "organic") === "ads").length;
