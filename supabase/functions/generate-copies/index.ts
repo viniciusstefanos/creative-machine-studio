@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { BRIEF_SYSTEM_PROMPT } from "../_shared/brief-system-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
