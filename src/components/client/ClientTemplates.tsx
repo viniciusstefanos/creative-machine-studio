@@ -101,7 +101,7 @@ export function ClientTemplates({ clientId }: { clientId: string }) {
               <div className="p-3 border-b border-[hsl(var(--border-subtle))]">
                 <p className="text-body font-medium text-sm">Templates globais</p>
               </div>
-              <ScrollArea className="max-h-64">
+              <ScrollArea className="h-[min(400px,60vh)]">
                 <div className="p-2 space-y-1">
                   {globalTemplates.map((t) => (
                     <label key={t.id} className="flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-[hsl(var(--bg-surface2))] cursor-pointer transition-colors">
