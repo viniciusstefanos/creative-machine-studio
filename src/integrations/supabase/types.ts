@@ -518,11 +518,13 @@ export type Database = {
         Row: {
           activation_id: string
           brand_colors: string | null
+          consolidated_context: Json | null
           extra_context: string | null
           id: string
           objectives: string | null
           references_urls: string[] | null
           source_file_url: string | null
+          system_prompt: string | null
           target_audience: string | null
           tone_of_voice: string | null
           typography: string | null
@@ -532,11 +534,13 @@ export type Database = {
         Insert: {
           activation_id: string
           brand_colors?: string | null
+          consolidated_context?: Json | null
           extra_context?: string | null
           id?: string
           objectives?: string | null
           references_urls?: string[] | null
           source_file_url?: string | null
+          system_prompt?: string | null
           target_audience?: string | null
           tone_of_voice?: string | null
           typography?: string | null
@@ -546,11 +550,13 @@ export type Database = {
         Update: {
           activation_id?: string
           brand_colors?: string | null
+          consolidated_context?: Json | null
           extra_context?: string | null
           id?: string
           objectives?: string | null
           references_urls?: string[] | null
           source_file_url?: string | null
+          system_prompt?: string | null
           target_audience?: string | null
           tone_of_voice?: string | null
           typography?: string | null
