@@ -8,7 +8,6 @@ function buildGoogleFontsUrl(html: string): string | null {
   let match;
   while ((match = fontFamilyRegex.exec(html)) !== null) {
     const name = match[1].trim();
-    // Skip system/generic fonts
     if (["Helvetica Neue", "Helvetica", "Arial", "sans-serif", "serif", "monospace", "system-ui"].includes(name)) continue;
     families.add(name);
   }
@@ -24,34 +23,46 @@ export async function renderHtmlToPng(
   width: number,
   height: number
 ): Promise<string> {
-  const container = document.createElement("div");
-  container.style.cssText = `
-    position: fixed; top: -9999px; left: -9999px;
-    width: ${width}px; height: ${height}px; overflow: hidden;
-  `;
-
-  // Inject Google Fonts link
   const fontsUrl = buildGoogleFontsUrl(htmlContent);
-  if (fontsUrl) {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = fontsUrl;
-    document.head.appendChild(link);
-  }
 
-  container.innerHTML = htmlContent;
-  document.body.appendChild(container);
+  // Use an offscreen iframe to fully isolate from the app's global CSS
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${width}px;height:${height}px;border:none;opacity:0;pointer-events:none;`;
+  document.body.appendChild(iframe);
 
   try {
-    // Wait for fonts to load (max 3s)
+    const doc = iframe.contentDocument!;
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+${fontsUrl ? `<link rel="stylesheet" href="${fontsUrl}">` : ""}
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+button,a,[role="button"]{display:inline-flex;align-items:center;justify-content:center;text-align:center}
+</style>
+</head><body style="width:${width}px;height:${height}px;overflow:hidden;margin:0;padding:0">
+${htmlContent}
+</body></html>`);
+    doc.close();
+
+    // Wait for iframe load
+    await new Promise<void>((resolve) => {
+      if (doc.readyState === "complete") {
+        resolve();
+      } else {
+        iframe.addEventListener("load", () => resolve(), { once: true });
+      }
+    });
+
+    // Wait for fonts (max 3s)
     await Promise.race([
-      document.fonts.ready,
+      doc.fonts.ready,
       new Promise(resolve => setTimeout(resolve, 3000)),
     ]);
     // Extra small delay for rendering
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 150));
 
-    const canvas = await html2canvas(container, {
+    const canvas = await html2canvas(doc.body, {
       width,
       height,
       scale: 2,
@@ -61,7 +72,7 @@ export async function renderHtmlToPng(
     });
     return canvas.toDataURL("image/png", 1.0);
   } finally {
-    document.body.removeChild(container);
+    document.body.removeChild(iframe);
   }
 }
 
