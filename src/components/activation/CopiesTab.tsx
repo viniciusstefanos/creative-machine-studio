@@ -9,7 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, FileText, Sparkles, Loader2, Trash2 } from "lucide-react";
+import { Plus, FileText, Sparkles, Loader2, Trash2, LayoutGrid, LayoutList } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 
 interface CopiesTabProps {
