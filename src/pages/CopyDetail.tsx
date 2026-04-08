@@ -248,6 +248,19 @@ const CopyDetail = () => {
               </Button>
               <h1 className="text-display-md">Copy v{copy.version}</h1>
               <StatusBadge status={copy.status} />
+              {pendingCount > 0 && (
+                <span
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    background: "hsl(var(--bg-surface2))",
+                    color: "hsl(var(--text-muted))",
+                    border: "1px solid hsl(var(--border-default))",
+                  }}
+                >
+                  {pendingCount} de {totalCount} pendentes
+                </span>
+              )}
               <span
                 className="text-[9px] font-bold px-1.5 py-0.5 rounded"
                 style={{
