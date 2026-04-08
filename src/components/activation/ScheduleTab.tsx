@@ -41,11 +41,14 @@ export const ScheduleTab = ({ activationId, assetsApproved }: ScheduleTabProps) 
       .eq("id", activationId)
       .single();
     if (act?.client_id) {
-      const { data: meta } = await supabase
+      // Prefer meta_organic record, fallback to legacy "meta"
+      const { data: metaRecords } = await supabase
         .from("client_meta_accounts")
         .select("*")
         .eq("client_id", act.client_id)
-        .maybeSingle();
+        .in("platform", ["meta_organic", "meta"]);
+      const meta = metaRecords?.find((r) => r.platform === "meta_organic")
+        || metaRecords?.[0] || null;
       setMetaAccount(meta);
     }
     setLoading(false);

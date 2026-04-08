@@ -321,7 +321,7 @@ Deno.serve(async (req) => {
 
     // ─── Get client meta credentials ───
     if (action === "get_client_meta") {
-      const { activation_id } = body;
+      const { activation_id, context } = body;
       
       const { data: activation } = await supabase
         .from("activations")
@@ -331,11 +331,16 @@ Deno.serve(async (req) => {
       
       if (!activation) throw new Error("Activation not found");
 
-      const { data: metaAccount } = await supabase
+      // Filter by context: "ads" → meta_ads, "organic" → meta_organic, default → meta_ads
+      const preferredPlatform = context === "organic" ? "meta_organic" : "meta_ads";
+      const { data: metaRecords } = await supabase
         .from("client_meta_accounts")
         .select("*")
         .eq("client_id", activation.client_id)
-        .single();
+        .in("platform", [preferredPlatform, "meta"]);
+      
+      const metaAccount = metaRecords?.find((r: any) => r.platform === preferredPlatform)
+        || metaRecords?.[0] || null;
 
       return new Response(JSON.stringify({ meta_account: metaAccount || null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
