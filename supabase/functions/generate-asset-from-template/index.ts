@@ -574,8 +574,17 @@ Deno.serve(async (req) => {
       const brandColorInstruction2 = context.brand_colors
         ? `\n\n## CORES DA MARCA (OBRIGATÓRIO)\nUse EXCLUSIVAMENTE estas cores: ${context.brand_colors}\n- Cor primária para elementos dominantes\n- Cor de acento para CTA/botões\n`
         : "";
-      const overlaySystem = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + brandColorInstruction2 + customPrompt;
-      const overlayPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nImagem de fundo: ${bgImageUrl || "não disponível"}\nConfig: ${JSON.stringify(config)}`;
+      const typographyInstruction2 = context.typography
+        ? `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO)\n${context.typography}\n`
+        : "";
+      const visualStyleInstruction2 = context.visual_style
+        ? `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\n${context.visual_style}\n`
+        : "";
+      const overlaySystem = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + brandColorInstruction2 + typographyInstruction2 + visualStyleInstruction2 + customPrompt;
+      const briefContextBlock2 = consolidatedStr
+        ? `\n\n## BRIEFING DO CLIENTE\n${consolidatedStr}`
+        : "";
+      const overlayPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nImagem de fundo: ${bgImageUrl || "não disponível"}\nConfig: ${JSON.stringify(config)}${briefContextBlock2}`;
       const rawHtml = await callTextAI(overlaySystem, overlayPrompt, useClaude, anthropicKey, lovableKey);
       const html = extractHtml(rawHtml);
 
