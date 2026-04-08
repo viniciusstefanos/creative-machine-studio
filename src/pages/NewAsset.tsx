@@ -18,6 +18,21 @@ interface EditableField {
   options?: string[];
   min?: number;
   max?: number;
+  locked?: boolean;
+}
+
+/** Extract hex colors from brief's brand_colors text and consolidated_context */
+function extractBriefColors(brief: any): { primary?: string; secondary?: string; accent?: string } {
+  const colors: string[] = [];
+  const hexMatches = (brief?.brand_colors || "").match(/#[0-9A-Fa-f]{6}/g) || [];
+  colors.push(...hexMatches);
+  const consolidated = (brief?.consolidated_context as any)?.visual_guidelines?.colors_hex || [];
+  colors.push(...consolidated.filter((c: string) => !colors.includes(c)));
+  return {
+    primary: colors[0],
+    secondary: colors[1],
+    accent: colors[2] || colors[0],
+  };
 }
 
 /** Fill {{key}} placeholders in a template string */
@@ -88,18 +103,38 @@ const NewAsset = () => {
     fetchData();
   }, [id]);
 
+  // Track which color fields were auto-filled from brief
+  const [briefColorFields, setBriefColorFields] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     if (!selectedTemplate?.editable_fields) {
       setRenderConfig({});
+      setBriefColorFields(new Set());
       return;
     }
     const defaults: Record<string, any> = {};
     const fields = selectedTemplate.editable_fields as Record<string, EditableField>;
+    const briefColors = extractBriefColors(brief);
+    const filledFromBrief = new Set<string>();
+
+    const colorMap: Record<string, string | undefined> = {
+      brand_color: briefColors.primary,
+      accent_color: briefColors.accent,
+      cta_color: briefColors.accent || briefColors.primary,
+      primary_color: briefColors.primary,
+      secondary_color: briefColors.secondary,
+    };
+
     Object.entries(fields).forEach(([key, field]) => {
       defaults[key] = field.default;
+      if (field.type === "color" && !field.locked && colorMap[key]) {
+        defaults[key] = colorMap[key]!;
+        filledFromBrief.add(key);
+      }
     });
     setRenderConfig(defaults);
-  }, [selectedTemplate]);
+    setBriefColorFields(filledFromBrief);
+  }, [selectedTemplate, brief]);
 
   // Build image prompt when entering the prompt review step
   const buildImagePrompt = () => {
@@ -382,6 +417,16 @@ const NewAsset = () => {
                           className="w-8 h-8 rounded border-none cursor-pointer bg-transparent p-0"
                         />
                         <span className="text-mono">{renderConfig[key] || field.default}</span>
+                        {briefColorFields.has(key) && (
+                          <span className="text-mono px-1.5 py-0.5 rounded bg-accent-surface text-accent text-[10px]">
+                            🎨 Do briefing
+                          </span>
+                        )}
+                        {field.locked && (
+                          <span className="text-mono px-1.5 py-0.5 rounded bg-surface-3 text-txt-ghost text-[10px]">
+                            🔒 Fixo
+                          </span>
+                        )}
                       </div>
                     )}
                     {field.type === "select" && (
