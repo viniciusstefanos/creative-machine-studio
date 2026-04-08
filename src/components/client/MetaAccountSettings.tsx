@@ -314,6 +314,16 @@ export const MetaAccountSettings = ({ clientId }: MetaAccountSettingsProps) => {
           />
         </div>
 
+        <div>
+          <label className="field-label">Pixel ID (para campanhas de conversão)</label>
+          <Input
+            value={adsForm.pixel_id}
+            onChange={(e) => setAdsForm({ ...adsForm, pixel_id: e.target.value })}
+            placeholder="123456789..."
+            className="text-xs font-mono"
+          />
+        </div>
+
         {adsForm.ad_account_id && (
           <div className="flex items-center gap-1.5 text-xs" style={{ color: "hsl(var(--accent))" }}>
             <Check size={12} /> Vinculado
