@@ -200,6 +200,21 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
               borderRadius: 6,
               border: "1px solid hsl(var(--border-default))",
             }}
+            onClick={handleOpenImport}
+            disabled={!metaAccount?.ad_account_id}
+          >
+            <Download size={14} /> Importar do Meta
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs gap-1.5"
+            style={{
+              color: "hsl(var(--text-secondary))",
+              fontFamily: "'DM Sans'",
+              borderRadius: 6,
+              border: "1px solid hsl(var(--border-default))",
+            }}
             onClick={() => { setAddAdsPreselectedCampaign(null); setAddAdsOpen(true); }}
           >
             <Upload size={14} /> Adicionar Anúncios
