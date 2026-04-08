@@ -185,22 +185,51 @@ const AssetDetail = () => {
     setAsset((prev: any) => ({ ...prev, status: "approved" }));
   }, [assetId, template]);
 
-  const updateStatus = async (status: string, extraFields?: Record<string, any>) => {
+  // Count review assets for progress
+  const reviewStats = useMemo(() => {
+    const total = siblingAssets.length;
+    const pending = siblingAssets.filter(a => a.status === "review").length;
+    const approved = siblingAssets.filter(a => a.status === "approved").length;
+    return { total, pending, approved };
+  }, [siblingAssets]);
+
+  const goToNextReview = useCallback(async () => {
+    // Find next asset with status "review" (excluding current)
+    const nextReview = siblingAssets.find(a => a.id !== assetId && a.status === "review");
+    if (nextReview) {
+      navigate(`/activations/${id}/assets/${nextReview.id}`, { replace: true });
+    } else {
+      toast.success("🎉 Todas as peças foram revisadas!", {
+        description: `${reviewStats.approved + 1} peças aprovadas`,
+      });
+      navigate(`/activations/${id}/assets`);
+    }
+  }, [siblingAssets, assetId, id, navigate, reviewStats]);
+
+  const updateStatus = async (status: string, extraFields?: Record<string, any>, autoNavigate = false) => {
     setActionLoading(true);
     const { error } = await supabase.from("assets").update({ status, ...extraFields }).eq("id", assetId!);
     if (error) {
       toast.error("Falha ao atualizar");
     } else {
       setAsset((prev: any) => ({ ...prev, status, ...extraFields }));
+      // Update sibling status locally for accurate counting
+      setSiblingAssets(prev => prev.map(a => a.id === assetId ? { ...a, status } : a));
+
       if (status === "approved") {
-        toast.success("Peça aprovada!", {
+        toast.success(`Peça aprovada ✓ — ${reviewStats.approved + 1} de ${reviewStats.total} revisadas`, {
           description: "Renderizando PNGs em background...",
-          action: { label: "Agendar →", onClick: () => navigate(`/activations/${id}/schedule`) },
         });
-        // Fire-and-forget background render
         triggerBackgroundRender();
+        // Auto-navigate to next review asset
+        setTimeout(() => goToNextReview(), 600);
       } else if (status === "rejected") {
-        toast("Peça rejeitada", { description: "Adicione feedback e gere nova versão." });
+        if (autoNavigate) {
+          toast("Peça rejeitada", { description: "Indo para próxima..." });
+          setTimeout(() => goToNextReview(), 600);
+        } else {
+          toast("Peça rejeitada", { description: "Adicione feedback e gere nova versão." });
+        }
       }
     }
     setActionLoading(false);
