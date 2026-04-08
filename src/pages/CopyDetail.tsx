@@ -28,6 +28,8 @@ const CopyDetail = () => {
   const [regeneratingBlock, setRegeneratingBlock] = useState<string | null>(null);
   const [creatingVariation, setCreatingVariation] = useState(false);
   const [workflowData, setWorkflowData] = useState({ briefDone: false, copiesApproved: 0, assetsApproved: 0, scheduledCount: 0 });
+  const [pendingCount, setPendingCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     if (!copyId || !activationId) return;
@@ -47,11 +49,13 @@ const CopyDetail = () => {
         setClientName((actRes.data as any).clients?.name || "");
       }
 
-      const [briefRes, copiesApprovedRes, assetsApprovedRes, scheduledRes] = await Promise.all([
+      const [briefRes, copiesApprovedRes, assetsApprovedRes, scheduledRes, pendingRes, totalRes] = await Promise.all([
         supabase.from("briefs").select("objectives").eq("activation_id", activationId).single(),
         supabase.from("copies").select("id", { count: "exact" }).eq("activation_id", activationId).eq("status", "approved"),
         supabase.from("assets").select("id", { count: "exact" }).eq("activation_id", activationId).eq("status", "approved"),
         supabase.from("scheduled_posts").select("id", { count: "exact" }).eq("activation_id", activationId),
+        supabase.from("copies").select("id", { count: "exact" }).eq("activation_id", activationId).in("status", ["review", "draft"]),
+        supabase.from("copies").select("id", { count: "exact" }).eq("activation_id", activationId),
       ]);
       setWorkflowData({
         briefDone: !!(briefRes.data?.objectives),
@@ -59,11 +63,32 @@ const CopyDetail = () => {
         assetsApproved: assetsApprovedRes.count || 0,
         scheduledCount: scheduledRes.count || 0,
       });
+      setPendingCount(pendingRes.count || 0);
+      setTotalCount(totalRes.count || 0);
 
       setLoading(false);
     };
     fetchData();
   }, [copyId, activationId]);
+
+  const goToNextCopy = async () => {
+    const { data } = await supabase
+      .from("copies")
+      .select("id")
+      .eq("activation_id", activationId!)
+      .in("status", ["review", "draft"])
+      .neq("id", copyId!)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .single();
+
+    if (data) {
+      navigate(`/activations/${activationId}/copies/${data.id}`, { replace: true });
+    } else {
+      toast.success("🎉 Todas as copies foram revisadas!");
+      navigate(`/activations/${activationId}/copies`);
+    }
+  };
 
   const updateCopy = async (updates: Record<string, any>) => {
     setSaving(true);
@@ -79,15 +104,11 @@ const CopyDetail = () => {
     setSaving(false);
 
     if (updates.status === "approved") {
-      toast.success("Copy aprovado!", {
-        description: "Agora crie peças visuais com este copy.",
-        action: { label: "Criar peça →", onClick: () => navigate(`/activations/${activationId}/assets/new`) },
-      });
+      toast.success("Copy aprovado!");
+      await goToNextCopy();
     } else if (updates.status === "rejected") {
-      toast("Copy rejeitado", {
-        description: "Volte para a lista de copies.",
-        action: { label: "Ver copies", onClick: () => navigate(`/activations/${activationId}/copies`) },
-      });
+      toast("Copy rejeitado");
+      await goToNextCopy();
     }
   };
 
@@ -227,6 +248,19 @@ const CopyDetail = () => {
               </Button>
               <h1 className="text-display-md">Copy v{copy.version}</h1>
               <StatusBadge status={copy.status} />
+              {pendingCount > 0 && (
+                <span
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    background: "hsl(var(--bg-surface2))",
+                    color: "hsl(var(--text-muted))",
+                    border: "1px solid hsl(var(--border-default))",
+                  }}
+                >
+                  {pendingCount} de {totalCount} pendentes
+                </span>
+              )}
               <span
                 className="text-[9px] font-bold px-1.5 py-0.5 rounded"
                 style={{
