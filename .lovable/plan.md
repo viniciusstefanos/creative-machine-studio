@@ -1,50 +1,40 @@
 
 
-# Melhorar nomenclatura dos assets
+# Adicionar preview visual dos templates na criação de peça
 
-## Problema atual
+## Problema
 
-Assets são criados sem nome (`name: null`). O display cai em fallbacks genéricos como "carousel" ou "Peça v1". A ID única (UUID) é longa demais para uso visual.
+No Step 2 de `NewAsset.tsx`, cada card de template mostra apenas um ícone genérico (`categoryIcon`) — Layout, Image ou Layers. Na página `SettingsTemplates.tsx` já existe o componente `TemplatePreview` que renderiza um mini wireframe visual (carousel com 3 cards, aspect ratio correto, zonas de hook/body/CTA).
 
-## Nova nomenclatura proposta
+## Solução
 
-**Formato**: `{ID_CURTA}-{SIGLA_TEMPLATE} {título_da_copy}`
-
-Exemplo: `042-CRS Sua pele merece mais`
-
-- **ID curta**: número sequencial de 3 dígitos (ex: `042`), baseado em `count(*)` de assets da ativação + 1
-- **Sigla do template**: primeiras 3 letras da categoria ou slug do template em maiúsculo (ex: `CRS` = carousel, `STC` = static, `STR` = stories, `RLS` = reels). Usar um mapa fixo no código
-- **Título da copy**: primeiras ~5 palavras do hook da copy associada, truncado
-
-Sigla da ativação **não** é incluída (já está a nível de campanha).
+Extrair `TemplatePreview` de `SettingsTemplates.tsx` para um componente reutilizável e usá-lo no lugar do ícone genérico em `NewAsset.tsx`.
 
 ## Mudanças
 
-### 1. Função utilitária `buildAssetName`
+### 1. Extrair `TemplatePreview` para arquivo próprio
 
-Criar em `src/lib/assetNaming.ts`:
-- Recebe: `sequenceNumber`, `templateCategory` (ou slug), `copyHook`
-- Retorna: string formatada tipo `042-CRS Sua pele merece mais`
-- Mapa de siglas: `{ carousel: "CRS", static: "STC", stories: "STR", reels: "RLS", feed: "FED" }` com fallback para primeiras 3 letras
+Criar `src/components/ui/TemplatePreview.tsx` com o componente `TemplatePreview` que hoje está inline em `SettingsTemplates.tsx` (linhas 10-100 aprox).
 
-### 2. `NewAsset.tsx` — gerar nome na criação
+### 2. `NewAsset.tsx` — substituir ícone por preview
 
-Antes do insert:
-- Contar assets existentes na ativação (`count`)
-- Pegar hook da copy selecionada
-- Chamar `buildAssetName(count + 1, template.category, copy.hook)`
-- Incluir `name` no insert
+No Step 2 (linhas 312-317), trocar:
+```
+{categoryIcon(t.category)}
+```
+por:
+```
+<TemplatePreview template={t} />
+```
 
-### 3. `BatchAssets.tsx` — gerar nome na criação em lote
+Remover a função `categoryIcon` se não for usada em outro lugar.
 
-Mesmo padrão, incrementando o contador a cada asset no loop.
+### 3. `SettingsTemplates.tsx` — importar do novo arquivo
 
-### 4. Display (sem mudança estrutural)
+Substituir o componente inline pelo import de `@/components/ui/TemplatePreview`.
 
-`AssetsTab.tsx`, `AssetDetail.tsx`, `AddAdsToCampaignDialog.tsx`, `BulkScheduleDialog.tsx` e `CreateCampaignWizard.tsx` já usam `asset.name` — como agora sempre terá valor, os fallbacks genéricos deixam de aparecer.
-
-## Arquivos modificados
-- **`src/lib/assetNaming.ts`** — novo, função `buildAssetName`
-- **`src/pages/NewAsset.tsx`** — gerar nome antes do insert
-- **`src/pages/BatchAssets.tsx`** — gerar nome no loop de criação
+### Arquivos modificados
+- **`src/components/ui/TemplatePreview.tsx`** — novo, extraído de SettingsTemplates
+- **`src/pages/NewAsset.tsx`** — usar TemplatePreview no step 2
+- **`src/pages/SettingsTemplates.tsx`** — importar do novo arquivo
 
