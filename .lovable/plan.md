@@ -1,56 +1,57 @@
 
 
-# Plano de ação para melhorar o app Máquina Criativa
+# Implementar P1 — UX e Usabilidade
 
-## Diagnóstico atual
+## O que já foi feito (P0/P1 parcial)
+- Busca global Cmd+K (item 4) — já implementado
+- Skeleton loaders e React Query nas páginas Dashboard e ActivationHub
+- Lazy loading de rotas
 
-O app já tem o fluxo core funcional: Clientes → Ativações → Brief → Copies (org/ads) → Peças → Campanhas Meta → Agendamento → Métricas. Principais gaps identificados:
+## O que falta no P1
 
----
+### 1. Empty states acionáveis (item 5)
 
-## Melhorias organizadas por prioridade
+Vários empty states já existem mas alguns são apenas texto. Melhorar:
 
-### P0 — Estabilidade e confiabilidade
+- **BriefTab** — não tem empty state quando brief está vazio; adicionar CTA "Preencher brief"
+- **CopiesTab** — já tem CTA para brief, mas quando `briefDone === true` falta botão "Gerar com IA" no empty state
+- **AssetsTab** — já tem CTAs bons (manter)
+- **CampaignsTab** — empty state tem texto mas falta botão CTA "Criar campanha"
+- **ScheduleTab** — empty state com `assetsApproved === 0` falta CTA para ir a peças
 
-1. **Loading states e error handling globais** — Hoje os componentes usam `useState(true)` para loading e não tratam erros de fetch. Criar um padrão com skeleton loaders e toast de erro automático quando queries falham.
+**Arquivos**: `CopiesTab.tsx`, `CampaignsTab.tsx`, `ScheduleTab.tsx`
 
-2. **Tipagem forte** — Muitos `any` espalhados (activations, assets, copies, posts). Criar interfaces tipadas a partir do schema do banco e eliminar `any`.
+### 2. Feedback de progresso em operações longas (item 6)
 
-3. **React Query em todo o app** — React Query está instalado mas quase nenhuma página usa. Hoje tudo é `useEffect` + `useState` manual sem cache, sem refetch automático, sem optimistic updates. Migrar para `useQuery`/`useMutation` traz cache, retry, loading/error states automáticos.
+- **CopiesTab** — ao gerar IA, o botão mostra "Gerando..." mas sem progresso. Adicionar um toast com progresso ou um banner inline com spinner + texto descritivo ("Gerando X copies com IA, aguarde...")
+- **BulkScheduleDialog** — já tem step wizard mas submissão mostra apenas "Agendando...". Adicionar progresso `(X de Y agendados)` com barra de progresso
+- **AddAdsToCampaignDialog** — mesma lógica: progresso por peça subida
+- **ScheduleTab publish** — ao publicar (especialmente carrossel com render de slides), mostrar progresso dos steps ("Renderizando slide 2/5...", "Publicando...")
 
-### P1 — UX e usabilidade
+**Arquivos**: `CopiesTab.tsx`, `BulkScheduleDialog.tsx`, `AddAdsToCampaignDialog.tsx`, `ScheduleTab.tsx`
 
-4. **Busca global** — Não existe busca. Adicionar um command palette (Cmd+K) para navegar rapidamente entre clientes, ativações, copies e peças.
+### 3. Mobile responsivo (item 7)
 
-5. **Empty states acionáveis** — Vários empty states são texto solto. Transformar em CTAs claros que guiam o próximo passo (ex: "Nenhuma copy ainda → Gerar com IA").
+- **AssetsTab lista** — tabela `<Table>` não responsiva. Em telas `< md`, trocar para cards (como já faz no grid view). Forçar `viewMode="grid"` em mobile ou esconder colunas não essenciais
+- **ScheduleTab** — grid `md:grid-cols-[240px_1fr]` já collapsa. OK
+- **CampaignsTab** — cards já responsivos. OK
+- **Header breadcrumbs** — já tem `pl-10 md:pl-0` para mobile. OK
+- **CopiesTab form** — grid `sm:grid-cols-4` já collapsa. OK
 
-6. **Feedback de progresso em operações longas** — Geração de copies, upload de peças e publicação Meta podem demorar. Adicionar progress bars ou indicadores de step (ex: "Gerando 3/6...").
-
-7. **Mobile responsivo** — Sidebar já tem hamburger, mas tabelas (AssetsTab, ScheduleTab) não são responsivas. Adaptar para cards em mobile.
-
-### P2 — Funcionalidades de produto
-
-8. **Duplicar ativação** — Poder clonar uma ativação inteira (brief, copies, configurações) como template para reuso.
-
-9. **Histórico de versões de copy** — Ao regenerar um bloco (hook/body/cta), guardar a versão anterior para poder reverter.
-
-10. **Dashboard por cliente** — Hoje o dashboard é global. Adicionar métricas consolidadas na página do cliente (volume, performance, investimento).
-
-11. **Notificações em tempo real** — Usar Supabase Realtime para atualizar o badge de notificações sem reload.
-
-### P3 — Performance e polish
-
-12. **Lazy loading de rotas** — Todas as páginas carregam no bundle inicial. Usar `React.lazy()` + Suspense para code splitting.
-
-13. **Paginação** — Listas de copies, assets e métricas carregam tudo de uma vez (limit 1000). Implementar paginação ou infinite scroll.
-
-14. **Animações de transição** — Adicionar micro-animações nas transições de tab, cards e dialogs para dar mais fluidez.
+**Arquivo**: `AssetsTab.tsx`
 
 ---
 
-## Sugestão de execução
+## Resumo de mudanças
 
-Começar por **P0** (estabilidade) porque melhora a base de tudo. Depois **P1** (UX) que tem impacto direto no dia a dia. **P2** e **P3** conforme demanda.
+| Arquivo | Mudança |
+|---------|---------|
+| `CopiesTab.tsx` | Botão "Gerar com IA" no empty state; banner de progresso inline durante geração |
+| `CampaignsTab.tsx` | Botão CTA no empty state |
+| `ScheduleTab.tsx` | CTA no empty state para ir a peças; progresso step-by-step ao publicar (render slides + publish) |
+| `BulkScheduleDialog.tsx` | Barra de progresso `X/Y` durante submissão |
+| `AddAdsToCampaignDialog.tsx` | Barra de progresso `X/Y` durante upload de anúncios |
+| `AssetsTab.tsx` | Forçar grid view em mobile (esconder tabela em `< md`) |
 
-Posso implementar qualquer item — qual quer priorizar?
+Nenhuma migration necessária.
 
