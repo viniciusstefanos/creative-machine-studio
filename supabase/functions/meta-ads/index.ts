@@ -624,22 +624,32 @@ Deno.serve(async (req) => {
       };
 
       if (subtype === "WEBSITE") {
-        payload.rule = rule || JSON.stringify({ inclusions: { operator: "or", rules: [{ event_sources: [{ id: body.pixel_id }], retention_seconds: 2592000, filter: { operator: "and", filters: [{ field: "url", operator: "i_contains", value: "" }] } }] } });
+        const ruleObj = rule ? (typeof rule === "string" ? rule : JSON.stringify(rule)) : JSON.stringify({
+          inclusions: { operator: "or", rules: [{ event_sources: [{ id: body.pixel_id, type: "pixel" }], retention_seconds: 2592000, filter: { operator: "and", filters: [{ field: "url", operator: "i_contains", value: "" }] } }] }
+        });
+        payload.rule = ruleObj;
       }
       if (subtype === "ENGAGEMENT") {
         if (!rule && !body.page_id) throw new Error("rule or page_id is required for ENGAGEMENT audiences");
-        payload.rule = rule || JSON.stringify({
-          inclusions: { operator: "or", rules: [{ object_id: body.page_id, event_sources: [{ id: body.page_id, type: "page" }], retention_seconds: body.retention_seconds || 2592000 }] }
+        const eventName = body.event_name || "page_engaged";
+        const ruleObj = rule ? (typeof rule === "string" ? rule : JSON.stringify(rule)) : JSON.stringify({
+          inclusions: { operator: "or", rules: [{ event_sources: [{ id: body.page_id, type: "page" }], retention_seconds: body.retention_seconds || 2592000, filter: { operator: "and", filters: [{ field: "event", operator: "eq", value: eventName }] } }] }
         });
+        payload.rule = ruleObj;
       }
       if (customer_file_source) {
         payload.customer_file_source = customer_file_source;
       }
 
+      // Send as form-urlencoded for Meta API compatibility
+      const formBody = Object.entries(payload)
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+        .join("&");
+
       const res = await fetch(`${META_GRAPH_URL}/${ad_account_id}/customaudiences`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formBody,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(`Create audience failed [${res.status}]: ${JSON.stringify(data)}`);
