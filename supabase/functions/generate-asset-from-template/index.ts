@@ -481,7 +481,10 @@ Deno.serve(async (req) => {
         ? `\n\nDivida o copy em ${template.slides_count_min} a ${template.slides_count_max} slides.\nSlide 1: sempre o GANCHO — visual forte que para o scroll, NUNCA título de relatório.\nSlides do meio: 1 ponto por slide, máx 3 linhas de texto. Visual consistente.\nSlide final: sempre o CTA único e claro.\nO usuário deve entender a proposta lendo apenas slide 1 e o último.\nRetorne APENAS um array JSON: [{"slide_index": 0, "html": "..."}]. Zero markdown.`
         : "";
 
-      const systemWithRules = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction + customPrompt;
+      const brandColorInstruction = context.brand_colors
+        ? `\n\n## CORES DA MARCA (OBRIGATÓRIO)\nUse EXCLUSIVAMENTE estas cores da identidade visual do cliente: ${context.brand_colors}\n- Cor primária para elementos dominantes (fundo, seções)\n- Cor de acento APENAS para CTA/botões\n- NÃO use cores genéricas quando as cores da marca estiverem definidas\n- Respeite os valores hex exatos fornecidos\n`
+        : "";
+      const systemWithRules = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction + brandColorInstruction + customPrompt;
 
       const userPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nConfig: ${JSON.stringify(config)}`;
 
@@ -536,7 +539,10 @@ Deno.serve(async (req) => {
       );
       const bgImageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
 
-      const overlaySystem = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + customPrompt;
+      const brandColorInstruction2 = context.brand_colors
+        ? `\n\n## CORES DA MARCA (OBRIGATÓRIO)\nUse EXCLUSIVAMENTE estas cores: ${context.brand_colors}\n- Cor primária para elementos dominantes\n- Cor de acento para CTA/botões\n`
+        : "";
+      const overlaySystem = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + brandColorInstruction2 + customPrompt;
       const overlayPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nImagem de fundo: ${bgImageUrl || "não disponível"}\nConfig: ${JSON.stringify(config)}`;
       const rawHtml = await callTextAI(overlaySystem, overlayPrompt, useClaude, anthropicKey, lovableKey);
       const html = extractHtml(rawHtml);
