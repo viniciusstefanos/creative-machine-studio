@@ -69,6 +69,7 @@ export function TemplateEditorDialog({ open, onOpenChange, template, clients, on
   const [clientId, setClientId] = useState<string | "">("");
   const [visibility, setVisibility] = useState("global");
   const [slug, setSlug] = useState("");
+  const [funnelStage, setFunnelStage] = useState("");
 
   // AI generation
   const [aiDescription, setAiDescription] = useState("");
@@ -95,11 +96,12 @@ export function TemplateEditorDialog({ open, onOpenChange, template, clients, on
       setClientId(template.client_id || "");
       setVisibility(template.visibility || "global");
       setSlug(template.slug || "");
+      setFunnelStage(template.funnel_stage || "");
     } else {
       setName(""); setCategory("static"); setAspectRatio("4:5"); setGenType("html_only");
       setSlidesMin(3); setSlidesMax(5); setHtmlScaffold(""); setSystemPrompt("");
       setImagePromptTemplate(""); setEditableFieldsJson("{}"); setDescription("");
-      setClientId(""); setVisibility("global"); setSlug("");
+      setClientId(""); setVisibility("global"); setSlug(""); setFunnelStage("");
     }
   }, [template, open]);
 
