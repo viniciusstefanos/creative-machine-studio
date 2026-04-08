@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
       }
 
       const instruction = html_content || "Melhore o design";
-      const systemPrompt = `Você é um designer visual expert. Receba um HTML de peça para Instagram e uma instrução de edição. Aplique APENAS a edição solicitada, mantendo o restante intacto. Retorne SOMENTE o HTML final, sem markdown, sem explicação.`;
+      const systemPrompt = `Você é um designer visual expert. Receba um HTML de peça para Instagram e uma instrução de edição. Aplique APENAS a edição solicitada, mantendo o restante intacto. Retorne SOMENTE o HTML final, sem markdown, sem explicação, ZERO texto antes ou depois do HTML.`;
       const userPrompt = `HTML atual:\n\`\`\`html\n${render.html_content}\n\`\`\`\n\nInstrução de edição: ${instruction}`;
 
       const useClaude = !!use_claude;
