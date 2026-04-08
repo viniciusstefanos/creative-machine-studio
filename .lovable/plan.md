@@ -1,64 +1,67 @@
 
 
-# Melhorar Regeneração de Imagem — Contexto Rico + Robustez
+# Fix: Renderização Puxando Fontes da App + Botões Desalinhados
 
-## Problemas
+## Problema Raiz
 
-1. **Sem contexto**: O prompt enviado à IA é apenas `"Generate an image: {user_prompt}"` — sem contexto do briefing, da marca, da copy, ou descrição da imagem atual
-2. **Falhas silenciosas**: Se a API retorna formato inesperado, o usuário vê "Falha ao gerar imagem" sem saber o motivo
-3. **Sem referência visual**: A imagem anterior não é enviada como referência para edição — toda geração parte do zero
+1. **Fontes erradas**: `renderHtmlToPng()` injeta o HTML do asset diretamente no DOM da página (`document.body.appendChild`). O CSS global do app (`src/index.css` linha 89-91) aplica `font-family: 'Syne'` em todos os `h1-h6`. Resultado: títulos do asset renderizado usam Syne em vez da fonte definida no HTML gerado.
+
+2. **Botões desalinhados**: `html2canvas` tem problemas conhecidos com `display: flex`, `align-items: center` em botões. O texto do botão fica descentralizado no PNG final.
 
 ## Solução
 
-### 1. Edge Function `edit-asset-render` — action `regenerate_image` enriquecida
+### Isolar o HTML do asset em um iframe (sandbox CSS)
 
-Ao receber `regenerate_image`, buscar contexto adicional do DB antes de chamar a IA:
+Substituir a abordagem atual (innerHTML no DOM) por um **iframe offscreen** com `srcdoc`. O iframe cria um contexto CSS completamente isolado — nenhum estilo do app vaza para dentro.
 
-- **Imagem atual**: buscar `image_url` do render ou asset e enviar como referência visual (image editing em vez de geração do zero)
-- **Briefing**: buscar `briefs.consolidated_context` da ativação para extrair marca, estilo visual, cores, público
-- **Copy**: buscar `copies.hook`, `copies.body` do asset para dar contexto temático
-- **Template**: buscar `asset_templates.image_prompt_template` se existir
+#### `src/lib/renderPng.ts` — reescrever `renderHtmlToPng`
 
-Montar prompt enriquecido:
 ```
-## Contexto da marca
-{consolidated_context resumido: nome, estilo visual, cores, público}
+Antes:
+  container.innerHTML = htmlContent → herda CSS global (Syne, etc.)
+  html2canvas(container) → problemas com flex em botões
 
-## Peça atual
-Copy: {hook} — {body}
-Template: {template_name}
-
-## Instrução do usuário
-{image_prompt}
-
-Gere uma imagem fotográfica de alta qualidade seguindo a instrução acima, mantendo coerência com a marca e o contexto da peça.
+Depois:
+  1. Criar iframe offscreen com srcdoc contendo:
+     - Link do Google Fonts extraído do HTML
+     - Reset CSS (*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 })
+     - O HTML do asset
+  2. Aguardar iframe carregar + fonts.ready
+  3. Usar html2canvas no iframe.contentDocument.body
+  4. Remover iframe
 ```
 
-Quando houver `image_url` atual, usar **image editing** (enviar imagem existente como referência) em vez de geração pura. Isso resolve o problema de "falta contexto da imagem anterior".
-
-### 2. Fallback robusto na extração de base64
-
-Adicionar retry (1x) em caso de falha da API, e melhorar mensagem de erro com detalhes (ex: "Modelo não retornou imagem, tente novamente").
-
-### 3. UI — Pré-preencher prompt e mostrar imagem atual
-
-No `AssetDetail.tsx`, ao abrir modo imagem:
-- Mostrar thumbnail da imagem atual ao lado do campo de prompt
-- Pré-popular o prompt com sugestão baseada no `image_prompt_template` do template ou na copy
-- Adicionar toggle "Editar imagem atual" vs "Gerar do zero" — editar usa a imagem como referência, gerar ignora
-
-### 4. Novo body para a edge function
-
+**Detalhe técnico do iframe**:
 ```typescript
-{
-  render_id, asset_id, action: "regenerate_image",
-  image_prompt,
-  edit_current: true/false  // se true, envia imagem atual como referência
-}
+const iframe = document.createElement("iframe");
+iframe.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${width}px;height:${height}px;border:none;`;
+iframe.sandbox = "allow-same-origin"; // permite acessar contentDocument
+document.body.appendChild(iframe);
+
+const doc = iframe.contentDocument!;
+doc.open();
+doc.write(`<!DOCTYPE html><html><head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="${fontsUrl}">
+  <style>*{margin:0;padding:0;box-sizing:border-box}
+  button,a{display:inline-flex;align-items:center;justify-content:center;text-align:center}
+  </style>
+</head><body style="width:${width}px;height:${height}px;overflow:hidden">
+  ${htmlContent}
+</body></html>`);
+doc.close();
+
+// Esperar load + fonts
+await new Promise(r => iframe.addEventListener("load", r));
+await doc.fonts.ready;
+
+const canvas = await html2canvas(doc.body, { width, height, scale: 2, ... });
 ```
 
-## Arquivos modificados
+Isso resolve ambos os problemas:
+- **Fontes**: O iframe não herda o CSS do app. Os `h1-h6` usam apenas o que está no HTML do asset.
+- **Botões**: O reset CSS dentro do iframe inclui regras específicas para `button` e `a` com `display:inline-flex; align-items:center; justify-content:center` garantindo centralização.
 
-- **`supabase/functions/edit-asset-render/index.ts`** — buscar briefing/copy/template, montar prompt rico, suportar image editing com imagem atual como referência, retry
-- **`src/pages/AssetDetail.tsx`** — thumbnail da imagem atual no painel, toggle editar/gerar, pré-popular prompt
+### Arquivo modificado
+- **`src/lib/renderPng.ts`** — reescrever `renderHtmlToPng` para usar iframe isolado em vez de `innerHTML` no DOM principal
 
