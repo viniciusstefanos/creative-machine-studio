@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  CommandDialog,
+  Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Users, Zap, FileText, Image } from "lucide-react";
 
 interface SearchResult {
@@ -93,41 +94,52 @@ export const GlobalSearch = () => {
   }, {});
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput
-        placeholder="Buscar clientes, ativações, copies, peças..."
-        value={query}
-        onValueChange={setQuery}
-      />
-      <CommandList>
-        <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
-        {Object.entries(grouped).map(([type, items]) => {
-          const Icon = iconMap[type as keyof typeof iconMap];
-          return (
-            <CommandGroup key={type} heading={groupLabels[type] || type}>
-              {items.map((item) => (
-                <CommandItem
-                  key={`${item.type}-${item.id}`}
-                  onSelect={() => {
-                    navigate(item.href);
-                    setOpen(false);
-                    setQuery("");
-                  }}
-                  className="cursor-pointer"
-                >
-                  <Icon size={14} className="mr-2 shrink-0" style={{ color: "hsl(var(--text-muted))" }} />
-                  <span className="flex-1 truncate">{item.label}</span>
-                  {item.sublabel && (
-                    <span className="text-[10px] ml-2" style={{ color: "hsl(var(--text-muted))", fontFamily: "'JetBrains Mono', monospace" }}>
-                      {item.sublabel}
-                    </span>
-                  )}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          );
-        })}
-      </CommandList>
-    </CommandDialog>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="overflow-hidden p-0 shadow-lg">
+        <Command shouldFilter={false} className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
+          <CommandInput
+            placeholder="Buscar clientes, ativações, copies, peças..."
+            value={query}
+            onValueChange={setQuery}
+          />
+          <CommandList>
+            {query.length < 2 ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                Digite pelo menos 2 caracteres...
+              </div>
+            ) : results.length === 0 ? (
+              <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
+            ) : (
+              Object.entries(grouped).map(([type, items]) => {
+                const Icon = iconMap[type as keyof typeof iconMap];
+                return (
+                  <CommandGroup key={type} heading={groupLabels[type] || type}>
+                    {items.map((item) => (
+                      <CommandItem
+                        key={`${item.type}-${item.id}`}
+                        onSelect={() => {
+                          navigate(item.href);
+                          setOpen(false);
+                          setQuery("");
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <Icon size={14} className="mr-2 shrink-0" style={{ color: "hsl(var(--text-muted))" }} />
+                        <span className="flex-1 truncate">{item.label}</span>
+                        {item.sublabel && (
+                          <span className="text-[10px] ml-2" style={{ color: "hsl(var(--text-muted))", fontFamily: "'JetBrains Mono', monospace" }}>
+                            {item.sublabel}
+                          </span>
+                        )}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                );
+              })
+            )}
+          </CommandList>
+        </Command>
+      </DialogContent>
+    </Dialog>
   );
 };
