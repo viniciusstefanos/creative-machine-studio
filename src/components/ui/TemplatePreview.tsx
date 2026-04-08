@@ -113,11 +113,32 @@ const ScaffoldPreview = ({ template }: { template: any }) => {
 
   const filledHtml = useMemo(() => {
     let html = template.html_scaffold || "";
-    html = html.replace(/\{\{hook\}\}/g, "Título de exemplo");
-    html = html.replace(/\{\{body\}\}/g, "Texto de corpo para visualização do template.");
-    html = html.replace(/\{\{cta\}\}/g, "Saiba mais");
-    html = html.replace(/\{\{brand_color\}\}/g, "#00C9A7");
-    html = html.replace(/\{\{image_url\}\}/g, "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect fill='%23333' width='400' height='400'/%3E%3C/svg%3E");
+    const replacements: Record<string, string> = {
+      hook: "Título de exemplo",
+      body: "Texto de corpo para visualização do template.",
+      cta: "Saiba mais",
+      brand_color: "#00C9A7",
+      accent_color: "#00C9A7",
+      bg_color: "#111111",
+      image_url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect fill='%23222' width='400' height='400'/%3E%3C/svg%3E",
+      slide_number: "01",
+      item_number: "01",
+      stat_number: "73%",
+      stat_label: "dos usuários",
+      stat_source: "Fonte: Pesquisa 2025",
+      question: "O que você prefere?",
+      option_a: "Opção A",
+      option_b: "Opção B",
+      before_label: "Antes",
+      after_label: "Depois",
+      topic: "Dica importante",
+      total_slides: "05",
+    };
+    for (const [key, value] of Object.entries(replacements)) {
+      html = html.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
+    }
+    // Catch any remaining {{...}} variables
+    html = html.replace(/\{\{[a-z_]+\}\}/g, "");
     return html;
   }, [template.html_scaffold]);
 
