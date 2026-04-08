@@ -496,11 +496,14 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
                     )}
                   </div>
                 )}
-                <div className="p-4 flex items-center justify-between">
-                  <span className="text-mono-label">
-                    {getDisplayName(asset)} · v{asset.version}
-                  </span>
-                  <StatusBadge status={asset.status} />
+                <div className="p-3 space-y-1">
+                  <p className="text-[10px] font-medium truncate" style={{ color: "hsl(var(--text-primary))", fontFamily: "'JetBrains Mono', monospace" }}>
+                    {getDisplayName(asset)}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'JetBrains Mono', monospace" }}>v{asset.version}</span>
+                    <StatusBadge status={asset.status} />
+                  </div>
                 </div>
               </Link>
             </div>
