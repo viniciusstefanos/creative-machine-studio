@@ -14,6 +14,7 @@ import {
   Pencil, Image, Wand2, Save, RotateCcw, ArrowLeft, Type, Layers, Trash2
 } from "lucide-react";
 import { HtmlVisualEditor } from "@/components/ui/HtmlVisualEditor";
+import { renderHtmlToPng, uploadPng } from "@/lib/renderPng";
 import { SchedulePostDialog } from "@/components/activation/SchedulePostDialog";
 import { AddAdsToCampaignDialog } from "@/components/activation/AddAdsToCampaignDialog";
 import { Megaphone } from "lucide-react";
