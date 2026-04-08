@@ -598,7 +598,7 @@ Deno.serve(async (req) => {
       if (!ad_account_id) throw new Error("ad_account_id is required");
 
       const res = await fetch(
-        `${META_GRAPH_URL}/${ad_account_id}/customaudiences?fields=id,name,subtype,approximate_count,delivery_status,description,time_created&limit=100&access_token=${token}`
+        `${META_GRAPH_URL}/${ad_account_id}/customaudiences?fields=id,name,subtype,delivery_status,description,time_created&limit=100&access_token=${token}`
       );
       const data = await res.json();
       if (!res.ok) throw new Error(`List audiences failed [${res.status}]: ${JSON.stringify(data)}`);
