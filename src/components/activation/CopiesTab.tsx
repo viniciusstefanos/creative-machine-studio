@@ -47,6 +47,7 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
   const [filter, setFilter] = useState<PurposeFilter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   // Generation dialog state
   const [showGenDialog, setShowGenDialog] = useState(false);
