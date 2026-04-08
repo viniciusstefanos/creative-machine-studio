@@ -987,8 +987,11 @@ export type Database = {
       utm_configs: {
         Row: {
           activation_id: string
+          channel: string | null
+          dynamic_content_pattern: string | null
           generated_url: string | null
           id: string
+          use_dynamic_params: boolean | null
           utm_campaign: string | null
           utm_content: string | null
           utm_medium: string | null
@@ -997,8 +1000,11 @@ export type Database = {
         }
         Insert: {
           activation_id: string
+          channel?: string | null
+          dynamic_content_pattern?: string | null
           generated_url?: string | null
           id?: string
+          use_dynamic_params?: boolean | null
           utm_campaign?: string | null
           utm_content?: string | null
           utm_medium?: string | null
@@ -1007,8 +1013,11 @@ export type Database = {
         }
         Update: {
           activation_id?: string
+          channel?: string | null
+          dynamic_content_pattern?: string | null
           generated_url?: string | null
           id?: string
+          use_dynamic_params?: boolean | null
           utm_campaign?: string | null
           utm_content?: string | null
           utm_medium?: string | null
@@ -1019,7 +1028,7 @@ export type Database = {
           {
             foreignKeyName: "utm_configs_activation_id_fkey"
             columns: ["activation_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "activations"
             referencedColumns: ["id"]
           },
