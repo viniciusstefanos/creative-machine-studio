@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { HtmlVisualEditor } from "@/components/ui/HtmlVisualEditor";
 import { SchedulePostDialog } from "@/components/activation/SchedulePostDialog";
+import { AddAdsToCampaignDialog } from "@/components/activation/AddAdsToCampaignDialog";
+import { Megaphone } from "lucide-react";
 
 const AssetDetail = () => {
   const { id, assetId } = useParams<{ id: string; assetId: string }>();
@@ -47,6 +49,8 @@ const AssetDetail = () => {
   const [editCopy, setEditCopy] = useState<{ hook: string; body: string; cta: string }>({ hook: "", body: "", cta: "" });
   const [syncingCopy, setSyncingCopy] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [addToCampaignOpen, setAddToCampaignOpen] = useState(false);
+  const [metaAccount, setMetaAccount] = useState<any>(null);
 
   const fetchAsset = useCallback(async () => {
     if (!assetId) return;
@@ -57,6 +61,14 @@ const AssetDetail = () => {
       if (actRes.data) {
         setActivation(actRes.data);
         setClientName((actRes.data as any).clients?.name || "");
+        // Fetch meta account for paid ads
+        const { data: metaData } = await supabase
+          .from("client_meta_accounts")
+          .select("ad_account_id, page_access_token, instagram_page_id, facebook_page_id")
+          .eq("client_id", actRes.data.client_id)
+          .limit(1)
+          .maybeSingle();
+        if (metaData) setMetaAccount(metaData);
       }
       if (data.template_id) {
         const tplRes = await supabase.from("asset_templates").select("*").eq("id", data.template_id).single();
@@ -829,6 +841,9 @@ const AssetDetail = () => {
               <Button className="w-full gap-2" onClick={() => setScheduleDialogOpen(true)}>
                 <Calendar size={16} /> Agendar publicação
               </Button>
+              <Button className="w-full gap-2" variant="outline" onClick={() => setAddToCampaignOpen(true)}>
+                <Megaphone size={16} /> Adicionar a campanha
+              </Button>
               <Button variant="ghost" className="w-full gap-2 text-xs" onClick={() => navigate(`/activations/${id}/assets/new`)}>
                 Criar outra peça →
               </Button>
@@ -861,13 +876,26 @@ const AssetDetail = () => {
       </div>
 
       {asset && id && (
-        <SchedulePostDialog
-          open={scheduleDialogOpen}
-          onOpenChange={setScheduleDialogOpen}
-          activationId={id}
-          preselectedAssetId={assetId}
-          onSaved={() => setScheduleDialogOpen(false)}
-        />
+        <>
+          <SchedulePostDialog
+            open={scheduleDialogOpen}
+            onOpenChange={setScheduleDialogOpen}
+            activationId={id}
+            preselectedAssetId={assetId}
+            onSaved={() => setScheduleDialogOpen(false)}
+          />
+          <AddAdsToCampaignDialog
+            open={addToCampaignOpen}
+            onOpenChange={setAddToCampaignOpen}
+            activationId={id}
+            metaAccount={metaAccount}
+            landingPageUrl={activation?.landing_page_url}
+            onCreated={() => {
+              setAddToCampaignOpen(false);
+              toast.success("Anúncios adicionados com sucesso");
+            }}
+          />
+        </>
       )}
     </AppLayout>
   );
