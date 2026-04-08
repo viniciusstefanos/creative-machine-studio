@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { BRIEF_SYSTEM_PROMPT } from "../_shared/brief-system-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,7 +19,8 @@ Deno.serve(async (req) => {
 
     const blockLabels: Record<string, string> = { hook: "Gancho (Hook)", body: "Corpo (Body)", cta: "CTA (Call to Action)" };
 
-    const systemPrompt = `You are an expert marketing copywriter for Meta Ads and Instagram. Regenerate only the "${blockLabels[block] || block}" section of a marketing copy.
+    const systemPrompt = `${BRIEF_SYSTEM_PROMPT}
+You are an expert marketing copywriter for Meta Ads and Instagram. Regenerate only the "${blockLabels[block] || block}" section of a marketing copy.
 Keep the same language (Portuguese BR), tone, and style.
 
 ## REGRAS OBRIGATÓRIAS

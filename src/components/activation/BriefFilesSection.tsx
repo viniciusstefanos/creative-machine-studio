@@ -148,66 +148,7 @@ export const BriefFilesSection = ({
 
   return (
     <div className="space-y-4">
-      {/* File list */}
-      {files.length > 0 && (
-        <div className="space-y-2">
-          {files.map((f) => (
-            <div
-              key={f.id}
-              className="flex items-center gap-3 p-3 rounded-lg group"
-              style={{
-                background: "hsl(var(--bg-surface2))",
-                border: "1px solid hsl(var(--border-default))",
-                borderRadius: 8,
-              }}
-            >
-              <FileText size={16} style={{ color: getCategoryColor(f.category), flexShrink: 0 }} />
-              <div className="flex-1 min-w-0">
-                <p
-                  className="text-xs truncate"
-                  style={{ color: "hsl(var(--text-primary))", fontFamily: "'DM Sans'" }}
-                >
-                  {f.file_name}
-                </p>
-                <span
-                  className="inline-flex items-center gap-1 text-[10px] mt-0.5 px-1.5 py-0.5 rounded"
-                  style={{
-                    background: `${getCategoryColor(f.category)}15`,
-                    color: getCategoryColor(f.category),
-                    fontFamily: "'JetBrains Mono', monospace",
-                  }}
-                >
-                  <Tag size={8} />
-                  {getCategoryLabel(f.category)}
-                </span>
-              </div>
-              {extractingId === f.id ? (
-                <Loader2 size={14} className="animate-spin" style={{ color: "hsl(var(--accent))" }} />
-              ) : (
-                <span
-                  className="text-[10px]"
-                  style={{
-                    color: f.raw_text ? "hsl(var(--status-approved))" : "hsl(var(--text-muted))",
-                    fontFamily: "'JetBrains Mono', monospace",
-                  }}
-                >
-                  {f.raw_text ? "✓ extraído" : "sem texto"}
-                </span>
-              )}
-              <button
-                onClick={() => handleRemoveFile(f.id)}
-                className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ color: "hsl(var(--text-muted))" }}
-              >
-                <X size={12} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Drop zone */}
-
       <label
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}

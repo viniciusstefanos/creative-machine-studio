@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 // @ts-ignore - JSZip for DOCX parsing
 import JSZip from "https://esm.sh/jszip@3.10.1";
+import { BRIEF_SYSTEM_PROMPT, DEEP_EXTRACTION_SCHEMA } from "../_shared/brief-system-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,24 +10,22 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-/** Strip XML tags and normalize whitespace */
 function stripXml(xml: string): string {
   return xml
-    .replace(/<w:p[^>]*\/>/gi, "\n")           // self-closing paragraphs → newline
-    .replace(/<\/w:p>/gi, "\n")                  // end of paragraph → newline
-    .replace(/<w:tab[^>]*\/?>/gi, "\t")          // tabs
-    .replace(/<w:br[^>]*\/?>/gi, "\n")           // line breaks
-    .replace(/<[^>]+>/g, "")                     // strip all remaining XML tags
+    .replace(/<w:p[^>]*\/>/gi, "\n")
+    .replace(/<\/w:p>/gi, "\n")
+    .replace(/<w:tab[^>]*\/?>/gi, "\t")
+    .replace(/<w:br[^>]*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&apos;/g, "'")
     .replace(/&quot;/g, '"')
-    .replace(/\n{3,}/g, "\n\n")                  // collapse excessive newlines
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
-/** Extract plain text from a DOCX file (which is a ZIP containing word/document.xml) */
 async function extractTextFromDocx(blob: Blob): Promise<string> {
   const zip = await JSZip.loadAsync(await blob.arrayBuffer());
   const docXml = zip.file("word/document.xml");
@@ -35,32 +34,34 @@ async function extractTextFromDocx(blob: Blob): Promise<string> {
   return stripXml(xmlContent);
 }
 
-/** Extract text from uploaded file based on extension */
 async function extractText(blob: Blob, filePath: string): Promise<string> {
   const ext = filePath.split(".").pop()?.toLowerCase();
-
-  if (ext === "docx") {
-    return await extractTextFromDocx(blob);
-  }
-
-  if (ext === "txt" || ext === "md") {
-    return await blob.text();
-  }
-
+  if (ext === "docx") return await extractTextFromDocx(blob);
+  if (ext === "txt" || ext === "md") return await blob.text();
   if (ext === "pdf") {
-    // For PDF, send raw text extraction attempt — may be lossy but better than nothing
     const rawText = await blob.text();
-    // Check if it looks like readable text (PDFs often have some extractable text)
     const printableRatio = (rawText.match(/[\x20-\x7E\xA0-\xFF]/g) || []).length / rawText.length;
-    if (printableRatio > 0.5) {
-      return rawText.slice(0, 20000);
-    }
+    if (printableRatio > 0.5) return rawText.slice(0, 50000);
     return "[PDF com conteúdo não-textual. Não foi possível extrair texto automaticamente.]";
   }
-
-  // Fallback: try reading as text
   return await blob.text();
 }
+
+const EXTRACTION_SYSTEM = `${BRIEF_SYSTEM_PROMPT}
+
+Você é um assistente especialista em extrair informações DETALHADAS de documentos de marketing/branding.
+
+Analise o documento INTEGRALMENTE e extraia TODOS os campos possíveis com a MÁXIMA profundidade.
+- Para cada campo, extraia TODAS as informações relevantes do documento, não apenas um resumo.
+- Para produtos/serviços, liste TODOS mencionados com nome, descrição, preço e diferenciais.
+- Para público-alvo, capture dados demográficos, psicográficos, dores, desejos e objeções.
+- Para tom de voz, identifique formalidade, personalidade, palavras recomendadas e proibidas.
+- Para visual, extraia cores exatas (hex quando disponível), fontes, estilo, dos e don'ts.
+- Para proof points, capture TODOS os números, prêmios, certificações e depoimentos reais.
+- Para restrições, liste TODOS os termos proibidos, temas sensíveis e restrições legais.
+
+Se o documento NÃO for um brief/guia de marketing, retorne detected_category="geral" e descreva em document_summary.
+NUNCA invente informações que não estejam no documento.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -73,169 +74,117 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Download file from storage
     const { data: fileData, error: downloadError } = await supabase.storage.from("briefs").download(file_path);
     if (downloadError || !fileData) throw new Error("Failed to download file: " + downloadError?.message);
 
-    // Extract text properly based on file type
     const text = await extractText(fileData, file_path);
-    console.log("Extracted text length:", text.length, "chars. First 200:", text.slice(0, 200));
+    console.log("Extracted text length:", text.length, "chars");
 
     if (text.length < 20) {
       return new Response(JSON.stringify({ error: "Não foi possível extrair texto suficiente do arquivo." }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!anthropicKey) {
-      // Fallback to Lovable AI
-      return await extractWithLovableAI(text, corsHeaders);
+    // Send up to 30K chars to AI
+    const textForAI = text.slice(0, 30000);
+
+    // Try Lovable AI first (preferred), fallback to Anthropic
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+
+    let extracted: any = {};
+
+    if (LOVABLE_API_KEY) {
+      extracted = await extractWithLovableAI(textForAI, LOVABLE_API_KEY);
+    } else if (ANTHROPIC_API_KEY) {
+      extracted = await extractWithClaude(textForAI, ANTHROPIC_API_KEY);
+    } else {
+      throw new Error("No AI key configured");
     }
 
-    // Use Claude for extraction
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 2048,
-         system: `Você é um assistente que extrai informações de briefing de marketing de documentos.
-Analise o documento e extraia APENAS informações que REALMENTE existam no texto.
-Se o documento NÃO for um brief de marketing (ex: é um guia de design, documento técnico, etc.), 
-retorne os campos vazios e coloque no extra_context um resumo do que o documento realmente contém.
-NUNCA invente informações. Se um campo não está presente no documento, retorne string vazia.
-
-Classifique o documento em UMA categoria:
-- "identidade_visual" = guia de marca, manual de identidade, brand book, paleta de cores, tipografia
-- "produto" = ficha técnica, cardápio, catálogo, especificações de produto
-- "tom_de_voz" = guia de tom, voz da marca, diretrizes de comunicação
-- "publico_alvo" = pesquisa de público, persona, segmentação, dados demográficos
-- "contexto" = análise de mercado, concorrência, tendências, cenário
-- "referencias" = moodboard, referências visuais, benchmarks, cases
-- "briefing" = brief completo de campanha, ativação, projeto
-- "geral" = outros documentos que não se encaixam nas categorias acima
-
-Responda APENAS com JSON válido, sem markdown:
-{"tone_of_voice":"","target_audience":"","objectives":"","extra_context":"","references_urls":[],"detected_category":""}`,
-        messages: [
-          { role: "user", content: `Extraia campos de brief deste documento:\n\n${text.slice(0, 12000)}` },
-        ],
-      }),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error("Claude error:", res.status, errText);
-      if (res.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit. Tente novamente." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error("AI error");
-    }
-
-    const aiData = await res.json();
-    const content = aiData.content?.[0]?.text || "{}";
-
-    let extracted;
-    try {
-      let jsonStr = content;
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (jsonMatch) jsonStr = jsonMatch[1].trim();
-      if (!jsonStr.startsWith("{")) {
-        const objMatch = content.match(/\{[\s\S]*\}/);
-        if (objMatch) jsonStr = objMatch[0];
-      }
-      extracted = JSON.parse(jsonStr);
-    } catch {
-      console.error("Failed to parse AI response:", content);
-      extracted = {};
-    }
-
-    return new Response(JSON.stringify({ extracted, raw_text: text.slice(0, 30000) }), {
+    return new Response(JSON.stringify({ extracted, raw_text: text.slice(0, 50000) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("extract-brief error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    const status = msg === "rate_limit" ? 429 : msg === "credits" ? 402 : 500;
+    return new Response(JSON.stringify({ error: msg }), {
+      status, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
 
-async function extractWithLovableAI(text: string, corsHeaders: Record<string, string>) {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) throw new Error("No AI key configured");
-
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+async function extractWithLovableAI(text: string, apiKey: string): Promise<any> {
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "google/gemini-3-flash-preview",
       messages: [
-        {
-          role: "system",
-          content: `Você extrai informações de briefing de marketing de documentos.
-Se o documento NÃO for um brief de marketing, retorne campos vazios e descreva o conteúdo real em extra_context.
-NUNCA invente informações.`,
-        },
-        { role: "user", content: `Extraia campos de brief:\n\n${text.slice(0, 15000)}` },
+        { role: "system", content: EXTRACTION_SYSTEM },
+        { role: "user", content: `Analise este documento INTEGRALMENTE e extraia TODOS os campos com máxima profundidade:\n\n${text}` },
       ],
-      tools: [
-        {
-          type: "function",
-          function: {
-            name: "extract_brief",
-            description: "Extract structured brief fields and detect document category",
-            parameters: {
-              type: "object",
-              properties: {
-                tone_of_voice: { type: "string" },
-                target_audience: { type: "string" },
-                objectives: { type: "string" },
-                extra_context: { type: "string" },
-                references_urls: { type: "array", items: { type: "string" } },
-                detected_category: {
-                  type: "string",
-                  enum: ["identidade_visual", "produto", "tom_de_voz", "publico_alvo", "contexto", "referencias", "briefing", "geral"],
-                  description: "Category of the document based on its content",
-                },
-              },
-              required: ["tone_of_voice", "target_audience", "objectives", "extra_context", "references_urls", "detected_category"],
-              additionalProperties: false,
-            },
-          },
+      tools: [{
+        type: "function",
+        function: {
+          name: "extract_brief_deep",
+          description: "Extract all structured fields from a marketing/branding document with maximum depth",
+          parameters: DEEP_EXTRACTION_SCHEMA,
         },
-      ],
-      tool_choice: { type: "function", function: { name: "extract_brief" } },
+      }],
+      tool_choice: { type: "function", function: { name: "extract_brief_deep" } },
     }),
   });
 
-  if (!aiResponse.ok) {
-    if (aiResponse.status === 429) {
-      return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    if (aiResponse.status === 402) {
-      return new Response(JSON.stringify({ error: "Credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+  if (!res.ok) {
+    const status = res.status;
+    if (status === 429) throw new Error("rate_limit");
+    if (status === 402) throw new Error("credits");
+    throw new Error("AI error: " + status);
+  }
+
+  const data = await res.json();
+  const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+  return toolCall ? JSON.parse(toolCall.function.arguments) : {};
+}
+
+async function extractWithClaude(text: string, apiKey: string): Promise<any> {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4096,
+      system: EXTRACTION_SYSTEM,
+      messages: [{ role: "user", content: `Analise este documento INTEGRALMENTE e extraia TODOS os campos com máxima profundidade. Responda APENAS com JSON válido seguindo o schema.\n\n${text}` }],
+    }),
+  });
+
+  if (!res.ok) {
+    const status = res.status;
+    if (status === 429) throw new Error("rate_limit");
     throw new Error("AI error");
   }
 
-  const aiData = await aiResponse.json();
-  const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-  const extracted = toolCall ? JSON.parse(toolCall.function.arguments) : {};
-
-  return new Response(JSON.stringify({ extracted, raw_text: text.slice(0, 30000) }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  const data = await res.json();
+  const content = data.content?.[0]?.text || "{}";
+  try {
+    let jsonStr = content;
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) jsonStr = jsonMatch[1].trim();
+    if (!jsonStr.startsWith("{")) {
+      const objMatch = content.match(/\{[\s\S]*\}/);
+      if (objMatch) jsonStr = objMatch[0];
+    }
+    return JSON.parse(jsonStr);
+  } catch {
+    console.error("Failed to parse Claude response:", content);
+    return {};
+  }
 }

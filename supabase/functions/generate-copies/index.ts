@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { BRIEF_SYSTEM_PROMPT } from "../_shared/brief-system-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,7 +8,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const BASE_SYSTEM_PROMPT = `Você é um agente especialista em criação de conteúdo para redes sociais e anúncios pagos. Você pensa como DIRETOR CRIATIVO — não apenas redator.
+const BASE_SYSTEM_PROMPT = `${BRIEF_SYSTEM_PROMPT}
+
+Você é um agente especialista em criação de conteúdo para redes sociais e anúncios pagos. Você pensa como DIRETOR CRIATIVO — não apenas redator.
 
 ## ESTRUTURA OBRIGATÓRIA DE COPY
 [GANCHO] → [BENEFÍCIO/DOR] → [PROVA/DIFERENCIAL] → [CTA]
@@ -156,13 +159,17 @@ Deno.serve(async (req) => {
 
     const { data: briefFiles } = await supabase
       .from("brief_files")
-      .select("category, raw_text, file_name")
+      .select("category, raw_text, extracted_fields, file_name")
       .eq("activation_id", activation_id)
       .not("raw_text", "is", null);
 
+    // Build context from extracted_fields (rich) + raw_text (fallback)
     const filesContext = briefFiles?.length
       ? "\n\n## DOCUMENTOS DE REFERÊNCIA COMPLETOS\n" +
-        briefFiles.map((f: any) => `### [${f.category}] ${f.file_name}\n${(f.raw_text || "").slice(0, 8000)}`).join("\n\n")
+        briefFiles.map((f: any) => {
+          const efStr = f.extracted_fields ? `\n**Dados estruturados:**\n${JSON.stringify(f.extracted_fields, null, 2)}` : "";
+          return `### [${f.category}] ${f.file_name}${efStr}\n\n**Texto:**\n${(f.raw_text || "").slice(0, 15000)}`;
+        }).join("\n\n---\n\n")
       : "";
 
     const topicBlock = topic
@@ -189,7 +196,8 @@ ETAPAS DO FUNIL: ${(funnel_stages || ["top", "mid", "bottom"]).join(", ")}`;
 
     for (const p of purposesToGenerate) {
       const purposeRules = p === "organic" ? ORGANIC_RULES : ADS_RULES;
-      const systemPrompt = BASE_SYSTEM_PROMPT + "\n" + purposeRules;
+      const customPrompt = brief.system_prompt ? `\n\n## INSTRUÇÕES CUSTOMIZADAS DA ATIVAÇÃO\n${brief.system_prompt}` : "";
+      const systemPrompt = BASE_SYSTEM_PROMPT + "\n" + purposeRules + customPrompt;
 
       const purposeInstruction = p === "organic"
         ? `FINALIDADE: ORGÂNICO — gere copies para publicação orgânica. Caption longo, hashtags, CTA de engajamento.`
