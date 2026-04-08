@@ -149,6 +149,10 @@ export const CreateCampaignWizard = ({
   const [utmSource, setUtmSource] = useState("facebook");
   const [utmMedium, setUtmMedium] = useState("paid");
   const [utmCampaign, setUtmCampaign] = useState("");
+  const [utmContent, setUtmContent] = useState("");
+  const [utmTerm, setUtmTerm] = useState("");
+  const [utmDynamic, setUtmDynamic] = useState(false);
+  const [utmLoaded, setUtmLoaded] = useState(false);
 
   const objConfig = OBJECTIVE_CONFIG[objective];
 
