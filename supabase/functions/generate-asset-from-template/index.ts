@@ -505,9 +505,20 @@ Deno.serve(async (req) => {
       const brandColorInstruction = context.brand_colors
         ? `\n\n## CORES DA MARCA (OBRIGATÓRIO)\nUse EXCLUSIVAMENTE estas cores da identidade visual do cliente: ${context.brand_colors}\n- Cor primária para elementos dominantes (fundo, seções)\n- Cor de acento APENAS para CTA/botões\n- NÃO use cores genéricas quando as cores da marca estiverem definidas\n- Respeite os valores hex exatos fornecidos\n`
         : "";
-      const systemWithRules = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction + brandColorInstruction + customPrompt;
+      const typographyInstruction = context.typography
+        ? `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO)\nUse estas fontes conforme a identidade visual do cliente: ${context.typography}\n`
+        : "";
+      const visualStyleInstruction = context.visual_style
+        ? `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\nSiga este estilo visual: ${context.visual_style}\n`
+        : "";
+      const systemWithRules = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction + brandColorInstruction + typographyInstruction + visualStyleInstruction + customPrompt;
 
-      const userPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nConfig: ${JSON.stringify(config)}`;
+      // Build rich brief context for user prompt
+      const briefContextBlock = consolidatedStr
+        ? `\n\n## BRIEFING DO CLIENTE (contexto completo — use para tom, estilo, valores, público)\n${consolidatedStr}`
+        : "";
+
+      const userPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nConfig: ${JSON.stringify(config)}${briefContextBlock}`;
 
       const rawContent = await callTextAI(
         systemWithRules,
