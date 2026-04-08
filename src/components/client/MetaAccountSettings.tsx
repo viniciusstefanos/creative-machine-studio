@@ -21,6 +21,7 @@ interface AdsForm {
   ad_account_id: string;
   ad_account_name: string;
   page_access_token: string;
+  pixel_id: string;
 }
 
 export const MetaAccountSettings = ({ clientId }: MetaAccountSettingsProps) => {
@@ -44,6 +45,7 @@ export const MetaAccountSettings = ({ clientId }: MetaAccountSettingsProps) => {
     ad_account_id: "",
     ad_account_name: "",
     page_access_token: "",
+    pixel_id: "",
   });
 
   useEffect(() => {
@@ -79,6 +81,7 @@ export const MetaAccountSettings = ({ clientId }: MetaAccountSettingsProps) => {
           ad_account_id: ads.ad_account_id || "",
           ad_account_name: ads.ad_account_name || "",
           page_access_token: ads.platform === "meta_ads" ? (ads.page_access_token || "") : "",
+          pixel_id: (ads as any).pixel_id || "",
         });
       }
 
@@ -117,6 +120,7 @@ export const MetaAccountSettings = ({ clientId }: MetaAccountSettingsProps) => {
       ad_account_id: adsForm.ad_account_id || null,
       ad_account_name: adsForm.ad_account_name || null,
       page_access_token: adsForm.page_access_token || null,
+      pixel_id: adsForm.pixel_id || null,
     };
 
     if (adsRecord && adsRecord.platform === "meta_ads") {
@@ -307,6 +311,16 @@ export const MetaAccountSettings = ({ clientId }: MetaAccountSettingsProps) => {
             placeholder="EAA..."
             className="text-xs font-mono"
             type="password"
+          />
+        </div>
+
+        <div>
+          <label className="field-label">Pixel ID (para campanhas de conversão)</label>
+          <Input
+            value={adsForm.pixel_id}
+            onChange={(e) => setAdsForm({ ...adsForm, pixel_id: e.target.value })}
+            placeholder="123456789..."
+            className="text-xs font-mono"
           />
         </div>
 

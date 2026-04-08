@@ -578,6 +578,7 @@ export type Database = {
           instagram_page_id: string | null
           instagram_username: string | null
           page_access_token: string | null
+          pixel_id: string | null
           platform: string
           updated_at: string | null
         }
@@ -591,6 +592,7 @@ export type Database = {
           instagram_page_id?: string | null
           instagram_username?: string | null
           page_access_token?: string | null
+          pixel_id?: string | null
           platform?: string
           updated_at?: string | null
         }
@@ -604,6 +606,7 @@ export type Database = {
           instagram_page_id?: string | null
           instagram_username?: string | null
           page_access_token?: string | null
+          pixel_id?: string | null
           platform?: string
           updated_at?: string | null
         }
