@@ -627,7 +627,10 @@ Deno.serve(async (req) => {
         payload.rule = rule || JSON.stringify({ inclusions: { operator: "or", rules: [{ event_sources: [{ id: body.pixel_id }], retention_seconds: 2592000, filter: { operator: "and", filters: [{ field: "url", operator: "i_contains", value: "" }] } }] } });
       }
       if (subtype === "ENGAGEMENT") {
-        payload.rule = rule;
+        if (!rule && !body.page_id) throw new Error("rule or page_id is required for ENGAGEMENT audiences");
+        payload.rule = rule || JSON.stringify({
+          inclusions: { operator: "or", rules: [{ object_id: body.page_id, event_sources: [{ id: body.page_id, type: "page" }], retention_seconds: body.retention_seconds || 2592000 }] }
+        });
       }
       if (customer_file_source) {
         payload.customer_file_source = customer_file_source;
