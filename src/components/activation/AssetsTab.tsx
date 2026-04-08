@@ -36,7 +36,7 @@ interface AssetsTabProps {
 }
 
 export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
-  const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
@@ -125,6 +125,7 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
       toast({ title: `${ids.length} peça(s) excluída(s)` });
       setSelected(new Set());
       fetchAssets();
+      queryClient.invalidateQueries({ queryKey: ["activation-hub", activationId] });
     } catch (e: any) {
       toast({
         title: "Erro ao excluir",
