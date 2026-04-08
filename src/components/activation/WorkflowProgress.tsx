@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Check, FileText, Image, Calendar, ClipboardList } from "lucide-react";
+import { Check, FileText, Image, Calendar, ClipboardList, Megaphone } from "lucide-react";
 
 interface WorkflowStep {
   key: string;
@@ -18,6 +18,7 @@ interface WorkflowProgressProps {
   assetsApproved: number;
   assetsTotal: number;
   scheduledCount: number;
+  campaignsCount: number;
   activeTab: string;
 }
 
@@ -29,6 +30,7 @@ export const WorkflowProgress = ({
   assetsApproved,
   assetsTotal,
   scheduledCount,
+  campaignsCount,
   activeTab,
 }: WorkflowProgressProps) => {
   const steps: WorkflowStep[] = [
@@ -63,6 +65,14 @@ export const WorkflowProgress = ({
         : assetsTotal > 0
         ? `${assetsTotal} em revisão`
         : "Criar peças",
+    },
+    {
+      key: "ad-campaigns",
+      label: "Campanhas",
+      icon: <Megaphone size={14} />,
+      path: "ad-campaigns",
+      status: campaignsCount > 0 ? "done" : assetsApproved > 0 ? "pending" : "locked",
+      hint: campaignsCount > 0 ? `${campaignsCount} campanha${campaignsCount > 1 ? "s" : ""}` : "Criar campanhas",
     },
     {
       key: "schedule",
