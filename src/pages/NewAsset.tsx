@@ -122,6 +122,15 @@ const NewAsset = () => {
     if (!selectedCopy || !selectedTemplate || !id) return;
     setGenerating(true);
 
+    // Build asset name
+    const { count: existingCount } = await supabase
+      .from("assets")
+      .select("id", { count: "exact", head: true })
+      .eq("activation_id", id);
+    const seq = (existingCount || 0) + 1;
+    const copy = copies.find((c) => c.id === selectedCopy);
+    const assetName = buildAssetName(seq, selectedTemplate.category, copy?.hook);
+
     const { data: asset, error: insertError } = await supabase
       .from("assets")
       .insert({
@@ -131,6 +140,7 @@ const NewAsset = () => {
         status: "generating",
         category: selectedTemplate.category,
         render_config: renderConfig,
+        name: assetName,
       })
       .select()
       .single();

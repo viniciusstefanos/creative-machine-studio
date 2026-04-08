@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Layers, Zap } from "lucide-react";
+import { buildAssetName } from "@/lib/assetNaming";
 
 const BatchAssets = () => {
   const { id } = useParams<{ id: string }>();
