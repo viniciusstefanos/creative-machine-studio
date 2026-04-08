@@ -1,99 +1,103 @@
 
 
-# Refatorar Briefing — System Prompt + Exploração Completa dos Arquivos
+# Cores dos Templates Devem Obedecer o Briefing por Padrão
 
-## Problemas Atuais
+## Problema
 
-1. **Extração superficial**: O `extract-brief` resume documentos ricos em 4-5 campos curtos (tone, audience, objectives, extra_context), perdendo 90% do conteúdo
-2. **Sem system prompt global**: Não existe um prompt-base que garanta "não invente dados" em toda a cadeia (extract → generate-copies → generate-asset)
-3. **raw_text truncado**: `generate-copies` corta cada arquivo em 8K chars, `generate-asset` em 5K — documentos completos se perdem
-4. **UI simplista**: BriefTab mostra arquivos como mini-cards com status "extraído/sem texto" — não permite explorar o conteúdo real
+Hoje os `editable_fields` dos templates (ex: `brand_color`, `accent_color`, `bg_color`) usam valores default genéricos (ex: `#00C9A7`, `#111111`). Quando o usuário seleciona um template para gerar uma peça, esses defaults são carregados sem considerar as cores da identidade visual definidas no briefing.
 
-## Plano
+O briefing já possui o campo `brand_colors` (texto descritivo com hex) e o `extracted_fields` dos arquivos pode conter `visual_guidelines.colors_hex`. Mas nada disso alimenta os defaults dos templates.
 
-### Fase 1 — System Prompt Global + Constante Compartilhada
+**Exceções**: Alguns templates exigem cores fixas (ex: carrossel estilo Twitter = fundo branco + texto preto). Nesses casos, o template deve prevalecer.
 
-Criar um arquivo `supabase/functions/_shared/brief-system-prompt.ts` com o system prompt base que será importado por todas as edge functions:
+## Solução
+
+### 1. Extrair cores hex do briefing (frontend — `NewAsset.tsx`)
+
+Quando o brief é carregado, parsear `brand_colors` e/ou `consolidated_context.visual_guidelines` para extrair cores hex automáticas:
 
 ```typescript
-export const BRIEF_SYSTEM_PROMPT = `
-## REGRAS INVIOLÁVEIS DE BRIEFING
-
-1. NÃO INVENTE nenhuma informação, dado, estatística, cliente, depoimento ou cenário hipotético.
-2. Atenha-se EXCLUSIVAMENTE às informações presentes nos documentos e campos do briefing.
-3. Se uma informação não estiver no briefing, NÃO a inclua — prefira omitir a inventar.
-4. NÃO crie nomes de produtos, marcas, locais ou pessoas fictícias.
-5. NÃO invente dados de prova social (reviews, números, certificações) que não estejam no brief.
-6. Se o briefing for insuficiente para um campo, deixe claro que falta informação — NÃO preencha com suposições.
-7. Trate CADA documento anexado como fonte primária de verdade.
-8. Quando houver conflito entre campos manuais e documentos, os campos manuais prevalecem (foram editados pelo usuário).
-`;
+function extractBriefColors(brief: any): { primary?: string; secondary?: string; accent?: string; bg?: string } {
+  const colors: string[] = [];
+  // Parse hex codes from brand_colors text
+  const hexMatches = (brief?.brand_colors || "").match(/#[0-9A-Fa-f]{6}/g) || [];
+  colors.push(...hexMatches);
+  // Also check consolidated_context
+  const consolidated = brief?.consolidated_context?.visual_guidelines?.colors_hex || [];
+  colors.push(...consolidated.filter((c: string) => !colors.includes(c)));
+  return {
+    primary: colors[0],
+    secondary: colors[1],
+    accent: colors[2] || colors[0],
+  };
+}
 ```
 
-Importar em: `extract-brief`, `generate-copies`, `generate-asset-from-template`, `regenerate-copy-block`.
+### 2. Flag `lock_colors` nos templates
 
-### Fase 2 — Extração Profunda dos Arquivos
+Adicionar campo `lock_colors: boolean` (default `false`) nos `editable_fields` ou como campo top-level no template. Quando `true`, os defaults do template prevalecem e não são sobrescritos pelo brief.
 
-Refatorar `extract-brief` para extrair uma estrutura muito mais rica dos documentos:
+Na prática, implementar como uma propriedade `locked: true` em cada campo do `editable_fields`:
 
-- **Novo schema de extração** com ~15 campos (em vez de 5):
-  - `brand_name`, `brand_positioning`, `brand_values`
-  - `products_services` (array com nome, descrição, preço, diferenciais)
-  - `tone_of_voice` (detalhado: formalidade, personalidade, palavras-chave, palavras proibidas)
-  - `target_audience` (demografia, psicografia, dores, desejos, objeções)
-  - `competitors` (nomes, posicionamento, diferenciais)
-  - `visual_guidelines` (cores hex, fontes, estilo, do/don't)
-  - `proof_points` (números reais, prêmios, depoimentos reais do doc)
-  - `key_messages` (mensagens-chave da marca)
-  - `restrictions` (termos proibidos, temas sensíveis, restrições legais)
-  - `detected_category`, `document_summary`
-- Aumentar limite de texto enviado à IA: 12K → 30K chars (ou texto completo)
-- Salvar extração completa em `extracted_fields` (jsonb) — já existe na tabela
-
-### Fase 3 — Nova UI do Brief: Explorador de Documentos
-
-Substituir a UI atual por uma experiência rica:
-
-1. **Painel de arquivos expandível**: Cada arquivo vira um collapsible com:
-   - Header: nome + categoria (tag colorida) + status extração
-   - Conteúdo expandido: texto completo do documento (`raw_text`) em scroll
-   - Campos extraídos: cards visuais com os dados estruturados do `extracted_fields`
-   - Botão "Re-extrair" para reprocessar com o novo schema
-
-2. **Brief consolidado (abaixo)**: Os campos editáveis atuais (tom, público, objetivos, etc.) continuam, mas agora há um botão **"Consolidar dos arquivos"** que puxa e merge inteligentemente todos os `extracted_fields` dos arquivos em um brief unificado
-
-3. **Novo componente `BriefFileViewer`**: Exibe o conteúdo completo de cada arquivo com:
-   - Texto formatado com sections detectadas
-   - Highlight dos trechos que geraram cada campo extraído
-   - Tabs: "Texto completo" | "Campos extraídos"
-
-### Fase 4 — Downstream: Usar Conteúdo Completo na Geração
-
-Atualizar `generate-copies` e `generate-asset-from-template`:
-
-- Enviar `extracted_fields` completo (não apenas raw_text truncado)
-- Aumentar limite de raw_text por arquivo: 8K → 15K
-- Incluir `BRIEF_SYSTEM_PROMPT` no system prompt de cada function
-- Estruturar o contexto dos arquivos por categoria (identidade visual separada de produto, separada de público-alvo)
-
-### Fase 5 — Migration: campo `system_prompt` no briefs
-
-Adicionar coluna `system_prompt` na tabela `briefs` para que o usuário possa customizar instruções específicas por ativação (ex: "nunca usar a palavra 'promoção'", "sempre mencionar delivery grátis").
-
-```sql
-ALTER TABLE public.briefs
-  ADD COLUMN IF NOT EXISTS system_prompt text,
-  ADD COLUMN IF NOT EXISTS consolidated_context jsonb;
+```json
+{
+  "bg_color": { "label": "Fundo", "type": "color", "default": "#FFFFFF", "locked": true },
+  "text_color": { "label": "Texto", "type": "color", "default": "#000000", "locked": true }
+}
 ```
 
-## Arquivos Modificados
+Campos sem `locked: true` terão seus defaults substituídos pelas cores do brief.
 
-- **Novo**: `supabase/functions/_shared/brief-system-prompt.ts` — prompt global
-- **`supabase/functions/extract-brief/index.ts`** — schema rico, texto completo, BRIEF_SYSTEM_PROMPT
-- **`supabase/functions/generate-copies/index.ts`** — importar BRIEF_SYSTEM_PROMPT, usar extracted_fields
-- **`supabase/functions/generate-asset-from-template/index.ts`** — idem
-- **Novo**: `src/components/activation/BriefFileViewer.tsx` — explorador de conteúdo do arquivo
-- **`src/components/activation/BriefTab.tsx`** — layout com explorador + consolidação + campo system_prompt
-- **`src/components/activation/BriefFilesSection.tsx`** — collapsible com conteúdo expandido
-- **Migration SQL** — `system_prompt` e `consolidated_context` em `briefs`
+### 3. Override dos defaults no `useEffect` de `selectedTemplate` (`NewAsset.tsx`)
+
+No `useEffect` que popula `renderConfig` a partir dos `editable_fields`, após montar os defaults, sobrescrever campos de cor que não estejam `locked`:
+
+```typescript
+useEffect(() => {
+  if (!selectedTemplate?.editable_fields) { setRenderConfig({}); return; }
+  const fields = selectedTemplate.editable_fields;
+  const defaults: Record<string, any> = {};
+  const briefColors = extractBriefColors(brief);
+  
+  // Map de nomes comuns → cor do brief
+  const colorMap: Record<string, string | undefined> = {
+    brand_color: briefColors.primary,
+    accent_color: briefColors.accent,
+    cta_color: briefColors.accent || briefColors.primary,
+    primary_color: briefColors.primary,
+    secondary_color: briefColors.secondary,
+  };
+
+  Object.entries(fields).forEach(([key, field]) => {
+    defaults[key] = field.default;
+    // Override color fields with brief colors (unless locked)
+    if (field.type === "color" && !field.locked && colorMap[key]) {
+      defaults[key] = colorMap[key];
+    }
+  });
+  setRenderConfig(defaults);
+}, [selectedTemplate, brief]);
+```
+
+### 4. Injetar cores do brief no prompt da IA (edge function)
+
+No `generate-asset-from-template`, o contexto já recebe `brand_colors` como texto. Adicionar instrução explícita no prompt:
+
+```
+## CORES DA MARCA (OBRIGATÓRIO)
+Use EXCLUSIVAMENTE estas cores da identidade visual do cliente: ${context.brand_colors}
+- Cor primária para elementos dominantes
+- Cor de acento APENAS para CTA/botões
+- NÃO use cores genéricas quando as cores da marca estiverem definidas
+```
+
+### 5. Indicador visual na UI
+
+No step de configuração do template em `NewAsset.tsx`, mostrar um badge ao lado dos campos de cor que foram preenchidos automaticamente pelo brief: "🎨 Do briefing". O usuário pode editar livremente.
+
+## Arquivos modificados
+
+- **`src/pages/NewAsset.tsx`** — `extractBriefColors()`, override de defaults no `useEffect`, badge visual
+- **`supabase/functions/generate-asset-from-template/index.ts`** — instrução de cores obrigatórias no prompt
+- **Templates existentes** (migration SQL) — marcar `locked: true` nos `editable_fields` dos templates que exigem cores fixas (ex: Carrossel Twitter-style)
 
