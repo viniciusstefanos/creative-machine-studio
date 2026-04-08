@@ -622,7 +622,7 @@ Deno.serve(async (req) => {
         access_token: token,
       };
 
-      if (subtype && subtype !== "CUSTOM") {
+      if (subtype && subtype !== "CUSTOM" && subtype !== "ENGAGEMENT") {
         payload.subtype = subtype;
       }
 
