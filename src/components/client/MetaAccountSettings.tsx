@@ -45,6 +45,7 @@ export const MetaAccountSettings = ({ clientId }: MetaAccountSettingsProps) => {
     ad_account_id: "",
     ad_account_name: "",
     page_access_token: "",
+    pixel_id: "",
   });
 
   useEffect(() => {
