@@ -1,6 +1,3 @@
-# Memory: index.md
-Updated: now
-
 # Project Memory
 
 ## Core
@@ -11,6 +8,6 @@ Lovable Cloud enabled. Google OAuth via lovable cloud-auth-js.
 
 ## Memories
 - [Design system](mem://design/tokens) — Full CSS variable palette, fonts, component rules
-- [Design guide](mem://design/guide) — Typography scale, component patterns, spacing, layout rules
-- [Creative agent](mem://features/creative-agent) — AI content generation hooks, carousels, funnel stages, benchmarks
-- [Design rules Meta Ads](mem://features/design-rules-meta-ads) — Comprehensive design, composition, typography, color, photography, copy rules for Meta Ads/Instagram creatives (safe zones, 20% text rule, 3-level hierarchy, 10 prohibitions, approval checklist)
+- [Brief system](mem://features/brief-system) — Global BRIEF_SYSTEM_PROMPT, deep extraction schema, BriefFileViewer, consolidated_context
+- [Creative agent rules](mem://features/creative-agent) — HTML/image creative rules, Instagram BR context
+- [Meta Ads design rules](mem://features/design-rules-meta-ads) — Composition, typography, color, copy checklist for Meta Ads
