@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { decodeBase64 } from "jsr:@std/encoding@1/base64";
+import { BRIEF_SYSTEM_PROMPT } from "../_shared/brief-system-prompt.ts";
 
 /** Strip code fences and any markdown/explanation text around HTML */
 function extractHtml(raw: string): string {
@@ -403,7 +404,7 @@ Deno.serve(async (req) => {
       supabase.from("asset_templates").select("*").eq("id", template_id).single(),
       supabase.from("copies").select("*").eq("id", copy_id).single(),
       supabase.from("briefs").select("*").eq("activation_id", activation_id).maybeSingle(),
-      supabase.from("brief_files").select("category, raw_text, file_name").eq("activation_id", activation_id).not("raw_text", "is", null),
+      supabase.from("brief_files").select("category, raw_text, extracted_fields, file_name").eq("activation_id", activation_id).not("raw_text", "is", null),
     ]);
 
     const template = templateRes.data;
@@ -418,10 +419,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build brief files context for prompts
+    // Build brief files context with extracted_fields + raw_text
     const filesContext = briefFiles.length
-      ? briefFiles.map((f: any) => `[${f.category}] ${f.file_name}: ${(f.raw_text || "").slice(0, 5000)}`).join("\n\n")
+      ? briefFiles.map((f: any) => {
+          const efStr = f.extracted_fields ? `\n**Dados estruturados:**\n${JSON.stringify(f.extracted_fields, null, 2)}` : "";
+          return `[${f.category}] ${f.file_name}:${efStr}\n${(f.raw_text || "").slice(0, 15000)}`;
+        }).join("\n\n---\n\n")
       : "";
+
+    // Custom system prompt from brief
+    const customPrompt = (brief as any)?.system_prompt ? `\n\n## INSTRUÇÕES CUSTOMIZADAS\n${(brief as any).system_prompt}` : "";
 
     const config = render_config || {};
     const context = {
