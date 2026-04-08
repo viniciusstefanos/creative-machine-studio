@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryWithToast } from "@/hooks/useQueryWithToast";
+import { CardSkeleton } from "@/components/ui/CardSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { BriefTab } from "@/components/activation/BriefTab";
 import { CopiesTab } from "@/components/activation/CopiesTab";
 import { AssetsTab } from "@/components/activation/AssetsTab";
@@ -25,32 +27,16 @@ const tabs = [
 const ActivationHub = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
-  const [activation, setActivation] = useState<any>(null);
-  const [clientName, setClientName] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const [workflowData, setWorkflowData] = useState({
-    briefDone: false,
-    copiesApproved: 0,
-    copiesTotal: 0,
-    assetsApproved: 0,
-    assetsTotal: 0,
-    scheduledCount: 0,
-  });
 
-  useEffect(() => {
-    if (!id) return;
-    const fetchData = async () => {
-      const { data: act } = await supabase
+  const { data, isLoading } = useQueryWithToast({
+    queryKey: ["activation-hub", id],
+    queryFn: async () => {
+      const { data: act, error } = await supabase
         .from("activations")
         .select("*, clients(name)")
-        .eq("id", id)
+        .eq("id", id!)
         .single();
-
-      if (act) {
-        setActivation(act);
-        setClientName((act as any).clients?.name || "");
-      }
+      if (error) throw error;
 
       const [copiesReviewRes, assetsReviewRes, briefRes, copiesAllRes, copiesApprovedRes, assetsAllRes, assetsApprovedRes, scheduledRes] = await Promise.all([
         supabase.from("copies").select("status", { count: "exact" }).eq("activation_id", id!).eq("status", "review"),
@@ -63,40 +49,50 @@ const ActivationHub = () => {
         supabase.from("scheduled_posts").select("id", { count: "exact" }).eq("activation_id", id!),
       ]);
 
-      setCounts({
-        copies: copiesReviewRes.count || 0,
-        assets: assetsReviewRes.count || 0,
-      });
+      return {
+        activation: act,
+        clientName: (act as any).clients?.name || "",
+        counts: {
+          copies: copiesReviewRes.count || 0,
+          assets: assetsReviewRes.count || 0,
+        },
+        workflow: {
+          briefDone: !!(briefRes.data?.objectives),
+          copiesApproved: copiesApprovedRes.count || 0,
+          copiesTotal: copiesAllRes.count || 0,
+          assetsApproved: assetsApprovedRes.count || 0,
+          assetsTotal: assetsAllRes.count || 0,
+          scheduledCount: scheduledRes.count || 0,
+        },
+      };
+    },
+    enabled: !!id,
+    staleTime: 15_000,
+    errorMessage: "Erro ao carregar ativação",
+  });
 
-      setWorkflowData({
-        briefDone: !!(briefRes.data?.objectives),
-        copiesApproved: copiesApprovedRes.count || 0,
-        copiesTotal: copiesAllRes.count || 0,
-        assetsApproved: assetsApprovedRes.count || 0,
-        assetsTotal: assetsAllRes.count || 0,
-        scheduledCount: scheduledRes.count || 0,
-      });
-
-      setLoading(false);
-    };
-    fetchData();
-  }, [id]);
-
-  // Determine active tab from URL
   const pathParts = location.pathname.split("/");
   const tabSegment = pathParts[3] || "brief";
   const isHubRoot = location.pathname === `/activations/${id}`;
   const activeTab = isHubRoot ? "brief" : tabSegment;
 
-  if (loading) {
+  if (isLoading) {
     return (
       <AppLayout breadcrumbs={[{ label: "..." }]}>
-        <div className="text-sm" style={{ color: "hsl(var(--text-muted))" }}>Carregando...</div>
+        <div className="space-y-6">
+          <div className="flex items-center gap-4 mb-2">
+            <Skeleton className="h-8 w-64 bg-surface-3" />
+            <Skeleton className="h-5 w-16 rounded-full bg-surface-3" />
+          </div>
+          <Skeleton className="h-4 w-40 bg-surface-3" />
+          <Skeleton className="h-10 w-full bg-surface-3 mt-6" />
+          <CardSkeleton count={4} />
+        </div>
       </AppLayout>
     );
   }
 
-  if (!activation) {
+  if (!data?.activation) {
     return (
       <AppLayout breadcrumbs={[{ label: "Ativação não encontrada" }]}>
         <div className="text-sm" style={{ color: "hsl(var(--text-muted))" }}>Ativação não encontrada</div>
@@ -104,14 +100,16 @@ const ActivationHub = () => {
     );
   }
 
+  const { activation, clientName, counts, workflow } = data;
+
   const renderTabContent = () => {
     switch (activeTab) {
       case "brief": return <BriefTab activationId={id!} />;
-      case "copies": return <CopiesTab activationId={id!} briefDone={workflowData.briefDone} />;
-      case "assets": return <AssetsTab activationId={id!} copiesApproved={workflowData.copiesApproved} />;
+      case "copies": return <CopiesTab activationId={id!} briefDone={workflow.briefDone} />;
+      case "assets": return <AssetsTab activationId={id!} copiesApproved={workflow.copiesApproved} />;
       case "ad-campaigns": return <CampaignsTab activationId={id!} />;
       case "utm": return <UtmTab activationId={id!} landingPageUrl={activation.landing_page_url} />;
-      case "schedule": return <ScheduleTab activationId={id!} assetsApproved={workflowData.assetsApproved} />;
+      case "schedule": return <ScheduleTab activationId={id!} assetsApproved={workflow.assetsApproved} />;
       case "analytics": return <AnalyticsTab activationId={id!} />;
       default: return <BriefTab activationId={id!} />;
     }
@@ -125,7 +123,6 @@ const ActivationHub = () => {
         { label: activation.name },
       ]}
     >
-      {/* Activation Header */}
       <div className="mb-6">
         <div className="flex items-center gap-4 mb-2">
           <h1 className="text-display-lg">{activation.name}</h1>
@@ -143,19 +140,17 @@ const ActivationHub = () => {
         </div>
       </div>
 
-      {/* Workflow Progress */}
       <WorkflowProgress
         activationId={id!}
-        briefDone={workflowData.briefDone}
-        copiesApproved={workflowData.copiesApproved}
-        copiesTotal={workflowData.copiesTotal}
-        assetsApproved={workflowData.assetsApproved}
-        assetsTotal={workflowData.assetsTotal}
-        scheduledCount={workflowData.scheduledCount}
+        briefDone={workflow.briefDone}
+        copiesApproved={workflow.copiesApproved}
+        copiesTotal={workflow.copiesTotal}
+        assetsApproved={workflow.assetsApproved}
+        assetsTotal={workflow.assetsTotal}
+        scheduledCount={workflow.scheduledCount}
         activeTab={activeTab}
       />
 
-      {/* Tabs */}
       <div className="flex gap-1 mb-8 overflow-x-auto pb-1" style={{ borderBottom: "1px solid hsl(var(--border-subtle))" }}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key || activeTab === tab.path;
@@ -188,7 +183,6 @@ const ActivationHub = () => {
         })}
       </div>
 
-      {/* Tab Content */}
       {renderTabContent()}
     </AppLayout>
   );

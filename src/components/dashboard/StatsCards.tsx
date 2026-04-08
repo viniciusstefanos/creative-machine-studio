@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryWithToast } from "@/hooks/useQueryWithToast";
+import { StatSkeleton } from "@/components/ui/CardSkeleton";
 import { FileText, Image, CheckCircle, XCircle, Send, Layers } from "lucide-react";
 
 interface Stats {
@@ -12,10 +13,9 @@ interface Stats {
 }
 
 export const StatsCards = () => {
-  const [stats, setStats] = useState<Stats>({ totalAssets: 0, approved: 0, rejected: 0, published: 0, totalCopies: 0, activations: 0 });
-
-  useEffect(() => {
-    const fetch = async () => {
+  const { data: stats, isLoading } = useQueryWithToast<Stats>({
+    queryKey: ["dashboard-stats"],
+    queryFn: async () => {
       const [assetsRes, copiesRes, activationsRes, scheduledRes] = await Promise.all([
         supabase.from("assets").select("status"),
         supabase.from("copies").select("id", { count: "exact", head: true }),
@@ -23,17 +23,20 @@ export const StatsCards = () => {
         supabase.from("scheduled_posts").select("id", { count: "exact", head: true }).eq("status", "published"),
       ]);
       const assets = assetsRes.data || [];
-      setStats({
+      return {
         totalAssets: assets.length,
         approved: assets.filter((a) => a.status === "approved").length,
         rejected: assets.filter((a) => a.status === "rejected").length,
         published: scheduledRes.count || 0,
         totalCopies: copiesRes.count || 0,
         activations: activationsRes.count || 0,
-      });
-    };
-    fetch();
-  }, []);
+      };
+    },
+    staleTime: 30_000,
+    errorMessage: "Erro ao carregar estatísticas",
+  });
+
+  if (isLoading || !stats) return <StatSkeleton />;
 
   const cards = [
     { label: "Ativações", value: stats.activations, icon: Layers, color: "hsl(var(--accent))" },
