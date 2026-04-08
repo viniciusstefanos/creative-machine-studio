@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Check, ImageIcon, Plus } from "lucide-react";
+import { Loader2, Check, ImageIcon, Plus, X, AlertCircle } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 interface AddAdsDialogProps {
   open: boolean;
@@ -47,6 +48,9 @@ export const AddAdsToCampaignDialog = ({
   const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitProgress, setSubmitProgress] = useState(0);
+  const [submitTotal, setSubmitTotal] = useState(0);
+  const [assetResults, setAssetResults] = useState<Record<string, "ok" | "error">>({});
 
   useEffect(() => {
     if (open) {
@@ -124,10 +128,13 @@ export const AddAdsToCampaignDialog = ({
   const toggleAsset = (id: string) => {
     setSelectedAssetIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   };
+
+  const selectAll = () => setSelectedAssetIds(new Set(approvedAssets.map(a => a.id)));
+  const clearAll = () => setSelectedAssetIds(new Set());
 
   const handleSubmit = async () => {
     const campaign = campaigns.find(c => c.id === selectedCampaignId);
@@ -138,6 +145,9 @@ export const AddAdsToCampaignDialog = ({
 
     setSubmitting(true);
     const selectedAssets = approvedAssets.filter(a => selectedAssetIds.has(a.id));
+    setSubmitTotal(selectedAssets.length);
+    setSubmitProgress(0);
+    setAssetResults({});
     let successCount = 0;
 
     for (const asset of selectedAssets) {
@@ -165,11 +175,18 @@ export const AddAdsToCampaignDialog = ({
             asset_id: asset.id,
           },
         });
-        if (!adErr && !adRes?.error) successCount++;
-        else console.error(`Ad error for ${asset.id}:`, adRes?.error || adErr);
+        if (!adErr && !adRes?.error) {
+          successCount++;
+          setAssetResults(prev => ({ ...prev, [asset.id]: "ok" }));
+        } else {
+          console.error(`Ad error for ${asset.id}:`, adRes?.error || adErr);
+          setAssetResults(prev => ({ ...prev, [asset.id]: "error" }));
+        }
       } catch (e) {
         console.error(`Failed to create ad for asset ${asset.id}:`, e);
+        setAssetResults(prev => ({ ...prev, [asset.id]: "error" }));
       }
+      setSubmitProgress(prev => prev + 1);
     }
 
     if (successCount > 0) {
@@ -227,9 +244,19 @@ export const AddAdsToCampaignDialog = ({
 
         {/* Select assets */}
         <div className="space-y-3 mt-2">
-          <p className="text-xs font-medium" style={{ color: "hsl(var(--text-secondary))", fontFamily: "'DM Sans'" }}>
-            Peças aprovadas ({selectedAssetIds.size}/{approvedAssets.length})
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium" style={{ color: "hsl(var(--text-secondary))", fontFamily: "'DM Sans'" }}>
+              Peças aprovadas ({selectedAssetIds.size}/{approvedAssets.length})
+            </p>
+            <div className="flex gap-2">
+              <button onClick={selectAll} className="text-[10px] underline" style={{ color: "hsl(var(--accent))", fontFamily: "'DM Sans'" }}>
+                Selecionar tudo
+              </button>
+              <button onClick={clearAll} className="text-[10px] underline" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
+                Limpar
+              </button>
+            </div>
+          </div>
           {loading ? (
             <div className="flex items-center justify-center py-6">
               <Loader2 size={20} className="animate-spin" style={{ color: "hsl(var(--accent))" }} />
@@ -269,6 +296,16 @@ export const AddAdsToCampaignDialog = ({
                         <Check size={12} style={{ color: "hsl(var(--accent-foreground))" }} />
                       </div>
                     )}
+                    {assetResults[asset.id] === "ok" && (
+                      <div className="absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "hsl(142 71% 45%)" }}>
+                        <Check size={12} className="text-white" />
+                      </div>
+                    )}
+                    {assetResults[asset.id] === "error" && (
+                      <div className="absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "hsl(0 84% 60%)" }}>
+                        <X size={12} className="text-white" />
+                      </div>
+                    )}
                     <div className="absolute bottom-0 left-0 right-0 px-1.5 py-1" style={{ background: "hsla(var(--bg-base) / 0.8)" }}>
                       <p className="text-[9px] truncate" style={{ color: "hsl(var(--text-primary))", fontFamily: "'JetBrains Mono', monospace" }}>
                         {asset.name || "Peça"}
@@ -280,6 +317,17 @@ export const AddAdsToCampaignDialog = ({
             </div>
           )}
         </div>
+
+        {/* Progress */}
+        {submitting && submitTotal > 0 && (
+          <div className="mt-2 space-y-1">
+            <div className="flex justify-between text-[10px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'JetBrains Mono', monospace" }}>
+              <span>Subindo {submitProgress} de {submitTotal}</span>
+              <span>{Math.round((submitProgress / submitTotal) * 100)}%</span>
+            </div>
+            <Progress value={(submitProgress / submitTotal) * 100} className="h-1.5" />
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex justify-end gap-2 mt-4">

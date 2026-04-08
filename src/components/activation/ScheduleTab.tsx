@@ -6,8 +6,9 @@ import { SchedulePostDialog } from "./SchedulePostDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { Calendar, Send, Loader2, Plus, Trash2, Pencil, Image } from "lucide-react";
+import { Calendar, Send, Loader2, Plus, Trash2, Pencil, Image, Layers } from "lucide-react";
 import { renderHtmlToPng, uploadPng } from "@/lib/renderPng";
+import { BulkScheduleDialog } from "./BulkScheduleDialog";
 
 interface ScheduleTabProps {
   activationId: string;
@@ -22,6 +23,7 @@ export const ScheduleTab = ({ activationId, assetsApproved }: ScheduleTabProps) 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const fetchAll = async () => {
     const { data } = await supabase
@@ -274,13 +276,23 @@ export const ScheduleTab = ({ activationId, assetsApproved }: ScheduleTabProps) 
       <div className="flex items-center justify-between mb-4">
         <SectionLabel>Agendamentos</SectionLabel>
         {(assetsApproved || 0) > 0 && (
-          <Button
-            size="sm"
-            onClick={() => { setEditingPost(null); setDialogOpen(true); }}
-            className="gap-1.5 text-xs h-8"
-          >
-            <Plus size={14} /> Agendar post
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setBulkOpen(true)}
+              className="gap-1.5 text-xs h-8"
+            >
+              <Layers size={14} /> Agendar em massa
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => { setEditingPost(null); setDialogOpen(true); }}
+              className="gap-1.5 text-xs h-8"
+            >
+              <Plus size={14} /> Agendar post
+            </Button>
+          </div>
         )}
       </div>
 
@@ -349,6 +361,12 @@ export const ScheduleTab = ({ activationId, assetsApproved }: ScheduleTabProps) 
         onOpenChange={setDialogOpen}
         activationId={activationId}
         editingPost={editingPost}
+        onSaved={fetchAll}
+      />
+      <BulkScheduleDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        activationId={activationId}
         onSaved={fetchAll}
       />
     </div>
