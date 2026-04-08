@@ -22,6 +22,15 @@ interface Props {
 const CATEGORIES = [
   { value: "static", label: "Estático" },
   { value: "carousel", label: "Carrossel" },
+  { value: "story", label: "Story" },
+  { value: "reels", label: "Reels" },
+];
+
+const FUNNEL_STAGES = [
+  { value: "", label: "Nenhum" },
+  { value: "top", label: "Topo de funil" },
+  { value: "middle", label: "Meio de funil" },
+  { value: "bottom", label: "Fundo de funil" },
 ];
 
 const RATIOS = ["4:5", "9:16", "1:1"];
