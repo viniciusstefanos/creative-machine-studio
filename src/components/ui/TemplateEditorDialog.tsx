@@ -184,6 +184,7 @@ export function TemplateEditorDialog({ open, onOpenChange, template, clients, on
       visibility,
       is_base: false,
       active: true,
+      funnel_stage: funnelStage || null,
     };
 
     setSaving(true);
