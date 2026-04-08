@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryWithToast } from "@/hooks/useQueryWithToast";
+import { ChartSkeleton } from "@/components/ui/CardSkeleton";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 
@@ -11,10 +12,9 @@ interface WeekData {
 }
 
 export const VolumeChart = () => {
-  const [data, setData] = useState<WeekData[]>([]);
-
-  useEffect(() => {
-    const fetch = async () => {
+  const { data, isLoading } = useQueryWithToast<WeekData[]>({
+    queryKey: ["dashboard-volume"],
+    queryFn: async () => {
       const eightWeeksAgo = new Date();
       eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
       const { data: assets } = await supabase
@@ -22,7 +22,7 @@ export const VolumeChart = () => {
         .select("created_at, status")
         .gte("created_at", eightWeeksAgo.toISOString());
 
-      if (!assets || assets.length === 0) { setData([]); return; }
+      if (!assets || assets.length === 0) return [];
 
       const weeks: Record<string, WeekData> = {};
       assets.forEach((a) => {
@@ -36,10 +36,11 @@ export const VolumeChart = () => {
         if (a.status === "rejected") weeks[key].rejected++;
       });
 
-      setData(Object.values(weeks).sort((a, b) => a.week.localeCompare(b.week)));
-    };
-    fetch();
-  }, []);
+      return Object.values(weeks).sort((a, b) => a.week.localeCompare(b.week));
+    },
+    staleTime: 60_000,
+    errorMessage: "Erro ao carregar volume semanal",
+  });
 
   const formatWeek = (w: string) => {
     const d = new Date(w + "T00:00:00");
@@ -49,7 +50,9 @@ export const VolumeChart = () => {
   return (
     <div>
       <SectionLabel>Volume Semanal de Peças</SectionLabel>
-      {data.length === 0 ? (
+      {isLoading ? (
+        <ChartSkeleton />
+      ) : !data || data.length === 0 ? (
         <div className="card-base text-center py-8 mt-3">
           <p className="text-caption">Nenhuma peça gerada nas últimas 8 semanas</p>
         </div>

@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryWithToast } from "@/hooks/useQueryWithToast";
+import { CardSkeleton } from "@/components/ui/CardSkeleton";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { Layout } from "lucide-react";
 
@@ -9,14 +10,13 @@ interface RankedTemplate {
 }
 
 export const TemplateRanking = () => {
-  const [ranking, setRanking] = useState<RankedTemplate[]>([]);
-
-  useEffect(() => {
-    const fetch = async () => {
+  const { data: ranking, isLoading } = useQueryWithToast<RankedTemplate[]>({
+    queryKey: ["dashboard-template-ranking"],
+    queryFn: async () => {
       const { data: assets } = await supabase
         .from("assets")
         .select("template_id, asset_templates(name)");
-      if (!assets) return;
+      if (!assets) return [];
 
       const counts: Record<string, { name: string; count: number }> = {};
       assets.forEach((a: any) => {
@@ -26,16 +26,22 @@ export const TemplateRanking = () => {
         counts[tid].count++;
       });
 
-      setRanking(
-        Object.values(counts)
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 5)
-      );
-    };
-    fetch();
-  }, []);
+      return Object.values(counts)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+    },
+    staleTime: 60_000,
+    errorMessage: "Erro ao carregar ranking de templates",
+  });
 
-  if (ranking.length === 0) return null;
+  if (isLoading) return (
+    <div>
+      <SectionLabel>Templates Mais Usados</SectionLabel>
+      <div className="mt-3"><CardSkeleton count={3} /></div>
+    </div>
+  );
+
+  if (!ranking || ranking.length === 0) return null;
 
   return (
     <div>
