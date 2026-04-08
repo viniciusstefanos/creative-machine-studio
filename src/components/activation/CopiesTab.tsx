@@ -109,6 +109,15 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
   const orgCount = copies.filter(c => (c.purpose || "organic") === "organic").length;
   const adsCount = copies.filter(c => (c.purpose || "organic") === "ads").length;
 
+  const allSelected = filtered.length > 0 && filtered.every(c => selected.has(c.id));
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map(c => c.id)));
+    }
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
