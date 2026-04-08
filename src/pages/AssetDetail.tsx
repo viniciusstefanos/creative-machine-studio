@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -117,6 +117,32 @@ const AssetDetail = () => {
 
   useEffect(() => { fetchAsset(); }, [fetchAsset]);
 
+  // Keyboard shortcuts for approval flow
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Don't trigger if typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (editMode !== "none") return;
+
+      if (e.key === "a" && asset?.status === "review" && !actionLoading) {
+        e.preventDefault();
+        updateStatus("approved");
+      } else if (e.key === "r" && asset?.status === "review" && !actionLoading) {
+        e.preventDefault();
+        setShowFeedback(true);
+      } else if (e.key === "ArrowRight" && nextAsset) {
+        e.preventDefault();
+        navigate(`/activations/${id}/assets/${nextAsset.id}`);
+      } else if (e.key === "ArrowLeft" && prevAsset) {
+        e.preventDefault();
+        navigate(`/activations/${id}/assets/${prevAsset.id}`);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [asset?.status, actionLoading, editMode, nextAsset, prevAsset, id, navigate]);
+
   // Fetch sibling assets for prev/next navigation
   useEffect(() => {
     if (!id) return;
@@ -185,22 +211,51 @@ const AssetDetail = () => {
     setAsset((prev: any) => ({ ...prev, status: "approved" }));
   }, [assetId, template]);
 
-  const updateStatus = async (status: string, extraFields?: Record<string, any>) => {
+  // Count review assets for progress
+  const reviewStats = useMemo(() => {
+    const total = siblingAssets.length;
+    const pending = siblingAssets.filter(a => a.status === "review").length;
+    const approved = siblingAssets.filter(a => a.status === "approved").length;
+    return { total, pending, approved };
+  }, [siblingAssets]);
+
+  const goToNextReview = useCallback(async () => {
+    // Find next asset with status "review" (excluding current)
+    const nextReview = siblingAssets.find(a => a.id !== assetId && a.status === "review");
+    if (nextReview) {
+      navigate(`/activations/${id}/assets/${nextReview.id}`, { replace: true });
+    } else {
+      toast.success("🎉 Todas as peças foram revisadas!", {
+        description: `${reviewStats.approved + 1} peças aprovadas`,
+      });
+      navigate(`/activations/${id}/assets`);
+    }
+  }, [siblingAssets, assetId, id, navigate, reviewStats]);
+
+  const updateStatus = async (status: string, extraFields?: Record<string, any>, autoNavigate = false) => {
     setActionLoading(true);
     const { error } = await supabase.from("assets").update({ status, ...extraFields }).eq("id", assetId!);
     if (error) {
       toast.error("Falha ao atualizar");
     } else {
       setAsset((prev: any) => ({ ...prev, status, ...extraFields }));
+      // Update sibling status locally for accurate counting
+      setSiblingAssets(prev => prev.map(a => a.id === assetId ? { ...a, status } : a));
+
       if (status === "approved") {
-        toast.success("Peça aprovada!", {
+        toast.success(`Peça aprovada ✓ — ${reviewStats.approved + 1} de ${reviewStats.total} revisadas`, {
           description: "Renderizando PNGs em background...",
-          action: { label: "Agendar →", onClick: () => navigate(`/activations/${id}/schedule`) },
         });
-        // Fire-and-forget background render
         triggerBackgroundRender();
+        // Auto-navigate to next review asset
+        setTimeout(() => goToNextReview(), 600);
       } else if (status === "rejected") {
-        toast("Peça rejeitada", { description: "Adicione feedback e gere nova versão." });
+        if (autoNavigate) {
+          toast("Peça rejeitada", { description: "Indo para próxima..." });
+          setTimeout(() => goToNextReview(), 600);
+        } else {
+          toast("Peça rejeitada", { description: "Adicione feedback e gere nova versão." });
+        }
       }
     }
     setActionLoading(false);
@@ -757,38 +812,61 @@ const AssetDetail = () => {
         </Button>
         <h1 className="text-display-md">{asset.name || `Peça v${asset.version || 1}`}</h1>
         <StatusBadge status={asset.status} />
-        <div className="ml-auto flex items-center gap-1">
-          {siblingAssets.length > 1 && (() => {
-            const reviewCount = siblingAssets.filter(a => a.status === "review").length;
-            return (
-              <span className="text-mono text-txt-muted mr-2">
-                {currentAssetIndex + 1}/{siblingAssets.length}
-                {reviewCount > 0 && (
-                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px]" style={{ background: "hsl(var(--status-review) / 0.15)", color: "hsl(var(--status-review))" }}>
-                    {reviewCount} p/ revisar
-                  </span>
-                )}
-              </span>
-            );
-          })()}
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            disabled={!prevAsset}
-            onClick={() => prevAsset && navigate(`/activations/${id}/assets/${prevAsset.id}`)}
-          >
-            <ChevronLeft size={16} />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            disabled={!nextAsset}
-            onClick={() => nextAsset && navigate(`/activations/${id}/assets/${nextAsset.id}`)}
-          >
-            <ChevronRight size={16} />
-          </Button>
+        <div className="ml-auto flex items-center gap-3">
+          {/* Progress bar */}
+          {siblingAssets.length > 1 && (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <div className="w-24 h-1.5 rounded-full overflow-hidden" style={{ background: "hsl(var(--surface-3))" }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{
+                      width: `${((reviewStats.total - reviewStats.pending) / reviewStats.total) * 100}%`,
+                      background: "hsl(var(--accent))",
+                    }}
+                  />
+                </div>
+                <span className="text-mono text-txt-muted text-[10px]">
+                  {reviewStats.total - reviewStats.pending}/{reviewStats.total}
+                </span>
+              </div>
+              {reviewStats.pending > 0 && (
+                <span
+                  className="px-1.5 py-0.5 rounded-full text-[9px]"
+                  style={{
+                    background: "hsl(var(--status-review) / 0.15)",
+                    color: "hsl(var(--status-review))",
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {reviewStats.pending} p/ revisar
+                </span>
+              )}
+            </div>
+          )}
+          {/* Nav arrows */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={!prevAsset}
+              onClick={() => prevAsset && navigate(`/activations/${id}/assets/${prevAsset.id}`)}
+              title="← Peça anterior"
+            >
+              <ChevronLeft size={16} />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={!nextAsset}
+              onClick={() => nextAsset && navigate(`/activations/${id}/assets/${nextAsset.id}`)}
+              title="→ Próxima peça"
+            >
+              <ChevronRight size={16} />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -857,32 +935,33 @@ const AssetDetail = () => {
                 setJustApproved(true);
               }} disabled={actionLoading}>
                 <Check size={16} /> Aprovar
+                <kbd className="ml-auto text-[9px] px-1.5 py-0.5 rounded border opacity-50" style={{ borderColor: "hsl(var(--border-subtle))", fontFamily: "'JetBrains Mono', monospace" }}>A</kbd>
               </Button>
               {!showFeedback ? (
                 <Button variant="outline" className="w-full gap-2 text-destructive border-destructive/30" onClick={() => setShowFeedback(true)} disabled={actionLoading}>
                   <X size={16} /> Rejeitar
+                  <kbd className="ml-auto text-[9px] px-1.5 py-0.5 rounded border opacity-50" style={{ borderColor: "hsl(var(--border-subtle))", fontFamily: "'JetBrains Mono', monospace" }}>R</kbd>
                 </Button>
               ) : (
                 <div className="space-y-2">
                   <Textarea
-                    placeholder="Feedback para a próxima versão..."
+                    placeholder="Feedback para a próxima versão (opcional)..."
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
                     className="text-sm"
+                    autoFocus
                   />
                   <div className="flex gap-2">
                     <Button variant="destructive" className="flex-1" onClick={() => updateStatus("rejected", { feedback })} disabled={actionLoading}>
                       Rejeitar
                     </Button>
-                    {nextAsset && (
-                      <Button variant="destructive" className="flex-1 gap-1" onClick={async () => {
-                        await updateStatus("rejected", { feedback });
-                        navigate(`/activations/${id}/assets/${nextAsset.id}`);
-                      }} disabled={actionLoading}>
-                        Rejeitar e próxima →
-                      </Button>
-                    )}
+                    <Button variant="destructive" className="flex-1 gap-1" onClick={() => updateStatus("rejected", { feedback }, true)} disabled={actionLoading}>
+                      Rejeitar e próxima →
+                    </Button>
                   </div>
+                  <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => setShowFeedback(false)}>
+                    Cancelar
+                  </Button>
                 </div>
               )}
             </div>
