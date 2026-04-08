@@ -110,19 +110,35 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
             </span>
           )}
         </SectionLabel>
-        <Button
-          size="sm"
-          className="text-xs gap-1.5"
-          style={{
-            background: "hsl(var(--accent))",
-            color: "hsl(var(--accent-foreground))",
-            fontFamily: "'DM Sans'",
-            borderRadius: 6,
-          }}
-          onClick={() => setWizardOpen(true)}
-        >
-          <Plus size={14} /> Criar Campanha
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs gap-1.5"
+            style={{
+              color: "hsl(var(--text-secondary))",
+              fontFamily: "'DM Sans'",
+              borderRadius: 6,
+              border: "1px solid hsl(var(--border-default))",
+            }}
+            onClick={() => { setAddAdsPreselectedCampaign(null); setAddAdsOpen(true); }}
+          >
+            <Upload size={14} /> Adicionar Anúncios
+          </Button>
+          <Button
+            size="sm"
+            className="text-xs gap-1.5"
+            style={{
+              background: "hsl(var(--accent))",
+              color: "hsl(var(--accent-foreground))",
+              fontFamily: "'DM Sans'",
+              borderRadius: 6,
+            }}
+            onClick={() => setWizardOpen(true)}
+          >
+            <Plus size={14} /> Criar Campanha
+          </Button>
+        </div>
       </div>
 
       {!metaAccount?.ad_account_id && (
@@ -276,9 +292,20 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-[10px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
-                        Nenhum anúncio vinculado
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
+                          Nenhum anúncio vinculado
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-[10px] gap-1 h-7"
+                          style={{ color: "hsl(var(--accent))", fontFamily: "'DM Sans'" }}
+                          onClick={(e) => { e.stopPropagation(); setAddAdsPreselectedCampaign(campaign.id); setAddAdsOpen(true); }}
+                        >
+                          <Plus size={10} /> Adicionar anúncio
+                        </Button>
+                      </div>
                     )}
                   </div>
                 )}
