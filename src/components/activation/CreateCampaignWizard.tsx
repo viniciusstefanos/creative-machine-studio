@@ -160,6 +160,22 @@ export const CreateCampaignWizard = ({
     if (open && activationId) {
       supabase.from("activations").select("slug").eq("id", activationId).single()
         .then(({ data }) => { if (data?.slug) setActivationSlug(data.slug); });
+
+      // Load meta_ads UTM config
+      if (!utmLoaded) {
+        supabase.from("utm_configs").select("*").eq("activation_id", activationId).eq("channel", "meta_ads").single()
+          .then(({ data: utmData }) => {
+            if (utmData) {
+              if (utmData.utm_source) setUtmSource(utmData.utm_source);
+              if (utmData.utm_medium) setUtmMedium(utmData.utm_medium);
+              if (utmData.utm_campaign) setUtmCampaign(utmData.utm_campaign);
+              if (utmData.utm_content) setUtmContent(utmData.utm_content);
+              if (utmData.utm_term) setUtmTerm(utmData.utm_term);
+              setUtmDynamic(utmData.use_dynamic_params || false);
+            }
+            setUtmLoaded(true);
+          });
+      }
     }
   }, [open, activationId]);
 
