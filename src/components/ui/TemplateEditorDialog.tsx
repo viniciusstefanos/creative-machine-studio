@@ -416,11 +416,17 @@ export function TemplateEditorDialog({ open, onOpenChange, template, clients, on
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="mt-1 bg-[hsl(var(--bg-surface2))] border-[hsl(var(--border-subtle))]" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-mono-label">Visibilidade</Label>
               <select value={visibility} onChange={(e) => setVisibility(e.target.value)} className="field-input mt-1">
                 {VISIBILITIES.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label className="text-mono-label">Funil</Label>
+              <select value={funnelStage} onChange={(e) => setFunnelStage(e.target.value)} className="field-input mt-1">
+                {FUNNEL_STAGES.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
               </select>
             </div>
             <div>
