@@ -25,6 +25,7 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [landingPageUrl, setLandingPageUrl] = useState<string | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [activationSlug, setActivationSlug] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [importSaving, setImportSaving] = useState(false);
