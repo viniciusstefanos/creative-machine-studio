@@ -71,6 +71,25 @@ const CopyDetail = () => {
     fetchData();
   }, [copyId, activationId]);
 
+  const goToNextCopy = async () => {
+    const { data } = await supabase
+      .from("copies")
+      .select("id")
+      .eq("activation_id", activationId!)
+      .in("status", ["review", "draft"])
+      .neq("id", copyId!)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .single();
+
+    if (data) {
+      navigate(`/activations/${activationId}/copies/${data.id}`, { replace: true });
+    } else {
+      toast.success("🎉 Todas as copies foram revisadas!");
+      navigate(`/activations/${activationId}/copies`);
+    }
+  };
+
   const updateCopy = async (updates: Record<string, any>) => {
     setSaving(true);
     const fullCopy = `${updates.hook ?? hook}\n\n${updates.body ?? body}\n\n${updates.cta ?? cta}`;
@@ -85,15 +104,11 @@ const CopyDetail = () => {
     setSaving(false);
 
     if (updates.status === "approved") {
-      toast.success("Copy aprovado!", {
-        description: "Agora crie peças visuais com este copy.",
-        action: { label: "Criar peça →", onClick: () => navigate(`/activations/${activationId}/assets/new`) },
-      });
+      toast.success("Copy aprovado!");
+      await goToNextCopy();
     } else if (updates.status === "rejected") {
-      toast("Copy rejeitado", {
-        description: "Volte para a lista de copies.",
-        action: { label: "Ver copies", onClick: () => navigate(`/activations/${activationId}/copies`) },
-      });
+      toast("Copy rejeitado");
+      await goToNextCopy();
     }
   };
 
