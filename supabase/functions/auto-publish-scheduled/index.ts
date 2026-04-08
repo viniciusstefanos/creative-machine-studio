@@ -50,11 +50,14 @@ Deno.serve(async (req) => {
           .single();
         if (!act?.client_id) continue;
 
-        const { data: meta } = await supabase
+        // Prefer meta_organic record, fallback to legacy "meta"
+        const { data: metaRecords } = await supabase
           .from("client_meta_accounts")
           .select("*")
           .eq("client_id", act.client_id)
-          .maybeSingle();
+          .in("platform", ["meta_organic", "meta"]);
+        const meta = metaRecords?.find((r: any) => r.platform === "meta_organic")
+          || metaRecords?.[0] || null;
         if (!meta?.instagram_page_id) continue;
 
         const token = meta.page_access_token || META_ACCESS_TOKEN;

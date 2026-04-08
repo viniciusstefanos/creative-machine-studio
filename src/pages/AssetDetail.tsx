@@ -62,14 +62,24 @@ const AssetDetail = () => {
       if (actRes.data) {
         setActivation(actRes.data);
         setClientName((actRes.data as any).clients?.name || "");
-        // Fetch meta account for paid ads
-        const { data: metaData } = await supabase
+        // Fetch meta accounts: prefer meta_ads for ad_account_id, meta_organic for instagram
+        const { data: metaRecords } = await supabase
           .from("client_meta_accounts")
-          .select("ad_account_id, page_access_token, instagram_page_id, facebook_page_id")
+          .select("ad_account_id, page_access_token, instagram_page_id, facebook_page_id, platform")
           .eq("client_id", actRes.data.client_id)
-          .limit(1)
-          .maybeSingle();
-        if (metaData) setMetaAccount(metaData);
+          .in("platform", ["meta_ads", "meta_organic", "meta"]);
+        const adsRec = metaRecords?.find((r) => r.platform === "meta_ads")
+          || metaRecords?.find((r) => r.platform === "meta");
+        const orgRec = metaRecords?.find((r) => r.platform === "meta_organic")
+          || metaRecords?.find((r) => r.platform === "meta");
+        // Merge: ads fields from adsRec, organic fields from orgRec
+        const merged = {
+          ad_account_id: adsRec?.ad_account_id || null,
+          page_access_token: adsRec?.page_access_token || orgRec?.page_access_token || null,
+          instagram_page_id: orgRec?.instagram_page_id || null,
+          facebook_page_id: orgRec?.facebook_page_id || null,
+        };
+        if (merged.ad_account_id || merged.instagram_page_id) setMetaAccount(merged);
       }
       if (data.template_id) {
         const tplRes = await supabase.from("asset_templates").select("*").eq("id", data.template_id).single();
