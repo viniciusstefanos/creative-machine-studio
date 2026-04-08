@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { NextStepBar } from "@/components/activation/NextStepBar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Check, Send, X, Copy, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Send, X, Copy, Loader2, Trash2 } from "lucide-react";
 
 const purposeLabel: Record<string, string> = { organic: "Orgânico", ads: "Ads" };
 const purposeColor: Record<string, string> = { organic: "--status-published", ads: "--accent" };
