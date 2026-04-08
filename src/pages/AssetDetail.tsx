@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Check, X, RefreshCw, Calendar, Loader2, ChevronLeft, ChevronRight,
-  Pencil, Image, Wand2, Save, RotateCcw, ArrowLeft, Type, Layers
+  Pencil, Image, Wand2, Save, RotateCcw, ArrowLeft, Type, Layers, Trash2
 } from "lucide-react";
 import { HtmlVisualEditor } from "@/components/ui/HtmlVisualEditor";
 import { SchedulePostDialog } from "@/components/activation/SchedulePostDialog";
@@ -154,6 +154,18 @@ const AssetDetail = () => {
     }
     setActionLoading(false);
     setShowFeedback(false);
+  };
+
+  const handleDeleteAsset = async () => {
+    if (!confirm("Excluir esta peça permanentemente?")) return;
+    await supabase.from("asset_template_renders").delete().eq("asset_id", assetId!);
+    const { error } = await supabase.from("assets").delete().eq("id", assetId!);
+    if (error) {
+      toast.error("Erro ao excluir peça");
+    } else {
+      toast.success("Peça excluída");
+      navigate(`/activations/${id}/assets`);
+    }
   };
 
   const handleRegenerate = async () => {
@@ -862,6 +874,11 @@ const AssetDetail = () => {
               </Button>
             </div>
           )}
+
+          {/* Delete */}
+          <Button variant="ghost" className="w-full gap-1.5 text-xs text-destructive/60 hover:text-destructive" onClick={handleDeleteAsset}>
+            <Trash2 size={14} /> Excluir peça
+          </Button>
 
           {/* Comments */}
           <div className="card-base">

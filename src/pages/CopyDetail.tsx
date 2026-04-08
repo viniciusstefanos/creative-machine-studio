@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { NextStepBar } from "@/components/activation/NextStepBar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Check, Send, X, Copy, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Send, X, Copy, Loader2, Trash2 } from "lucide-react";
 
 const purposeLabel: Record<string, string> = { organic: "Orgânico", ads: "Ads" };
 const purposeColor: Record<string, string> = { organic: "--status-published", ads: "--accent" };
@@ -88,6 +88,18 @@ const CopyDetail = () => {
         description: "Volte para a lista de copies.",
         action: { label: "Ver copies", onClick: () => navigate(`/activations/${activationId}/copies`) },
       });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Excluir este copy permanentemente?")) return;
+    await supabase.from("assets").update({ copy_id: null }).eq("copy_id", copyId!);
+    const { error } = await supabase.from("copies").delete().eq("id", copyId!);
+    if (error) {
+      toast.error("Erro ao excluir copy");
+    } else {
+      toast.success("Copy excluído");
+      navigate(`/activations/${activationId}/copies`);
     }
   };
 
@@ -258,6 +270,9 @@ const CopyDetail = () => {
 
           {/* Sticky footer */}
           <div className="form__footer sticky bottom-0" style={{ background: "hsl(var(--bg-base))", paddingBottom: 20 }}>
+            <Button variant="ghost" size="sm" onClick={handleDelete} className="gap-1.5 text-destructive/70 hover:text-destructive">
+              <Trash2 size={14} /> Excluir
+            </Button>
             {copy.status === "review" && (
               <Button variant="destructive" size="sm" onClick={handleReject} disabled={saving} className="gap-2">
                 <X size={14} /> Rejeitar

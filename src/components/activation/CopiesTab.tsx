@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, FileText, Sparkles, Loader2 } from "lucide-react";
+import { Plus, FileText, Sparkles, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface CopiesTabProps {
@@ -42,6 +42,8 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [filter, setFilter] = useState<PurposeFilter>("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   // Generation dialog state
   const [showGenDialog, setShowGenDialog] = useState(false);
@@ -72,6 +74,31 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
   };
 
   useEffect(() => { fetchCopies(); }, [activationId]);
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!confirm(`Excluir ${selected.size} copy(ies) permanentemente?`)) return;
+    setDeleting(true);
+    const ids = Array.from(selected);
+    // Remove associated assets' copy_id references first
+    await supabase.from("assets").update({ copy_id: null }).in("copy_id", ids);
+    const { error } = await supabase.from("copies").delete().in("id", ids);
+    if (error) {
+      toast.error("Erro ao excluir copies");
+    } else {
+      toast.success(`${ids.length} copy(ies) excluído(s)`);
+      setSelected(new Set());
+      fetchCopies();
+    }
+    setDeleting(false);
+  };
 
   const filtered = filter === "all" ? copies : copies.filter(c => (c.purpose || "organic") === filter);
   const orgCount = copies.filter(c => (c.purpose || "organic") === "organic").length;
@@ -149,6 +176,18 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <SectionLabel>Copies</SectionLabel>
         <div className="flex gap-2">
+          {selected.size > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleDeleteSelected}
+              disabled={deleting}
+            >
+              {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+              Excluir ({selected.size})
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -381,38 +420,46 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
         <div className="grid grid-cols-1 gap-3">
           {filtered.map((copy) => {
             const purpose = copy.purpose || "organic";
+            const isSelected = selected.has(copy.id);
             return (
-              <Link
-                key={copy.id}
-                to={`/activations/${activationId}/copies/${copy.id}`}
-                className="card-base card-interactive block"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="text-[9px] font-bold px-1.5 py-0.5 rounded"
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        background: `hsl(var(${purposeColor[purpose]}) / 0.12)`,
-                        color: `hsl(var(${purposeColor[purpose]}))`,
-                        border: `1px solid hsl(var(${purposeColor[purpose]}) / 0.25)`,
-                      }}
-                    >
-                      {purposeLabel[purpose]}
-                    </span>
-                    <span className="text-mono-label">
-                      {copy.type} · {copy.channel || "—"} · v{copy.version}
-                    </span>
-                  </div>
-                  <StatusBadge status={copy.status} />
+              <div key={copy.id} className="flex items-start gap-2">
+                <div className="pt-4">
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleSelect(copy.id)}
+                  />
                 </div>
-                <p className="text-body line-clamp-2">{copy.hook || "Copy sem gancho"}</p>
-                {copy.funnel_stage && (
-                  <span className="text-mono mt-2 inline-block px-1.5 py-0.5 rounded bg-surface-2 text-txt-muted">
-                    {copy.funnel_stage}
-                  </span>
-                )}
-              </Link>
+                <Link
+                  to={`/activations/${activationId}/copies/${copy.id}`}
+                  className="card-base card-interactive block flex-1"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          background: `hsl(var(${purposeColor[purpose]}) / 0.12)`,
+                          color: `hsl(var(${purposeColor[purpose]}))`,
+                          border: `1px solid hsl(var(${purposeColor[purpose]}) / 0.25)`,
+                        }}
+                      >
+                        {purposeLabel[purpose]}
+                      </span>
+                      <span className="text-mono-label">
+                        {copy.type} · {copy.channel || "—"} · v{copy.version}
+                      </span>
+                    </div>
+                    <StatusBadge status={copy.status} />
+                  </div>
+                  <p className="text-body line-clamp-2">{copy.hook || "Copy sem gancho"}</p>
+                  {copy.funnel_stage && (
+                    <span className="text-mono mt-2 inline-block px-1.5 py-0.5 rounded bg-surface-2 text-txt-muted">
+                      {copy.funnel_stage}
+                    </span>
+                  )}
+                </Link>
+              </div>
             );
           })}
         </div>
