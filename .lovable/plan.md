@@ -1,30 +1,30 @@
+# Melhorar Fluxo de Aprovação de Peças
 
-
-# Melhorar UX da Matriz Generativa — Identificação de Templates
-
-## Problema
-Os headers das colunas mostram apenas o nome truncado em 100px + dimensões. Como vários templates começam com o mesmo prefixo (ex: "Banner —..."), fica impossível distingui-los.
+## Problemas Atuais
+1. Após aprovar, o usuário fica na mesma página e precisa clicar "Próxima peça →" manualmente
+2. Sem indicador claro de progresso (quantas faltam revisar)
+3. Sem atalhos de teclado para agilizar revisão em massa
+4. Ao rejeitar sem feedback, precisa de 2 cliques (Rejeitar → confirmar)
 
 ## Solução
 
-### 1. Headers mais informativos
-- Aumentar `max-w` do nome para ~140px
-- Mostrar a **categoria** com badge colorido (Estático, Carrossel, Story, Reels)
-- Mostrar **funnel_stage** se existir (Topo, Meio, Fundo)
-- Exibir thumbnail do template (usa `TemplatePreview` em miniatura ou `thumbnail_url`) no header
-- Tooltip com nome completo ao hover
+### 1. Navegação automática após aprovação
+Após aprovar, dispara o render em background e **navega automaticamente** para a próxima peça com status `review`. Se não houver mais pendentes, redireciona para a listagem com toast "🎉 Todas as peças foram revisadas!".
 
-### 2. Agrupamento por categoria
-Em vez de uma tabela flat com todos os templates lado a lado, agrupar as colunas por categoria com separadores visuais (section headers dentro do `<thead>`). Isso reduz a carga cognitiva.
+### 2. Atalhos de teclado
+- `A` = Aprovar (quando status é `review`)
+- `R` = Abrir campo de rejeição
+- `→` = Próxima peça
+- `←` = Peça anterior
 
-### 3. Selecionar coluna/linha inteira
-- Clicar no header do template seleciona/deseleciona toda a coluna
-- Clicar no nome da copy seleciona/deseleciona toda a linha
-- Feedback visual: highlight na coluna/linha ao hover
+### 3. Progress bar no header
+Badge estilo "3 de 8 revisadas" com barra de progresso visual, substituindo o contador atual simples.
 
-### 4. Filtro rápido de templates
-Adicionar filtro por categoria (Estático, Carrossel, Story) acima da tabela para reduzir o número de colunas visíveis.
+### 4. Rejeição rápida
+Botão "Rejeitar e próxima →" disponível direto (sem precisar abrir campo de feedback primeiro). Feedback vira opcional inline.
+
+### 5. Toast com contexto
+Após aprovar: "Peça aprovada ✓ — 3 de 8 revisadas. Renderizando PNGs..."
 
 ## Arquivos modificados
-- **`src/pages/BatchAssets.tsx`** — headers com thumbnail/badge/tooltip, agrupamento por categoria, seleção de coluna/linha, filtro
-
+- `src/pages/AssetDetail.tsx` — navegação automática, atalhos, progress bar, rejeição rápida
