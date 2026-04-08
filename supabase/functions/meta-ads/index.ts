@@ -153,6 +153,10 @@ Deno.serve(async (req) => {
         targetingObj.instagram_positions = instagram_positions;
       }
 
+      // Advantage audience flag — required by Meta API
+      const advantageAudience = body.advantage_audience !== undefined ? body.advantage_audience : 0;
+      targetingObj.targeting_automation = { advantage_audience: advantageAudience };
+
       const adsetPayload: Record<string, unknown> = {
         name,
         campaign_id,
