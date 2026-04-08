@@ -1,6 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { decode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+import { decode } from "jsr:@std/encoding@1/base64";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -355,7 +355,7 @@ function fillTemplate(tpl: string, ctx: Record<string, any>): string {
   return tpl.replace(/\{\{(\w+)\}\}/g, (_, key) => ctx[key] || "");
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
