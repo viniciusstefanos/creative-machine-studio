@@ -196,7 +196,8 @@ ETAPAS DO FUNIL: ${(funnel_stages || ["top", "mid", "bottom"]).join(", ")}`;
 
     for (const p of purposesToGenerate) {
       const purposeRules = p === "organic" ? ORGANIC_RULES : ADS_RULES;
-      const systemPrompt = BASE_SYSTEM_PROMPT + "\n" + purposeRules;
+      const customPrompt = brief.system_prompt ? `\n\n## INSTRUÇÕES CUSTOMIZADAS DA ATIVAÇÃO\n${brief.system_prompt}` : "";
+      const systemPrompt = BASE_SYSTEM_PROMPT + "\n" + purposeRules + customPrompt;
 
       const purposeInstruction = p === "organic"
         ? `FINALIDADE: ORGÂNICO — gere copies para publicação orgânica. Caption longo, hashtags, CTA de engajamento.`
