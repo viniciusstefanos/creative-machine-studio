@@ -49,6 +49,7 @@ const AssetDetail = () => {
   const [editLoading, setEditLoading] = useState(false);
   const [editCopy, setEditCopy] = useState<{ hook: string; body: string; cta: string }>({ hook: "", body: "", cta: "" });
   const [syncingCopy, setSyncingCopy] = useState(false);
+  const [editCurrentImage, setEditCurrentImage] = useState(true);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [addToCampaignOpen, setAddToCampaignOpen] = useState(false);
   const [metaAccount, setMetaAccount] = useState<any>(null);
@@ -368,7 +369,11 @@ const AssetDetail = () => {
       if (currentRender) {
         // Template-based asset with renders
         const { data, error } = await supabase.functions.invoke("edit-asset-render", {
-          body: { render_id: currentRender.id, asset_id: assetId, action: "regenerate_image", image_prompt: imagePrompt },
+          body: {
+            render_id: currentRender.id, asset_id: assetId,
+            action: "regenerate_image", image_prompt: imagePrompt,
+            edit_current: editCurrentImage,
+          },
         });
         if (error || !data?.image_url) {
           console.error("regenerate_image error:", error, data);
@@ -626,7 +631,7 @@ const AssetDetail = () => {
           </div>
         )}
 
-        {/* Image regeneration */}
+        {/* Image regeneration — enriched */}
         {editMode === "image" && (
           <div className="card-base space-y-3">
             <div className="flex items-center justify-between">
@@ -635,18 +640,52 @@ const AssetDetail = () => {
                 <X size={14} />
               </Button>
             </div>
-            <p className="text-body-sm text-txt-muted">
-              Descreva a imagem que deseja. Será gerada com IA.
-            </p>
+
+            {/* Current image thumbnail */}
+            {(currentRender?.image_url || asset?.image_url) && (
+              <div className="flex items-start gap-3">
+                <img
+                  src={currentRender?.image_url || asset?.image_url}
+                  alt="Imagem atual"
+                  className="w-16 h-16 rounded-md object-cover border border-line flex-shrink-0"
+                />
+                <div className="flex-1 space-y-1.5">
+                  <p className="text-body-sm text-txt-muted">
+                    Descreva a imagem desejada. O contexto do briefing e da copy será usado automaticamente.
+                  </p>
+                  {/* Toggle edit vs generate */}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editCurrentImage}
+                      onChange={(e) => setEditCurrentImage(e.target.checked)}
+                      className="rounded border-line accent-accent"
+                    />
+                    <span className="text-xs text-txt-secondary">
+                      Usar imagem atual como referência
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {!(currentRender?.image_url || asset?.image_url) && (
+              <p className="text-body-sm text-txt-muted">
+                Descreva a imagem desejada. O contexto do briefing e da copy será usado automaticamente.
+              </p>
+            )}
+
             <Textarea
               value={imagePrompt}
               onChange={(e) => setImagePrompt(e.target.value)}
               className="text-sm min-h-[80px]"
-              placeholder="Ex: pessoa brasileira sorrindo em escritório moderno, luz natural, estilo UGC..."
+              placeholder={template?.image_prompt_template
+                ? `Sugestão: ${template.image_prompt_template.substring(0, 100)}...`
+                : "Ex: pessoa brasileira sorrindo em escritório moderno, luz natural, estilo UGC..."}
             />
             <Button size="sm" className="gap-2" onClick={regenerateImage} disabled={editLoading || !imagePrompt.trim()}>
               {editLoading ? <Loader2 size={14} className="animate-spin" /> : <Image size={14} />}
-              Gerar nova imagem
+              {editCurrentImage && (currentRender?.image_url || asset?.image_url) ? "Editar imagem" : "Gerar nova imagem"}
             </Button>
           </div>
         )}
