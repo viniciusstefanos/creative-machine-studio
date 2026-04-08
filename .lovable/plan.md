@@ -1,92 +1,93 @@
 
 
-# Análise detalhada de melhorias nos Templates
+# Criação de Campanhas Profissional — Wizard Completo
 
-## Estado atual — 13 templates ativos
+## Situação Atual
+O wizard tem 3 steps simples (nome/objetivo/budget → segmentação básica → selecionar peças). Falta:
+- Tipo de compra (lance) e estratégia de lance
+- Evento de conversão para campanhas de Leads/Vendas
+- Integração com Pixel (listar pixels da conta)
+- Placement (posicionamento automático vs manual)
+- Otimização condicionada ao objetivo
+- Configuração a nível de anúncio (CTA button, tracking)
 
-| Template | Categoria | Ratio | Tipo geração | Scaffold HTML | Prompt IA | Campos editáveis | Prompt imagem |
-|----------|-----------|-------|-------------|---------------|-----------|-----------------|---------------|
-| Banner — Só Imagem | static | 4:5 | image_only | ❌ | ❌ | ✅ (1 campo) | ✅ |
-| Carrossel Antes/Depois | carousel | 4:5 | html_and_image | ❌ | ✅ | ✅ (4 campos) | ✅ |
-| Carrossel de Imagens | carousel | 4:5 | image_only | ❌ | ❌ | ✅ (2 campos) | ✅ |
-| Carrossel Educativo | carousel | 4:5 | html_only | ❌ | ✅ | ✅ (5 campos) | ❌ |
-| Carrossel Estilo Twitter | carousel | 4:5 | html_only | ❌ | ✅ | ✅ (3 campos) | ❌ |
-| Carrossel Listicle | carousel | 4:5 | html_only | ❌ | ✅ | ✅ (4 campos) | ❌ |
-| Post CTA Direto | static | 4:5 | html_and_image | ❌ | ✅ | ✅ (4 campos) | ✅ |
-| Post Dado/Estatística | static | 4:5 | html_only | ❌ | ✅ | ✅ (4 campos) | ❌ |
-| Post Feed — Imagem + Texto | static | 4:5 | html_and_image | ❌ | ✅ | ✅ | ✅ |
-| Post Frase Forte | static | 4:5 | html_only | ❌ | ✅ | ✅ | ❌ |
-| Reels Cover | static | 9:16 | html_and_image | ❌ | ✅ | ✅ | ✅ |
-| Story — Texto sobre Gradiente | static | 9:16 | html_only | ❌ | ✅ | ✅ | ❌ |
-| Story Interativo | static | 9:16 | html_only | ❌ | ✅ | ✅ | ❌ |
+## Plano
 
----
+### Fase 1 — Edge function: novas actions no `meta-ads`
+1. **`list_pixels`** — `GET /{ad_account_id}/adspixels?fields=id,name,is_unavailable`
+2. **`list_custom_conversions`** — `GET /{ad_account_id}/customconversions?fields=id,name,pixel,rule` para campanhas de conversão
+3. Ajustar **`create_adset`** para aceitar:
+   - `promoted_object` (pixel_id + custom_event_type para OUTCOME_LEADS/SALES)
+   - `optimization_goal` dinâmico baseado no objetivo
+   - `bid_strategy` (LOWEST_COST_WITHOUT_CAP, COST_CAP, BID_CAP)
+   - `bid_amount` (quando bid_strategy = COST_CAP ou BID_CAP)
+   - `publisher_platforms` / `facebook_positions` / `instagram_positions` para placement manual
+4. Ajustar **`create_ad`** para aceitar:
+   - `call_to_action` no link_data (LEARN_MORE, SHOP_NOW, SIGN_UP, etc.)
+   - `url_tags` para UTM tracking no nível do anúncio
 
-## Problemas identificados (por prioridade)
+### Fase 2 — Refatorar wizard para 5 steps
+O wizard passa de 3 para 5 steps:
 
-### 🔴 Críticos — impactam qualidade de geração
+```text
+Step 1: Campanha           Step 2: Estratégia         Step 3: Segmentação
+┌────────────────────┐     ┌────────────────────┐     ┌────────────────────┐
+│ Nome               │     │ Tipo de compra     │     │ Idade, Gênero      │
+│ Objetivo (5 opções)│     │  ○ Menor custo     │     │ Interesses         │
+│ Special Ad Category│     │  ○ Cost cap  R$__  │     │ Audiências custom  │
+│ Orçamento diário   │     │  ○ Bid cap   R$__  │     │ Placement          │
+│ Datas              │     │                    │     │  ○ Automático       │
+│                    │     │ Pixel (select)     │     │  ○ Manual           │
+│                    │     │ Evento conversão   │     │    ☑ Feed ☑ Stories │
+│                    │     │ (se Leads/Vendas)  │     │    ☑ Reels          │
+└────────────────────┘     └────────────────────┘     └────────────────────┘
 
-**1. Nenhum template tem `html_scaffold` preenchido**
-Todos têm `scaffold_len: null`. A IA gera o layout inteiro do zero a cada peça, causando:
-- Inconsistência visual entre peças do mesmo template
-- Maior custo de tokens (a IA "inventa" todo o HTML)
-- Impossibilidade de preview real no `TemplatePreview`
+Step 4: Anúncios           Step 5: Revisão
+┌────────────────────┐     ┌────────────────────┐
+│ Selecionar peças   │     │ Resumo completo    │
+│ CTA button (select)│     │ Campanha: ...      │
+│ URL destino        │     │ Budget: R$20/dia   │
+│ UTM parameters     │     │ Pixel: ...         │
+│                    │     │ N peças: 4         │
+│                    │     │     [Criar]         │
+└────────────────────┘     └────────────────────┘
+```
 
-**2. Preview genérico e abstrato**
-O `TemplatePreview` renderiza ícones/barras abstratas. Não usa o scaffold (que não existe) nem gera thumbnail. O usuário não tem ideia visual do que cada template produz.
+### Fase 3 — Lógica condicional por objetivo
 
-**3. Campos editáveis inconsistentes entre templates**
-Alguns usam array de objetos `[{key, type, label}]`, outros usam objeto `{key: {type, label}}`. Isso pode causar bugs no editor e na geração.
+| Objetivo | optimization_goal | promoted_object | Evento necessário |
+|----------|------------------|-----------------|-------------------|
+| OUTCOME_AWARENESS | REACH | — | — |
+| OUTCOME_TRAFFIC | LINK_CLICKS | — | — |
+| OUTCOME_ENGAGEMENT | POST_ENGAGEMENT | — | — |
+| OUTCOME_LEADS | LEAD_GENERATION ou OFFSITE_CONVERSIONS | pixel_id + LEAD | Sim |
+| OUTCOME_SALES | OFFSITE_CONVERSIONS | pixel_id + PURCHASE | Sim |
 
-### 🟡 Importantes — impactam usabilidade
+Quando o usuário seleciona Leads ou Vendas:
+- Buscar pixels via `list_pixels`
+- Mostrar select de pixel
+- Mostrar select de evento de conversão (LEAD, PURCHASE, ADD_TO_CART, etc.)
 
-**4. Categorias incompletas**
-Stories e Reels Cover estão como `category: "static"`. Deveria haver categorias `story` e `reels` para filtrar corretamente na criação de peças.
+### Fase 4 — CTA buttons no nível do anúncio
+Lista de CTAs disponíveis no Meta:
+- LEARN_MORE, SHOP_NOW, SIGN_UP, SUBSCRIBE, DOWNLOAD, GET_OFFER, CONTACT_US, BOOK_TRAVEL, APPLY_NOW, SEND_WHATSAPP_MESSAGE
 
-**5. Sem tags de funil**
-Nenhum template indica se é topo, meio ou fundo de funil. O usuário precisa saber de cabeça qual template serve para qual etapa.
+Adicionar select no Step 4 (Anúncios) que aplica o CTA a todos os ads.
 
-**6. Sem funcionalidade de duplicar**
-Para customizar um template global por cliente, o usuário precisa criar do zero. Não há "duplicar e ajustar".
+### Fase 5 — Pixel config no cliente
+Adicionar campo `pixel_id` na tabela `client_meta_accounts` (ads) para que o pixel fique salvo por cliente e seja pré-preenchido no wizard.
 
-**7. Sem ordenação/prioridade**
-Todos os templates aparecem em ordem alfabética. Templates mais usados ou recomendados não têm destaque.
+## Detalhes técnicos
 
-### 🟢 Nice-to-have
-
-**8. Sem thumbnail estático**
-Campo `thumbnail_url` existe na tabela mas nunca é preenchido. Seria útil para preview rápido sem renderizar HTML.
-
-**9. Sem versionamento de prompts**
-Quando o system_prompt é editado, a versão anterior se perde. Sem rollback.
-
-**10. Nenhum template 1:1**
-Apesar do sistema suportar 1:1, não existe nenhum template nesse formato.
-
----
-
-## Plano de melhorias (se aprovado)
-
-### Fase 1 — Scaffolds HTML base (maior impacto)
-Gerar e popular `html_scaffold` para os 10 templates que usam HTML (`html_only` e `html_and_image`). Cada scaffold será um HTML completo com variáveis `{{hook}}`, `{{body}}`, `{{cta}}`, `{{brand_color}}` etc., definindo layout, tipografia e espaçamento fixos. A IA só preenche o conteúdo.
-
-### Fase 2 — Preview real
-Alterar `TemplatePreview` para renderizar o scaffold HTML real (em miniatura via CSS transform scale) quando disponível. Fallback para o preview abstrato atual quando scaffold é null.
-
-### Fase 3 — Normalizar editable_fields
-Padronizar todos para formato objeto `{key: {label, type, default}}`. Migration para converter os que estão em array.
-
-### Fase 4 — Categorias + funil
-- Adicionar coluna `funnel_stage` (enum: `top`, `middle`, `bottom`) nos templates
-- Separar categories: `static`, `carousel`, `story`, `reels`
-- Atualizar os templates existentes
-
-### Fase 5 — Duplicar template
-Botão "Duplicar" na listagem que copia o template com `is_base: false`, `visibility: client_only`, permitindo customização.
+### Migration SQL
+```sql
+ALTER TABLE public.client_meta_accounts
+  ADD COLUMN IF NOT EXISTS pixel_id text;
+```
 
 ### Arquivos modificados
-- Migration SQL — popular scaffolds, normalizar campos, adicionar `funnel_stage`
-- `src/components/ui/TemplatePreview.tsx` — renderizar scaffold real
-- `src/pages/SettingsTemplates.tsx` — botão duplicar, filtros por categoria/funil
-- `src/components/ui/TemplateEditorDialog.tsx` — campo funnel_stage
+- **`supabase/functions/meta-ads/index.ts`** — actions `list_pixels`, `list_custom_conversions`; ajustar `create_adset` e `create_ad`
+- **`src/components/activation/CreateCampaignWizard.tsx`** — refatorar para 5 steps com lógica condicional
+- **`src/components/client/MetaAccountSettings.tsx`** — campo pixel_id no card de Ads
+- Migration SQL — `pixel_id` em `client_meta_accounts`
 
