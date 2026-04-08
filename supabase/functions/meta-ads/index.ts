@@ -386,6 +386,22 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─── List adsets for a campaign ───
+    if (action === "list_adsets") {
+      const { platform_campaign_id } = body;
+      if (!platform_campaign_id) throw new Error("platform_campaign_id is required");
+
+      const res = await fetch(
+        `${META_GRAPH_URL}/${platform_campaign_id}/adsets?fields=id,name,status,effective_status,daily_budget&limit=100&access_token=${token}`
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(`List adsets failed [${res.status}]: ${JSON.stringify(data)}`);
+
+      return new Response(JSON.stringify({ adsets: data.data || [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
