@@ -935,32 +935,33 @@ const AssetDetail = () => {
                 setJustApproved(true);
               }} disabled={actionLoading}>
                 <Check size={16} /> Aprovar
+                <kbd className="ml-auto text-[9px] px-1.5 py-0.5 rounded border opacity-50" style={{ borderColor: "hsl(var(--border-subtle))", fontFamily: "'JetBrains Mono', monospace" }}>A</kbd>
               </Button>
               {!showFeedback ? (
                 <Button variant="outline" className="w-full gap-2 text-destructive border-destructive/30" onClick={() => setShowFeedback(true)} disabled={actionLoading}>
                   <X size={16} /> Rejeitar
+                  <kbd className="ml-auto text-[9px] px-1.5 py-0.5 rounded border opacity-50" style={{ borderColor: "hsl(var(--border-subtle))", fontFamily: "'JetBrains Mono', monospace" }}>R</kbd>
                 </Button>
               ) : (
                 <div className="space-y-2">
                   <Textarea
-                    placeholder="Feedback para a próxima versão..."
+                    placeholder="Feedback para a próxima versão (opcional)..."
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
                     className="text-sm"
+                    autoFocus
                   />
                   <div className="flex gap-2">
                     <Button variant="destructive" className="flex-1" onClick={() => updateStatus("rejected", { feedback })} disabled={actionLoading}>
                       Rejeitar
                     </Button>
-                    {nextAsset && (
-                      <Button variant="destructive" className="flex-1 gap-1" onClick={async () => {
-                        await updateStatus("rejected", { feedback });
-                        navigate(`/activations/${id}/assets/${nextAsset.id}`);
-                      }} disabled={actionLoading}>
-                        Rejeitar e próxima →
-                      </Button>
-                    )}
+                    <Button variant="destructive" className="flex-1 gap-1" onClick={() => updateStatus("rejected", { feedback }, true)} disabled={actionLoading}>
+                      Rejeitar e próxima →
+                    </Button>
                   </div>
+                  <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => setShowFeedback(false)}>
+                    Cancelar
+                  </Button>
                 </div>
               )}
             </div>
