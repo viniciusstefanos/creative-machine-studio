@@ -631,9 +631,8 @@ Deno.serve(async (req) => {
       }
       if (subtype === "ENGAGEMENT") {
         if (!rule && !body.page_id) throw new Error("rule or page_id is required for ENGAGEMENT audiences");
-        const eventName = body.event_name || "page_engaged";
         const ruleObj = rule ? (typeof rule === "string" ? rule : JSON.stringify(rule)) : JSON.stringify({
-          inclusions: { operator: "or", rules: [{ event_sources: [{ id: body.page_id, type: "page" }], retention_seconds: body.retention_seconds || 2592000, filter: { operator: "and", filters: [{ field: "event", operator: "eq", value: eventName }] } }] }
+          inclusions: { operator: "or", rules: [{ event_sources: [{ id: body.page_id, type: "page" }], retention_seconds: body.retention_seconds || 2592000 }] }
         });
         payload.rule = ruleObj;
       }
