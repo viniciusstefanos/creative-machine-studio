@@ -405,11 +405,13 @@ export const AddAdsToCampaignDialog = ({
                   <button
                     key={asset.id}
                     type="button"
-                    onClick={() => toggleAsset(asset.id)}
+                    onClick={() => thumbUrl ? toggleAsset(asset.id) : null}
                     className="relative rounded-md overflow-hidden group transition-all"
                     style={{
                       border: `2px solid ${isSelected ? "hsl(var(--accent))" : "hsl(var(--border-default))"}`,
                       aspectRatio: "1",
+                      opacity: thumbUrl ? 1 : 0.4,
+                      cursor: thumbUrl ? "pointer" : "not-allowed",
                     }}
                   >
                     {thumbUrl ? (
