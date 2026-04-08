@@ -2,6 +2,21 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { decodeBase64 } from "jsr:@std/encoding@1/base64";
 
+/** Strip code fences and any markdown/explanation text around HTML */
+function extractHtml(raw: string): string {
+  let s = raw.replace(/^```html?\s*/i, "").replace(/\s*```$/i, "").trim();
+  const startMatch = s.match(/(<(!DOCTYPE|html|head|body|div|section|link|style|meta)\b)/i);
+  const endMatch = s.match(/.*(\/\s*(html|body|div|section|style)>)/is);
+  if (startMatch?.index !== undefined && endMatch) {
+    const endIdx = s.lastIndexOf(endMatch[2].startsWith("/") ? endMatch[2] : "</" + endMatch[2]);
+    const lastClose = s.indexOf(">", endIdx) + 1;
+    if (lastClose > startMatch.index) {
+      s = s.substring(startMatch.index, lastClose);
+    }
+  }
+  return s.trim();
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -147,6 +162,9 @@ Sempre inicie o HTML com esta estrutura base (incluindo o import de fontes):
 </div>
 \`\`\`
 IMPORTANTE: O \`<link>\` do Google Fonts DEVE estar presente no HTML final para garantir renderização correta das fontes tanto na preview quanto na exportação PNG.
+
+## REGRA CRÍTICA DE OUTPUT
+Retorne SOMENTE o código HTML. ZERO texto explicativo, ZERO markdown, ZERO comentários fora do HTML, ZERO análise ou justificativa. Apenas o HTML puro começando com <link> ou <div> e terminando com </div>.
 
 ${CONTEXT_BRASIL_INSTAGRAM}
 `;
@@ -467,16 +485,23 @@ Deno.serve(async (req) => {
       );
 
       if (template.category === "carousel") {
-        const cleaned = rawContent.replace(/^```json?\s*/i, "").replace(/\s*```$/i, "").trim();
+        // Strip fences and any text before/after JSON array
+        let cleaned = rawContent.replace(/^```json?\s*/i, "").replace(/\s*```$/i, "").trim();
+        const jsonStart = cleaned.indexOf("[");
+        const jsonEnd = cleaned.lastIndexOf("]");
+        if (jsonStart !== -1 && jsonEnd > jsonStart) {
+          cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+        }
         let slides: Array<{ slide_index: number; html: string }>;
         try { slides = JSON.parse(cleaned); } catch {
-          slides = [{ slide_index: 0, html: cleaned }];
+          slides = [{ slide_index: 0, html: extractHtml(cleaned) }];
         }
         for (const slide of slides) {
+          slide.html = extractHtml(slide.html);
           await saveRender(slide.slide_index, { html_content: slide.html });
         }
       } else {
-        const html = rawContent.replace(/^```html?\s*/i, "").replace(/\s*```$/i, "").trim();
+        const html = extractHtml(rawContent);
         await saveRender(0, { html_content: html });
         await supabase.from("assets").update({ html_content: html }).eq("id", asset_id);
       }
@@ -507,7 +532,7 @@ Deno.serve(async (req) => {
       const overlaySystem = (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES;
       const overlayPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nImagem de fundo: ${bgImageUrl || "não disponível"}\nConfig: ${JSON.stringify(config)}`;
       const rawHtml = await callTextAI(overlaySystem, overlayPrompt, useClaude, anthropicKey, lovableKey);
-      const html = rawHtml.replace(/^```html?\s*/i, "").replace(/\s*```$/i, "").trim();
+      const html = extractHtml(rawHtml);
 
       await saveRender(0, { html_content: html, image_url: bgImageUrl });
       await supabase.from("assets").update({ html_content: html, image_url: bgImageUrl }).eq("id", asset_id);

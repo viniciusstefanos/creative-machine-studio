@@ -2,6 +2,21 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { decodeBase64 } from "jsr:@std/encoding@1/base64";
 
+/** Strip code fences and any markdown/explanation text around HTML */
+function extractHtml(raw: string): string {
+  let s = raw.replace(/^```html?\s*/i, "").replace(/\s*```$/i, "").trim();
+  const startMatch = s.match(/(<(!DOCTYPE|html|head|body|div|section|link|style|meta)\b)/i);
+  const endMatch = s.match(/.*(\/\s*(html|body|div|section|style)>)/is);
+  if (startMatch?.index !== undefined && endMatch) {
+    const endIdx = s.lastIndexOf(endMatch[2].startsWith("/") ? endMatch[2] : "</" + endMatch[2]);
+    const lastClose = s.indexOf(">", endIdx) + 1;
+    if (lastClose > startMatch.index) {
+      s = s.substring(startMatch.index, lastClose);
+    }
+  }
+  return s.trim();
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -69,7 +84,7 @@ Deno.serve(async (req) => {
       }
 
       const instruction = html_content || "Melhore o design";
-      const systemPrompt = `Você é um designer visual expert. Receba um HTML de peça para Instagram e uma instrução de edição. Aplique APENAS a edição solicitada, mantendo o restante intacto. Retorne SOMENTE o HTML final, sem markdown, sem explicação.`;
+      const systemPrompt = `Você é um designer visual expert. Receba um HTML de peça para Instagram e uma instrução de edição. Aplique APENAS a edição solicitada, mantendo o restante intacto. Retorne SOMENTE o HTML final, sem markdown, sem explicação, ZERO texto antes ou depois do HTML.`;
       const userPrompt = `HTML atual:\n\`\`\`html\n${render.html_content}\n\`\`\`\n\nInstrução de edição: ${instruction}`;
 
       const useClaude = !!use_claude;
@@ -101,7 +116,7 @@ Deno.serve(async (req) => {
         result = data.choices?.[0]?.message?.content || "";
       }
 
-      const cleanHtml = result.replace(/^```html?\s*/i, "").replace(/\s*```$/i, "").trim();
+      const cleanHtml = extractHtml(result);
 
       await supabase.from("asset_template_renders").update({
         html_content: cleanHtml, png_url: null,
