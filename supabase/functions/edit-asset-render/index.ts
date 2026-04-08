@@ -23,6 +23,95 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/** Build enriched context for image generation from DB */
+async function buildImageContext(supabase: any, assetId: string, renderId: string) {
+  // Get asset info
+  const { data: asset } = await supabase.from("assets")
+    .select("activation_id, copy_id, template_id, render_config")
+    .eq("id", assetId).single();
+  if (!asset) return { brandContext: "", copyContext: "", templatePrompt: "", currentImageUrl: "" };
+
+  // Parallel fetches
+  const [briefRes, copyRes, templateRes, renderRes] = await Promise.all([
+    supabase.from("briefs").select("consolidated_context, brand_colors, visual_style, tone_of_voice")
+      .eq("activation_id", asset.activation_id).single(),
+    asset.copy_id
+      ? supabase.from("copies").select("hook, body, cta, channel").eq("id", asset.copy_id).single()
+      : Promise.resolve({ data: null }),
+    asset.template_id
+      ? supabase.from("asset_templates").select("name, image_prompt_template, category").eq("id", asset.template_id).single()
+      : Promise.resolve({ data: null }),
+    supabase.from("asset_template_renders").select("image_url").eq("id", renderId).single(),
+  ]);
+
+  // Build brand context from consolidated_context
+  let brandContext = "";
+  const cc = briefRes.data?.consolidated_context;
+  if (cc && typeof cc === "object") {
+    const parts: string[] = [];
+    if (cc.brand_name) parts.push(`Marca: ${cc.brand_name}`);
+    if (cc.brand_positioning) parts.push(`Posicionamento: ${cc.brand_positioning}`);
+    if (cc.visual_guidelines) parts.push(`Estilo visual: ${cc.visual_guidelines}`);
+    if (cc.brand_colors) parts.push(`Cores: ${cc.brand_colors}`);
+    if (cc.target_audience?.demographics) parts.push(`Público: ${cc.target_audience.demographics}`);
+    if (cc.tone_of_voice?.personality) parts.push(`Tom: ${cc.tone_of_voice.personality}`);
+    brandContext = parts.join("\n");
+  }
+  if (!brandContext) {
+    const fallback: string[] = [];
+    if (briefRes.data?.brand_colors) fallback.push(`Cores: ${briefRes.data.brand_colors}`);
+    if (briefRes.data?.visual_style) fallback.push(`Estilo: ${briefRes.data.visual_style}`);
+    if (briefRes.data?.tone_of_voice) fallback.push(`Tom: ${briefRes.data.tone_of_voice}`);
+    brandContext = fallback.join("\n");
+  }
+
+  // Copy context
+  let copyContext = "";
+  if (copyRes.data) {
+    const c = copyRes.data;
+    const cParts: string[] = [];
+    if (c.hook) cParts.push(`Hook: ${c.hook}`);
+    if (c.body) cParts.push(`Body: ${c.body}`);
+    if (c.cta) cParts.push(`CTA: ${c.cta}`);
+    copyContext = cParts.join("\n");
+  }
+
+  const templatePrompt = templateRes.data?.image_prompt_template || "";
+  const currentImageUrl = renderRes.data?.image_url || "";
+
+  return { brandContext, copyContext, templatePrompt, currentImageUrl, templateName: templateRes.data?.name || "" };
+}
+
+/** Extract base64 image data from AI response */
+function extractBase64FromResponse(data: any): string | null {
+  const choice = data.choices?.[0];
+  if (!choice) return null;
+
+  // Check images array first (Lovable gateway format)
+  const imgUrl = choice.message?.images?.[0]?.image_url?.url;
+  if (imgUrl) return imgUrl.includes(",") ? imgUrl.split(",")[1] : imgUrl;
+
+  // Check content array
+  if (Array.isArray(choice.message?.content)) {
+    for (const part of choice.message.content) {
+      if (part.type === "image_url" && part.image_url?.url) {
+        const url = part.image_url.url;
+        return url.includes(",") ? url.split(",")[1] : url;
+      }
+      if (part.type === "image" && part.data) return part.data;
+    }
+  }
+
+  // Check parts (Gemini native)
+  if (Array.isArray(choice.message?.parts)) {
+    for (const p of choice.message.parts) {
+      if (p.inline_data?.data) return p.inline_data.data;
+    }
+  }
+
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -39,7 +128,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  const { render_id, action, html_content, image_prompt, use_claude, asset_id } = body;
+  const { render_id, action, html_content, image_prompt, use_claude, asset_id, edit_current } = body;
 
   if (!render_id || !action) {
     return new Response(JSON.stringify({ error: "render_id and action required" }), {
@@ -48,7 +137,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // ─── ACTION: save_html — direct HTML text edit ─────────────
+    // ─── ACTION: save_html ─────────────────────────────────────
     if (action === "save_html") {
       if (!html_content) {
         return new Response(JSON.stringify({ error: "html_content required" }), {
@@ -59,7 +148,6 @@ Deno.serve(async (req) => {
         html_content, png_url: null,
       }).eq("id", render_id);
 
-      // Also update asset if single slide
       if (asset_id) {
         const { data: renders } = await supabase.from("asset_template_renders")
           .select("id").eq("asset_id", asset_id);
@@ -73,7 +161,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ─── ACTION: refine_html — AI refine HTML with instruction ─
+    // ─── ACTION: refine_html ───────────────────────────────────
     if (action === "refine_html") {
       const { data: render } = await supabase.from("asset_template_renders")
         .select("html_content").eq("id", render_id).single();
@@ -135,7 +223,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ─── ACTION: regenerate_image — new image from prompt ──────
+    // ─── ACTION: regenerate_image — enriched with context ──────
     if (action === "regenerate_image") {
       if (!image_prompt) {
         return new Response(JSON.stringify({ error: "image_prompt required" }), {
@@ -143,41 +231,79 @@ Deno.serve(async (req) => {
         });
       }
 
-      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-3.1-flash-image-preview",
-          messages: [{ role: "user", content: `Generate an image: ${image_prompt}` }],
-          modalities: ["image", "text"],
-        }),
-      });
-      if (!res.ok) throw new Error("image_gen_failed");
-      const data = await res.json();
-      const choice = data.choices?.[0];
+      // Fetch enriched context from DB
+      const ctx = asset_id
+        ? await buildImageContext(supabase, asset_id, render_id)
+        : { brandContext: "", copyContext: "", templatePrompt: "", currentImageUrl: "", templateName: "" };
 
-      let base64Data: string | null = null;
-      const imgUrl = choice?.message?.images?.[0]?.image_url?.url;
-      if (imgUrl) base64Data = imgUrl.includes(",") ? imgUrl.split(",")[1] : imgUrl;
+      // Build enriched prompt
+      const promptParts: string[] = [];
+      if (ctx.brandContext) promptParts.push(`## Contexto da marca\n${ctx.brandContext}`);
+      if (ctx.copyContext) promptParts.push(`## Peça atual\n${ctx.copyContext}`);
+      if (ctx.templateName) promptParts.push(`Template: ${ctx.templateName}`);
+      promptParts.push(`## Instrução do usuário\n${image_prompt}`);
+      promptParts.push(`\nGere uma imagem de alta qualidade seguindo a instrução acima, mantendo total coerência com a identidade visual da marca.`);
+      const enrichedPrompt = promptParts.join("\n\n");
 
-      if (!base64Data && Array.isArray(choice?.message?.content)) {
-        for (const part of choice.message.content) {
-          if (part.type === "image_url" && part.image_url?.url) {
-            const url = part.image_url.url;
-            base64Data = url.includes(",") ? url.split(",")[1] : url;
-            break;
-          }
-          if (part.type === "image" && part.data) { base64Data = part.data; break; }
+      // Determine if we should edit the current image or generate from scratch
+      const shouldEdit = edit_current && ctx.currentImageUrl;
+
+      const callImageApi = async (): Promise<any> => {
+        const messages: any[] = [];
+
+        if (shouldEdit) {
+          // Image editing: send current image as reference
+          messages.push({
+            role: "user",
+            content: [
+              { type: "text", text: enrichedPrompt },
+              { type: "image_url", image_url: { url: ctx.currentImageUrl } },
+            ],
+          });
+        } else {
+          messages.push({ role: "user", content: enrichedPrompt });
         }
-      }
-      if (!base64Data && Array.isArray(choice?.message?.parts)) {
-        for (const p of choice.message.parts) {
-          if (p.inline_data?.data) { base64Data = p.inline_data.data; break; }
+
+        const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-3.1-flash-image-preview",
+            messages,
+            modalities: ["image", "text"],
+          }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`image_gen_failed: ${res.status} ${errText.substring(0, 200)}`);
+        }
+        return await res.json();
+      };
+
+      // Try with retry (1x)
+      let base64Data: string | null = null;
+      let lastError = "";
+
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const data = await callImageApi();
+          base64Data = extractBase64FromResponse(data);
+          if (base64Data) break;
+          lastError = "Modelo não retornou imagem na resposta";
+        } catch (e: any) {
+          lastError = e.message || "Erro desconhecido";
+          if (attempt === 0) {
+            // Wait before retry
+            await new Promise(r => setTimeout(r, 1500));
+          }
         }
       }
 
       if (!base64Data) {
-        return new Response(JSON.stringify({ error: "Falha na geração de imagem" }), {
+        return new Response(JSON.stringify({
+          error: `Falha na geração de imagem após 2 tentativas: ${lastError}`,
+        }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
