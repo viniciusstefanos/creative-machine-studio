@@ -263,17 +263,54 @@ export function TemplateEditorDialog({ open, onOpenChange, template, clients, on
               </TabsContent>
 
               <TabsContent value="image" className="space-y-3 mt-3">
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 px-4 py-2 rounded-md bg-[hsl(var(--bg-surface2))] border border-[hsl(var(--border-subtle))] cursor-pointer hover:border-[hsl(var(--accent))] transition-colors">
-                    <Upload size={14} />
-                    <span className="text-body-sm">{aiImageFile ? aiImageFile.name : "Selecionar imagem"}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => setAiImageFile(e.target.files?.[0] || null)}
-                    />
-                  </label>
+                <div
+                  className={`relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer ${
+                    aiImageFile
+                      ? "border-[hsl(var(--accent))] bg-[hsl(var(--accent-surface))]"
+                      : dragOver
+                      ? "border-[hsl(var(--accent))] bg-[hsl(var(--bg-surface2))]"
+                      : "border-[hsl(var(--border-subtle))] bg-[hsl(var(--bg-surface2))] hover:border-[hsl(var(--accent))]"
+                  }`}
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file?.type.startsWith("image/")) setAiImageFile(file);
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {aiImageFile ? (
+                    <>
+                      <img
+                        src={URL.createObjectURL(aiImageFile)}
+                        alt="Referência"
+                        className="max-h-32 rounded object-contain"
+                      />
+                      <p className="text-body-sm text-[hsl(var(--text-secondary))]">{aiImageFile.name}</p>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setAiImageFile(null); }}
+                        className="text-mono text-[hsl(var(--text-muted))] hover:text-[hsl(var(--status-rejected))] transition-colors"
+                      >
+                        Remover
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={24} className="text-[hsl(var(--text-muted))]" />
+                      <p className="text-body-sm text-[hsl(var(--text-muted))]">
+                        Arraste uma imagem ou clique para selecionar
+                      </p>
+                    </>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => setAiImageFile(e.target.files?.[0] || null)}
+                  />
                 </div>
                 <Button
                   onClick={() => handleAiGenerate("from_image")}
