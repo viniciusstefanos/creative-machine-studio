@@ -11,6 +11,7 @@ import {
 import { format, addDays, differenceInDays, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 
 interface BulkScheduleDialogProps {
   open: boolean;
