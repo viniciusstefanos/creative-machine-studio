@@ -163,6 +163,9 @@ Sempre inicie o HTML com esta estrutura base (incluindo o import de fontes):
 \`\`\`
 IMPORTANTE: O \`<link>\` do Google Fonts DEVE estar presente no HTML final para garantir renderização correta das fontes tanto na preview quanto na exportação PNG.
 
+## REGRA CRÍTICA DE OUTPUT
+Retorne SOMENTE o código HTML. ZERO texto explicativo, ZERO markdown, ZERO comentários fora do HTML, ZERO análise ou justificativa. Apenas o HTML puro começando com <link> ou <div> e terminando com </div>.
+
 ${CONTEXT_BRASIL_INSTAGRAM}
 `;
 
