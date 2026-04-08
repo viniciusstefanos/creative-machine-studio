@@ -51,7 +51,36 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
       .select("*, asset_formats(name, category)")
       .eq("activation_id", activationId)
       .order("created_at", { ascending: false });
-    setAssets(data || []);
+
+    if (!data || data.length === 0) {
+      setAssets([]);
+      setLoading(false);
+      return;
+    }
+
+    // Fetch first render thumbnail for each asset
+    const assetIds = data.map(a => a.id);
+    const { data: renders } = await supabase
+      .from("asset_template_renders")
+      .select("asset_id, png_url, slide_index")
+      .in("asset_id", assetIds)
+      .order("slide_index", { ascending: true });
+
+    const thumbMap: Record<string, string> = {};
+    if (renders) {
+      for (const r of renders) {
+        if (r.png_url && !thumbMap[r.asset_id]) {
+          thumbMap[r.asset_id] = r.png_url;
+        }
+      }
+    }
+
+    const enriched = data.map(a => ({
+      ...a,
+      thumb_url: a.image_url || thumbMap[a.id] || null,
+    }));
+
+    setAssets(enriched);
     setLoading(false);
   };
 
@@ -307,28 +336,35 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
                     />
                   </TableCell>
                   <TableCell>
-                    {asset.image_url ? (
+                    {asset.thumb_url ? (
                       <img
-                        src={asset.image_url}
+                        src={asset.thumb_url}
                         alt=""
-                        className="w-10 h-10 rounded object-cover"
+                        className="w-12 h-12 rounded-md object-cover"
                         style={{
                           border: "1px solid hsl(var(--border-subtle))",
                         }}
                       />
                     ) : (
                       <div
-                        className="w-10 h-10 rounded flex items-center justify-center"
+                        className="w-12 h-12 rounded-md flex items-center justify-center"
                         style={{
                           background: "hsl(var(--surface-3))",
+                          border: "1px solid hsl(var(--border-subtle))",
                         }}
                       >
-                        <Image
-                          size={14}
-                          style={{
-                            color: "hsl(var(--text-ghost))",
-                          }}
-                        />
+                        {asset.status === "generating" ? (
+                          <Loader2
+                            size={14}
+                            className="animate-spin"
+                            style={{ color: "hsl(var(--accent))" }}
+                          />
+                        ) : (
+                          <Image
+                            size={14}
+                            style={{ color: "hsl(var(--text-ghost))" }}
+                          />
+                        )}
                       </div>
                     )}
                   </TableCell>
@@ -424,7 +460,7 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
         </div>
       ) : (
         /* ──── GRID VIEW ──── */
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {assets.map((asset) => (
             <div key={asset.id} className="relative group">
               <div
@@ -442,18 +478,32 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
                 className="card-base card-interactive block overflow-hidden"
                 style={{ padding: 0 }}
               >
-                {asset.image_url && (
+                {asset.thumb_url ? (
                   <img
-                    src={asset.image_url}
+                    src={asset.thumb_url}
                     alt=""
-                    className="w-full h-40 object-cover"
+                    className="w-full aspect-square object-cover"
                   />
+                ) : (
+                  <div
+                    className="w-full aspect-square flex items-center justify-center"
+                    style={{ background: "hsl(var(--surface-3))" }}
+                  >
+                    {asset.status === "generating" ? (
+                      <Loader2 size={24} className="animate-spin" style={{ color: "hsl(var(--accent))" }} />
+                    ) : (
+                      <Image size={24} style={{ color: "hsl(var(--text-ghost))" }} />
+                    )}
+                  </div>
                 )}
-                <div className="p-4 flex items-center justify-between">
-                  <span className="text-mono-label">
-                    {getDisplayName(asset)} · v{asset.version}
-                  </span>
-                  <StatusBadge status={asset.status} />
+                <div className="p-3 space-y-1">
+                  <p className="text-[10px] font-medium truncate" style={{ color: "hsl(var(--text-primary))", fontFamily: "'JetBrains Mono', monospace" }}>
+                    {getDisplayName(asset)}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'JetBrains Mono', monospace" }}>v{asset.version}</span>
+                    <StatusBadge status={asset.status} />
+                  </div>
                 </div>
               </Link>
             </div>
