@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Check, ImageIcon, Plus, X, AlertCircle } from "lucide-react";
+import { Loader2, Check, ImageIcon, Plus, X, ChevronRight } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 interface AddAdsDialogProps {
@@ -24,8 +24,16 @@ interface AddAdsDialogProps {
 interface Campaign {
   id: string;
   name: string;
-  platform_adset_id: string;
+  platform_adset_id: string | null;
+  platform_campaign_id: string | null;
   ad_account_id: string | null;
+}
+
+interface Adset {
+  id: string;
+  name: string;
+  status: string;
+  daily_budget?: string;
 }
 
 interface ApprovedAsset {
@@ -52,10 +60,17 @@ export const AddAdsToCampaignDialog = ({
   const [submitTotal, setSubmitTotal] = useState(0);
   const [assetResults, setAssetResults] = useState<Record<string, "ok" | "error">>({});
 
+  // Adset selection state
+  const [adsets, setAdsets] = useState<Adset[]>([]);
+  const [selectedAdsetId, setSelectedAdsetId] = useState<string | null>(null);
+  const [loadingAdsets, setLoadingAdsets] = useState(false);
+
   useEffect(() => {
     if (open) {
       loadCampaigns();
       loadApprovedAssets();
+      setAdsets([]);
+      setSelectedAdsetId(null);
     }
   }, [open]);
 
@@ -63,12 +78,65 @@ export const AddAdsToCampaignDialog = ({
     if (preSelectedCampaignId) setSelectedCampaignId(preSelectedCampaignId);
   }, [preSelectedCampaignId]);
 
+  // When campaign selection changes, check if we need to fetch adsets
+  useEffect(() => {
+    if (!selectedCampaignId) {
+      setAdsets([]);
+      setSelectedAdsetId(null);
+      return;
+    }
+    const campaign = campaigns.find(c => c.id === selectedCampaignId);
+    if (!campaign) return;
+
+    if (campaign.platform_adset_id) {
+      // Already has adset, use it directly
+      setSelectedAdsetId(campaign.platform_adset_id);
+      setAdsets([]);
+    } else if (campaign.platform_campaign_id) {
+      // Fetch adsets from Meta
+      fetchAdsets(campaign.platform_campaign_id);
+    } else {
+      setAdsets([]);
+      setSelectedAdsetId(null);
+    }
+  }, [selectedCampaignId, campaigns]);
+
+  const fetchAdsets = async (platformCampaignId: string) => {
+    setLoadingAdsets(true);
+    setSelectedAdsetId(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("meta-ads", {
+        body: {
+          action: "list_adsets",
+          platform_campaign_id: platformCampaignId,
+          page_access_token: metaAccount?.page_access_token,
+        },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+      const fetched = data.adsets || [];
+      setAdsets(fetched);
+      if (fetched.length === 1) {
+        setSelectedAdsetId(fetched[0].id);
+        // Also update the DB campaign record
+        await supabase.from("ad_campaigns").update({
+          platform_adset_id: fetched[0].id,
+          adset_name: fetched[0].name,
+        }).eq("id", selectedCampaignId!);
+      }
+    } catch (err: any) {
+      toast.error("Erro ao buscar conjuntos: " + (err.message || ""));
+      setAdsets([]);
+    } finally {
+      setLoadingAdsets(false);
+    }
+  };
+
   const loadCampaigns = async () => {
+    // Show ALL campaigns, not just ones with adsets
     const { data } = await supabase
       .from("ad_campaigns")
-      .select("id, name, platform_adset_id, ad_account_id")
+      .select("id, name, platform_adset_id, platform_campaign_id, ad_account_id")
       .eq("activation_id", activationId)
-      .not("platform_adset_id", "is", null)
       .order("created_at", { ascending: false });
     setCampaigns((data || []) as Campaign[]);
     if (preSelectedCampaignId) {
@@ -136,10 +204,21 @@ export const AddAdsToCampaignDialog = ({
   const selectAll = () => setSelectedAssetIds(new Set(approvedAssets.map(a => a.id)));
   const clearAll = () => setSelectedAssetIds(new Set());
 
+  const handleSelectAdset = async (adset: Adset) => {
+    setSelectedAdsetId(adset.id);
+    // Save to DB
+    if (selectedCampaignId) {
+      await supabase.from("ad_campaigns").update({
+        platform_adset_id: adset.id,
+        adset_name: adset.name,
+      }).eq("id", selectedCampaignId);
+    }
+  };
+
   const handleSubmit = async () => {
     const campaign = campaigns.find(c => c.id === selectedCampaignId);
-    if (!campaign || !metaAccount?.ad_account_id) {
-      toast.error("Selecione uma campanha com adset configurado");
+    if (!campaign || !metaAccount?.ad_account_id || !selectedAdsetId) {
+      toast.error("Selecione uma campanha e um conjunto de anúncios");
       return;
     }
 
@@ -162,7 +241,7 @@ export const AddAdsToCampaignDialog = ({
           body: {
             action: "create_ad",
             ad_account_id: campaign.ad_account_id || metaAccount.ad_account_id,
-            adset_id: campaign.platform_adset_id,
+            adset_id: selectedAdsetId,
             name: asset.name || `Ad ${successCount + 1}`,
             image_url: imageUrls[0],
             image_urls: imageUrls,
@@ -199,6 +278,10 @@ export const AddAdsToCampaignDialog = ({
     setSubmitting(false);
   };
 
+  const selectedCampaign = campaigns.find(c => c.id === selectedCampaignId);
+  const needsAdsetSelection = selectedCampaign && !selectedCampaign.platform_adset_id && adsets.length > 0;
+  const noAdsets = selectedCampaign && !selectedCampaign.platform_adset_id && !loadingAdsets && adsets.length === 0 && selectedCampaign.platform_campaign_id;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -218,7 +301,7 @@ export const AddAdsToCampaignDialog = ({
           </p>
           {campaigns.length === 0 ? (
             <p className="text-xs" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
-              Nenhuma campanha com adset criado. Crie uma campanha primeiro.
+              Nenhuma campanha encontrada. Crie ou importe uma campanha primeiro.
             </p>
           ) : (
             <div className="space-y-2 max-h-[120px] overflow-y-auto">
@@ -227,7 +310,7 @@ export const AddAdsToCampaignDialog = ({
                   key={c.id}
                   type="button"
                   onClick={() => setSelectedCampaignId(c.id)}
-                  className="w-full text-left px-3 py-2 rounded-md text-xs transition-all"
+                  className="w-full text-left px-3 py-2 rounded-md text-xs transition-all flex items-center justify-between"
                   style={{
                     background: selectedCampaignId === c.id ? "hsl(var(--accent) / 0.15)" : "hsl(var(--bg-surface2))",
                     border: `1px solid ${selectedCampaignId === c.id ? "hsl(var(--accent))" : "hsl(var(--border-default))"}`,
@@ -235,12 +318,60 @@ export const AddAdsToCampaignDialog = ({
                     fontFamily: "'DM Sans'",
                   }}
                 >
-                  {c.name || "Campanha sem nome"}
+                  <span>{c.name || "Campanha sem nome"}</span>
+                  {c.platform_adset_id && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "hsl(var(--accent) / 0.1)", color: "hsl(var(--accent))", fontFamily: "'JetBrains Mono', monospace" }}>
+                      adset ✓
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
           )}
         </div>
+
+        {/* Adset selection (when campaign has no adset) */}
+        {loadingAdsets && (
+          <div className="flex items-center gap-2 py-2">
+            <Loader2 size={14} className="animate-spin" style={{ color: "hsl(var(--accent))" }} />
+            <span className="text-xs" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>Buscando conjuntos de anúncios...</span>
+          </div>
+        )}
+
+        {needsAdsetSelection && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium" style={{ color: "hsl(var(--text-secondary))", fontFamily: "'DM Sans'" }}>
+              Conjunto de anúncios (adset)
+            </p>
+            <div className="space-y-1.5 max-h-[100px] overflow-y-auto">
+              {adsets.map(adset => (
+                <button
+                  key={adset.id}
+                  type="button"
+                  onClick={() => handleSelectAdset(adset)}
+                  className="w-full text-left px-3 py-2 rounded-md text-xs transition-all flex items-center justify-between"
+                  style={{
+                    background: selectedAdsetId === adset.id ? "hsl(var(--accent) / 0.15)" : "hsl(var(--bg-surface2))",
+                    border: `1px solid ${selectedAdsetId === adset.id ? "hsl(var(--accent))" : "hsl(var(--border-default))"}`,
+                    color: selectedAdsetId === adset.id ? "hsl(var(--accent))" : "hsl(var(--text-secondary))",
+                    fontFamily: "'DM Sans'",
+                  }}
+                >
+                  <span>{adset.name}</span>
+                  <span className="text-[9px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
+                    {adset.status?.toLowerCase()} {adset.daily_budget ? `· R$${(parseInt(adset.daily_budget) / 100).toFixed(2)}/dia` : ""}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {noAdsets && (
+          <div className="p-3 rounded-lg text-xs" style={{ background: "hsl(var(--status-review) / 0.1)", color: "hsl(var(--status-review))", fontFamily: "'DM Sans'", borderRadius: 8 }}>
+            ⚠ Esta campanha não possui conjuntos de anúncios (adsets). Crie um adset no Meta Ads Manager ou use o wizard "Criar Campanha" que já cria o adset automaticamente.
+          </div>
+        )}
 
         {/* Select assets */}
         <div className="space-y-3 mt-2">
@@ -342,7 +473,7 @@ export const AddAdsToCampaignDialog = ({
           <Button
             size="sm"
             onClick={handleSubmit}
-            disabled={!selectedCampaignId || selectedAssetIds.size === 0 || submitting}
+            disabled={!selectedCampaignId || !selectedAdsetId || selectedAssetIds.size === 0 || submitting}
             className="gap-1.5"
             style={{
               background: "hsl(var(--accent))",
