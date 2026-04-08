@@ -1,93 +1,99 @@
 
 
-# Criação de Campanhas Profissional — Wizard Completo
+# Refatorar Briefing — System Prompt + Exploração Completa dos Arquivos
 
-## Situação Atual
-O wizard tem 3 steps simples (nome/objetivo/budget → segmentação básica → selecionar peças). Falta:
-- Tipo de compra (lance) e estratégia de lance
-- Evento de conversão para campanhas de Leads/Vendas
-- Integração com Pixel (listar pixels da conta)
-- Placement (posicionamento automático vs manual)
-- Otimização condicionada ao objetivo
-- Configuração a nível de anúncio (CTA button, tracking)
+## Problemas Atuais
+
+1. **Extração superficial**: O `extract-brief` resume documentos ricos em 4-5 campos curtos (tone, audience, objectives, extra_context), perdendo 90% do conteúdo
+2. **Sem system prompt global**: Não existe um prompt-base que garanta "não invente dados" em toda a cadeia (extract → generate-copies → generate-asset)
+3. **raw_text truncado**: `generate-copies` corta cada arquivo em 8K chars, `generate-asset` em 5K — documentos completos se perdem
+4. **UI simplista**: BriefTab mostra arquivos como mini-cards com status "extraído/sem texto" — não permite explorar o conteúdo real
 
 ## Plano
 
-### Fase 1 — Edge function: novas actions no `meta-ads`
-1. **`list_pixels`** — `GET /{ad_account_id}/adspixels?fields=id,name,is_unavailable`
-2. **`list_custom_conversions`** — `GET /{ad_account_id}/customconversions?fields=id,name,pixel,rule` para campanhas de conversão
-3. Ajustar **`create_adset`** para aceitar:
-   - `promoted_object` (pixel_id + custom_event_type para OUTCOME_LEADS/SALES)
-   - `optimization_goal` dinâmico baseado no objetivo
-   - `bid_strategy` (LOWEST_COST_WITHOUT_CAP, COST_CAP, BID_CAP)
-   - `bid_amount` (quando bid_strategy = COST_CAP ou BID_CAP)
-   - `publisher_platforms` / `facebook_positions` / `instagram_positions` para placement manual
-4. Ajustar **`create_ad`** para aceitar:
-   - `call_to_action` no link_data (LEARN_MORE, SHOP_NOW, SIGN_UP, etc.)
-   - `url_tags` para UTM tracking no nível do anúncio
+### Fase 1 — System Prompt Global + Constante Compartilhada
 
-### Fase 2 — Refatorar wizard para 5 steps
-O wizard passa de 3 para 5 steps:
+Criar um arquivo `supabase/functions/_shared/brief-system-prompt.ts` com o system prompt base que será importado por todas as edge functions:
 
-```text
-Step 1: Campanha           Step 2: Estratégia         Step 3: Segmentação
-┌────────────────────┐     ┌────────────────────┐     ┌────────────────────┐
-│ Nome               │     │ Tipo de compra     │     │ Idade, Gênero      │
-│ Objetivo (5 opções)│     │  ○ Menor custo     │     │ Interesses         │
-│ Special Ad Category│     │  ○ Cost cap  R$__  │     │ Audiências custom  │
-│ Orçamento diário   │     │  ○ Bid cap   R$__  │     │ Placement          │
-│ Datas              │     │                    │     │  ○ Automático       │
-│                    │     │ Pixel (select)     │     │  ○ Manual           │
-│                    │     │ Evento conversão   │     │    ☑ Feed ☑ Stories │
-│                    │     │ (se Leads/Vendas)  │     │    ☑ Reels          │
-└────────────────────┘     └────────────────────┘     └────────────────────┘
+```typescript
+export const BRIEF_SYSTEM_PROMPT = `
+## REGRAS INVIOLÁVEIS DE BRIEFING
 
-Step 4: Anúncios           Step 5: Revisão
-┌────────────────────┐     ┌────────────────────┐
-│ Selecionar peças   │     │ Resumo completo    │
-│ CTA button (select)│     │ Campanha: ...      │
-│ URL destino        │     │ Budget: R$20/dia   │
-│ UTM parameters     │     │ Pixel: ...         │
-│                    │     │ N peças: 4         │
-│                    │     │     [Criar]         │
-└────────────────────┘     └────────────────────┘
+1. NÃO INVENTE nenhuma informação, dado, estatística, cliente, depoimento ou cenário hipotético.
+2. Atenha-se EXCLUSIVAMENTE às informações presentes nos documentos e campos do briefing.
+3. Se uma informação não estiver no briefing, NÃO a inclua — prefira omitir a inventar.
+4. NÃO crie nomes de produtos, marcas, locais ou pessoas fictícias.
+5. NÃO invente dados de prova social (reviews, números, certificações) que não estejam no brief.
+6. Se o briefing for insuficiente para um campo, deixe claro que falta informação — NÃO preencha com suposições.
+7. Trate CADA documento anexado como fonte primária de verdade.
+8. Quando houver conflito entre campos manuais e documentos, os campos manuais prevalecem (foram editados pelo usuário).
+`;
 ```
 
-### Fase 3 — Lógica condicional por objetivo
+Importar em: `extract-brief`, `generate-copies`, `generate-asset-from-template`, `regenerate-copy-block`.
 
-| Objetivo | optimization_goal | promoted_object | Evento necessário |
-|----------|------------------|-----------------|-------------------|
-| OUTCOME_AWARENESS | REACH | — | — |
-| OUTCOME_TRAFFIC | LINK_CLICKS | — | — |
-| OUTCOME_ENGAGEMENT | POST_ENGAGEMENT | — | — |
-| OUTCOME_LEADS | LEAD_GENERATION ou OFFSITE_CONVERSIONS | pixel_id + LEAD | Sim |
-| OUTCOME_SALES | OFFSITE_CONVERSIONS | pixel_id + PURCHASE | Sim |
+### Fase 2 — Extração Profunda dos Arquivos
 
-Quando o usuário seleciona Leads ou Vendas:
-- Buscar pixels via `list_pixels`
-- Mostrar select de pixel
-- Mostrar select de evento de conversão (LEAD, PURCHASE, ADD_TO_CART, etc.)
+Refatorar `extract-brief` para extrair uma estrutura muito mais rica dos documentos:
 
-### Fase 4 — CTA buttons no nível do anúncio
-Lista de CTAs disponíveis no Meta:
-- LEARN_MORE, SHOP_NOW, SIGN_UP, SUBSCRIBE, DOWNLOAD, GET_OFFER, CONTACT_US, BOOK_TRAVEL, APPLY_NOW, SEND_WHATSAPP_MESSAGE
+- **Novo schema de extração** com ~15 campos (em vez de 5):
+  - `brand_name`, `brand_positioning`, `brand_values`
+  - `products_services` (array com nome, descrição, preço, diferenciais)
+  - `tone_of_voice` (detalhado: formalidade, personalidade, palavras-chave, palavras proibidas)
+  - `target_audience` (demografia, psicografia, dores, desejos, objeções)
+  - `competitors` (nomes, posicionamento, diferenciais)
+  - `visual_guidelines` (cores hex, fontes, estilo, do/don't)
+  - `proof_points` (números reais, prêmios, depoimentos reais do doc)
+  - `key_messages` (mensagens-chave da marca)
+  - `restrictions` (termos proibidos, temas sensíveis, restrições legais)
+  - `detected_category`, `document_summary`
+- Aumentar limite de texto enviado à IA: 12K → 30K chars (ou texto completo)
+- Salvar extração completa em `extracted_fields` (jsonb) — já existe na tabela
 
-Adicionar select no Step 4 (Anúncios) que aplica o CTA a todos os ads.
+### Fase 3 — Nova UI do Brief: Explorador de Documentos
 
-### Fase 5 — Pixel config no cliente
-Adicionar campo `pixel_id` na tabela `client_meta_accounts` (ads) para que o pixel fique salvo por cliente e seja pré-preenchido no wizard.
+Substituir a UI atual por uma experiência rica:
 
-## Detalhes técnicos
+1. **Painel de arquivos expandível**: Cada arquivo vira um collapsible com:
+   - Header: nome + categoria (tag colorida) + status extração
+   - Conteúdo expandido: texto completo do documento (`raw_text`) em scroll
+   - Campos extraídos: cards visuais com os dados estruturados do `extracted_fields`
+   - Botão "Re-extrair" para reprocessar com o novo schema
 
-### Migration SQL
+2. **Brief consolidado (abaixo)**: Os campos editáveis atuais (tom, público, objetivos, etc.) continuam, mas agora há um botão **"Consolidar dos arquivos"** que puxa e merge inteligentemente todos os `extracted_fields` dos arquivos em um brief unificado
+
+3. **Novo componente `BriefFileViewer`**: Exibe o conteúdo completo de cada arquivo com:
+   - Texto formatado com sections detectadas
+   - Highlight dos trechos que geraram cada campo extraído
+   - Tabs: "Texto completo" | "Campos extraídos"
+
+### Fase 4 — Downstream: Usar Conteúdo Completo na Geração
+
+Atualizar `generate-copies` e `generate-asset-from-template`:
+
+- Enviar `extracted_fields` completo (não apenas raw_text truncado)
+- Aumentar limite de raw_text por arquivo: 8K → 15K
+- Incluir `BRIEF_SYSTEM_PROMPT` no system prompt de cada function
+- Estruturar o contexto dos arquivos por categoria (identidade visual separada de produto, separada de público-alvo)
+
+### Fase 5 — Migration: campo `system_prompt` no briefs
+
+Adicionar coluna `system_prompt` na tabela `briefs` para que o usuário possa customizar instruções específicas por ativação (ex: "nunca usar a palavra 'promoção'", "sempre mencionar delivery grátis").
+
 ```sql
-ALTER TABLE public.client_meta_accounts
-  ADD COLUMN IF NOT EXISTS pixel_id text;
+ALTER TABLE public.briefs
+  ADD COLUMN IF NOT EXISTS system_prompt text,
+  ADD COLUMN IF NOT EXISTS consolidated_context jsonb;
 ```
 
-### Arquivos modificados
-- **`supabase/functions/meta-ads/index.ts`** — actions `list_pixels`, `list_custom_conversions`; ajustar `create_adset` e `create_ad`
-- **`src/components/activation/CreateCampaignWizard.tsx`** — refatorar para 5 steps com lógica condicional
-- **`src/components/client/MetaAccountSettings.tsx`** — campo pixel_id no card de Ads
-- Migration SQL — `pixel_id` em `client_meta_accounts`
+## Arquivos Modificados
+
+- **Novo**: `supabase/functions/_shared/brief-system-prompt.ts` — prompt global
+- **`supabase/functions/extract-brief/index.ts`** — schema rico, texto completo, BRIEF_SYSTEM_PROMPT
+- **`supabase/functions/generate-copies/index.ts`** — importar BRIEF_SYSTEM_PROMPT, usar extracted_fields
+- **`supabase/functions/generate-asset-from-template/index.ts`** — idem
+- **Novo**: `src/components/activation/BriefFileViewer.tsx` — explorador de conteúdo do arquivo
+- **`src/components/activation/BriefTab.tsx`** — layout com explorador + consolidação + campo system_prompt
+- **`src/components/activation/BriefFilesSection.tsx`** — collapsible com conteúdo expandido
+- **Migration SQL** — `system_prompt` e `consolidated_context` em `briefs`
 
