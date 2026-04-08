@@ -1,6 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { decode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+import { decodeBase64 } from "jsr:@std/encoding@1/base64";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,7 +8,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -165,7 +165,7 @@ Generate a self-contained HTML document for this creative piece. Requirements:
         const base64Url = imgData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
         if (base64Url) {
           const base64Data = base64Url.split(",")[1];
-          const imageBytes = decode(base64Data);
+          const imageBytes = decodeBase64(base64Data);
           const filePath = `generated/${asset_id}.png`;
           const { error: uploadError } = await supabase.storage
             .from("assets")
