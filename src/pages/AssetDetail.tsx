@@ -147,6 +147,37 @@ const AssetDetail = () => {
     return () => clearInterval(interval);
   }, [asset?.status, assetId]);
 
+  const triggerBackgroundRender = useCallback(async () => {
+    if (!assetId) return;
+    const { data: renderRows } = await supabase
+      .from("asset_template_renders")
+      .select("id, html_content, png_url, slide_index")
+      .eq("asset_id", assetId)
+      .order("slide_index");
+    if (!renderRows || renderRows.length === 0) return;
+
+    const pendingRenders = renderRows.filter(r => !r.png_url && r.html_content);
+    if (pendingRenders.length === 0) return;
+
+    // Get template dimensions
+    const tpl = template;
+    const w = tpl?.width_px || 1080;
+    const h = tpl?.height_px || 1350;
+
+    for (const render of pendingRenders) {
+      try {
+        const dataUrl = await renderHtmlToPng(render.html_content!, w, h);
+        const publicUrl = await uploadPng(assetId, render.slide_index || 0, dataUrl);
+        if (publicUrl) {
+          await supabase.from("asset_template_renders").update({ png_url: publicUrl }).eq("id", render.id);
+          setRenders(prev => prev.map(r => r.id === render.id ? { ...r, png_url: publicUrl } : r));
+        }
+      } catch (e) {
+        console.error(`Background render failed for slide ${render.slide_index}:`, e);
+      }
+    }
+  }, [assetId, template]);
+
   const updateStatus = async (status: string, extraFields?: Record<string, any>) => {
     setActionLoading(true);
     const { error } = await supabase.from("assets").update({ status, ...extraFields }).eq("id", assetId!);
@@ -156,9 +187,11 @@ const AssetDetail = () => {
       setAsset((prev: any) => ({ ...prev, status, ...extraFields }));
       if (status === "approved") {
         toast.success("Peça aprovada!", {
-          description: "Agora você pode agendar publicação.",
+          description: "Renderizando PNGs em background...",
           action: { label: "Agendar →", onClick: () => navigate(`/activations/${id}/schedule`) },
         });
+        // Fire-and-forget background render
+        triggerBackgroundRender();
       } else if (status === "rejected") {
         toast("Peça rejeitada", { description: "Adicione feedback e gere nova versão." });
       }
