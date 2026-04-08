@@ -634,13 +634,8 @@ Deno.serve(async (req) => {
             });
       }
       if (subtype === "ENGAGEMENT") {
-        if (!rule && !body.page_id) throw new Error("rule or page_id is required for ENGAGEMENT audiences");
-        // Meta requires the rule as a parsed JSON object in URLSearchParams, not a string
-        payload.rule = rule
-          ? (typeof rule === "string" ? rule : JSON.stringify(rule))
-          : JSON.stringify({
-              inclusions: { operator: "or", rules: [{ event_sources: [{ id: String(body.page_id), type: "page" }], retention_seconds: Number(body.retention_seconds) || 2592000 }] }
-            });
+        if (!rule) throw new Error("Para audiências de engajamento, forneça a regra completa (rule) no formato JSON do Meta. Use audiências existentes listadas na aba Audiências.");
+        payload.rule = typeof rule === "string" ? rule : JSON.stringify(rule);
         payload.prefill = "true";
       }
       if (customer_file_source) {
