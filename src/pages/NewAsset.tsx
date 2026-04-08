@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Check, ChevronRight, Loader2, Sparkles, Layout, Image, Layers, Eye, Pencil } from "lucide-react";
+import { buildAssetName } from "@/lib/assetNaming";
 
 interface EditableField {
   label: string;
