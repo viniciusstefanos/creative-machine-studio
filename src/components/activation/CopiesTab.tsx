@@ -462,8 +462,6 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
               </div>
             );
           })}
-            );
-          })}
         </div>
       )}
     </div>
