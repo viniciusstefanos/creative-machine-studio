@@ -11,6 +11,7 @@ import {
 import { format, addDays, differenceInDays, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 
 interface BulkScheduleDialogProps {
   open: boolean;
@@ -159,9 +160,12 @@ export const BulkScheduleDialog = ({
     });
   }, [startDate, endDate, selectedIds, selectedTimes, assets]);
 
+  const [submitProgress, setSubmitProgress] = useState(0);
+
   const handleSubmit = async () => {
     if (distribution.length === 0) return;
     setSubmitting(true);
+    setSubmitProgress(0);
 
     const rows = distribution.map(d => ({
       activation_id: activationId,
@@ -172,14 +176,24 @@ export const BulkScheduleDialog = ({
       status: "scheduled",
     }));
 
-    const { error } = await supabase.from("scheduled_posts").insert(rows);
-    if (error) {
-      toast.error("Erro ao agendar: " + error.message);
-    } else {
-      toast.success(`${rows.length} post(s) agendados com sucesso`);
-      onOpenChange(false);
-      onSaved();
+    // Insert in batches of 10 for progress feedback
+    const batchSize = 10;
+    let inserted = 0;
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const batch = rows.slice(i, i + batchSize);
+      const { error } = await supabase.from("scheduled_posts").insert(batch);
+      if (error) {
+        toast.error("Erro ao agendar: " + error.message);
+        setSubmitting(false);
+        return;
+      }
+      inserted += batch.length;
+      setSubmitProgress(inserted);
     }
+
+    toast.success(`${rows.length} post(s) agendados com sucesso`);
+    onOpenChange(false);
+    onSaved();
     setSubmitting(false);
   };
 
@@ -473,16 +487,27 @@ export const BulkScheduleDialog = ({
               >
                 <ChevronLeft size={14} /> Voltar
               </Button>
-              <Button
-                size="sm"
-                disabled={submitting || distribution.length === 0}
-                onClick={handleSubmit}
-                className="gap-1.5"
-                style={{ background: s.accent, color: s.accentFg, fontFamily: s.font, borderRadius: 6 }}
-              >
-                {submitting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                {submitting ? "Agendando..." : `Agendar ${distribution.length} post(s)`}
-              </Button>
+              <div className="flex flex-col items-end gap-2">
+                {submitting && distribution.length > 0 && (
+                  <div className="w-48 space-y-1">
+                    <div className="flex justify-between text-[10px]" style={{ color: s.textMut, fontFamily: s.mono }}>
+                      <span>Agendando {submitProgress} de {distribution.length}</span>
+                      <span>{Math.round((submitProgress / distribution.length) * 100)}%</span>
+                    </div>
+                    <Progress value={(submitProgress / distribution.length) * 100} className="h-1.5" />
+                  </div>
+                )}
+                <Button
+                  size="sm"
+                  disabled={submitting || distribution.length === 0}
+                  onClick={handleSubmit}
+                  className="gap-1.5"
+                  style={{ background: s.accent, color: s.accentFg, fontFamily: s.font, borderRadius: 6 }}
+                >
+                  {submitting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                  {submitting ? `Agendando ${submitProgress}/${distribution.length}...` : `Agendar ${distribution.length} post(s)`}
+                </Button>
+              </div>
             </div>
           </div>
         )}

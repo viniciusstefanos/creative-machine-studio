@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ interface AssetsTabProps {
 }
 
 export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
+  const isMobile = useIsMobile();
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
@@ -262,7 +264,7 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
             </Link>
           )}
         </div>
-      ) : viewMode === "list" ? (
+      ) : (viewMode === "list" && !isMobile) ? (
         /* ──── LIST VIEW ──── */
         <div
           className="rounded-md overflow-hidden"

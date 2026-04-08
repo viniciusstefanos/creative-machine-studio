@@ -337,6 +337,16 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
       )}
 
       {/* Copies List */}
+      {/* Inline progress banner */}
+      {generating && (
+        <div className="card-base flex items-center gap-3 mb-4" style={{ borderColor: "hsl(var(--accent) / 0.3)" }}>
+          <Loader2 size={16} className="animate-spin" style={{ color: "hsl(var(--accent))" }} />
+          <span className="text-xs" style={{ color: "hsl(var(--text-secondary))", fontFamily: "'DM Sans'" }}>
+            Gerando {genQuantity} copies com IA, aguarde...
+          </span>
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <div className="empty-state card-base">
           <FileText size={32} className="text-txt-ghost" />
@@ -348,7 +358,7 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
               ? "Preencha o brief primeiro para gerar copies com IA."
               : "Clique em 'Gerar com IA' para criar copies a partir do brief."}
           </p>
-          {briefDone === false && (
+          {briefDone === false ? (
             <Link
               to={`/activations/${activationId}/brief`}
               className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 text-xs font-medium rounded-md transition-all"
@@ -356,6 +366,15 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
             >
               ← Preencher brief primeiro
             </Link>
+          ) : (
+            <Button
+              size="sm"
+              className="mt-3 gap-2"
+              onClick={() => setShowGenDialog(true)}
+              style={{ background: "hsl(var(--accent))", color: "hsl(var(--accent-foreground))", borderRadius: 6 }}
+            >
+              <Sparkles size={14} /> Gerar com IA
+            </Button>
           )}
         </div>
       ) : (
