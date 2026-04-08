@@ -430,7 +430,28 @@ Deno.serve(async (req) => {
     // Custom system prompt from brief
     const customPrompt = (brief as any)?.system_prompt ? `\n\n## INSTRUÇÕES CUSTOMIZADAS\n${(brief as any).system_prompt}` : "";
 
+    // Extract consolidated context for rich brief data
+    const consolidated = (brief as any)?.consolidated_context || {};
+    const consolidatedStr = Object.keys(consolidated).length > 0
+      ? JSON.stringify(consolidated, null, 2)
+      : "";
+
     const config = render_config || {};
+
+    // Resolve visual identity: prefer explicit brief fields, fallback to consolidated_context
+    const resolvedBrandColors = (brief as any)?.brand_colors
+      || consolidated.visual_guidelines?.colors
+      || consolidated.brand_colors
+      || "";
+    const resolvedTypography = (brief as any)?.typography
+      || consolidated.visual_guidelines?.typography
+      || consolidated.typography
+      || "";
+    const resolvedVisualStyle = (brief as any)?.visual_style
+      || consolidated.visual_guidelines?.style
+      || consolidated.visual_style
+      || "";
+
     const context = {
       hook: copy.hook || "",
       body: copy.body || "",
@@ -439,9 +460,9 @@ Deno.serve(async (req) => {
       objectives: brief?.objectives || "",
       target_audience: brief?.target_audience || "",
       tone_of_voice: brief?.tone_of_voice || "",
-      brand_colors: (brief as any)?.brand_colors || "",
-      typography: (brief as any)?.typography || "",
-      visual_style: (brief as any)?.visual_style || "",
+      brand_colors: resolvedBrandColors,
+      typography: resolvedTypography,
+      visual_style: resolvedVisualStyle,
       brief_files_context: filesContext,
       ...config,
     };
@@ -484,9 +505,20 @@ Deno.serve(async (req) => {
       const brandColorInstruction = context.brand_colors
         ? `\n\n## CORES DA MARCA (OBRIGATÓRIO)\nUse EXCLUSIVAMENTE estas cores da identidade visual do cliente: ${context.brand_colors}\n- Cor primária para elementos dominantes (fundo, seções)\n- Cor de acento APENAS para CTA/botões\n- NÃO use cores genéricas quando as cores da marca estiverem definidas\n- Respeite os valores hex exatos fornecidos\n`
         : "";
-      const systemWithRules = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction + brandColorInstruction + customPrompt;
+      const typographyInstruction = context.typography
+        ? `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO)\nUse estas fontes conforme a identidade visual do cliente: ${context.typography}\n`
+        : "";
+      const visualStyleInstruction = context.visual_style
+        ? `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\nSiga este estilo visual: ${context.visual_style}\n`
+        : "";
+      const systemWithRules = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction + brandColorInstruction + typographyInstruction + visualStyleInstruction + customPrompt;
 
-      const userPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nConfig: ${JSON.stringify(config)}`;
+      // Build rich brief context for user prompt
+      const briefContextBlock = consolidatedStr
+        ? `\n\n## BRIEFING DO CLIENTE (contexto completo — use para tom, estilo, valores, público)\n${consolidatedStr}`
+        : "";
+
+      const userPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nConfig: ${JSON.stringify(config)}${briefContextBlock}`;
 
       const rawContent = await callTextAI(
         systemWithRules,
@@ -542,8 +574,17 @@ Deno.serve(async (req) => {
       const brandColorInstruction2 = context.brand_colors
         ? `\n\n## CORES DA MARCA (OBRIGATÓRIO)\nUse EXCLUSIVAMENTE estas cores: ${context.brand_colors}\n- Cor primária para elementos dominantes\n- Cor de acento para CTA/botões\n`
         : "";
-      const overlaySystem = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + brandColorInstruction2 + customPrompt;
-      const overlayPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nImagem de fundo: ${bgImageUrl || "não disponível"}\nConfig: ${JSON.stringify(config)}`;
+      const typographyInstruction2 = context.typography
+        ? `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO)\n${context.typography}\n`
+        : "";
+      const visualStyleInstruction2 = context.visual_style
+        ? `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\n${context.visual_style}\n`
+        : "";
+      const overlaySystem = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + brandColorInstruction2 + typographyInstruction2 + visualStyleInstruction2 + customPrompt;
+      const briefContextBlock2 = consolidatedStr
+        ? `\n\n## BRIEFING DO CLIENTE\n${consolidatedStr}`
+        : "";
+      const overlayPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nImagem de fundo: ${bgImageUrl || "não disponível"}\nConfig: ${JSON.stringify(config)}${briefContextBlock2}`;
       const rawHtml = await callTextAI(overlaySystem, overlayPrompt, useClaude, anthropicKey, lovableKey);
       const html = extractHtml(rawHtml);
 
