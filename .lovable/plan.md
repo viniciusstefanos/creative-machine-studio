@@ -1,38 +1,56 @@
 
 
-# Formulário de geração IA com controles avançados
+# Plano de ação para melhorar o app Máquina Criativa
 
-## Resumo
+## Diagnóstico atual
 
-Substituir o mini-dropdown atual do "Gerar com IA" por um painel/dialog com campos configuráveis antes de gerar.
+O app já tem o fluxo core funcional: Clientes → Ativações → Brief → Copies (org/ads) → Peças → Campanhas Meta → Agendamento → Métricas. Principais gaps identificados:
 
-## O que o usuário vai ver
+---
 
-Ao clicar em "Gerar com IA", abre um dialog com:
+## Melhorias organizadas por prioridade
 
-1. **Finalidade** — select: Orgânico / Ads / Ambos (já existe, muda de dropdown pra campo no dialog)
-2. **Etapas do funil** — checkboxes: Topo / Meio / Fundo (default: todas marcadas)
-3. **Quantidade** — input numérico: quantos copies gerar (default: 6, máx: 20)
-4. **Assunto / Dor** — textarea opcional: "Ex: insegurança sobre investimentos", "dor de quem não tem tempo de cozinhar"
+### P0 — Estabilidade e confiabilidade
 
-Botão "Gerar" no rodapé do dialog dispara a geração.
+1. **Loading states e error handling globais** — Hoje os componentes usam `useState(true)` para loading e não tratam erros de fetch. Criar um padrão com skeleton loaders e toast de erro automático quando queries falham.
 
-## Mudanças técnicas
+2. **Tipagem forte** — Muitos `any` espalhados (activations, assets, copies, posts). Criar interfaces tipadas a partir do schema do banco e eliminar `any`.
 
-### `CopiesTab.tsx`
-- Remover o dropdown inline de purpose
-- Adicionar state para o dialog de geração (`showGenDialog`)
-- Novo estado com os 4 campos: `genPurpose`, `genFunnelStages`, `genQuantity`, `genTopic`
-- Dialog usando componentes existentes (Dialog, Checkbox, Input, Textarea, Select)
-- Ao confirmar, chama `handleAIGenerate` passando os novos parâmetros
+3. **React Query em todo o app** — React Query está instalado mas quase nenhuma página usa. Hoje tudo é `useEffect` + `useState` manual sem cache, sem refetch automático, sem optimistic updates. Migrar para `useQuery`/`useMutation` traz cache, retry, loading/error states automáticos.
 
-### `generate-copies/index.ts`
-- Aceitar novos parâmetros: `quantity` (number), `topic` (string opcional)
-- Usar `quantity` no prompt: "Gere no máximo {quantity} copies"
-- Se `topic` informado, adicionar ao prompt: `ASSUNTO/DOR ESPECÍFICA: {topic}. Todas as copies devem abordar esse tema/dor.`
-- `funnel_stages` já é recebido mas hoje é hardcoded no front — passa a ser dinâmico
+### P1 — UX e usabilidade
 
-### Arquivos modificados
-- **`src/components/activation/CopiesTab.tsx`** — dialog de configuração substituindo dropdown
-- **`supabase/functions/generate-copies/index.ts`** — parâmetros `quantity` e `topic`
+4. **Busca global** — Não existe busca. Adicionar um command palette (Cmd+K) para navegar rapidamente entre clientes, ativações, copies e peças.
+
+5. **Empty states acionáveis** — Vários empty states são texto solto. Transformar em CTAs claros que guiam o próximo passo (ex: "Nenhuma copy ainda → Gerar com IA").
+
+6. **Feedback de progresso em operações longas** — Geração de copies, upload de peças e publicação Meta podem demorar. Adicionar progress bars ou indicadores de step (ex: "Gerando 3/6...").
+
+7. **Mobile responsivo** — Sidebar já tem hamburger, mas tabelas (AssetsTab, ScheduleTab) não são responsivas. Adaptar para cards em mobile.
+
+### P2 — Funcionalidades de produto
+
+8. **Duplicar ativação** — Poder clonar uma ativação inteira (brief, copies, configurações) como template para reuso.
+
+9. **Histórico de versões de copy** — Ao regenerar um bloco (hook/body/cta), guardar a versão anterior para poder reverter.
+
+10. **Dashboard por cliente** — Hoje o dashboard é global. Adicionar métricas consolidadas na página do cliente (volume, performance, investimento).
+
+11. **Notificações em tempo real** — Usar Supabase Realtime para atualizar o badge de notificações sem reload.
+
+### P3 — Performance e polish
+
+12. **Lazy loading de rotas** — Todas as páginas carregam no bundle inicial. Usar `React.lazy()` + Suspense para code splitting.
+
+13. **Paginação** — Listas de copies, assets e métricas carregam tudo de uma vez (limit 1000). Implementar paginação ou infinite scroll.
+
+14. **Animações de transição** — Adicionar micro-animações nas transições de tab, cards e dialogs para dar mais fluidez.
+
+---
+
+## Sugestão de execução
+
+Começar por **P0** (estabilidade) porque melhora a base de tudo. Depois **P1** (UX) que tem impacto direto no dia a dia. **P2** e **P3** conforme demanda.
+
+Posso implementar qualquer item — qual quer priorizar?
 
