@@ -313,6 +313,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           editable_fields: Json | null
+          funnel_stage: string | null
           generation_type: string
           height_px: number
           html_scaffold: string | null
@@ -337,6 +338,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           editable_fields?: Json | null
+          funnel_stage?: string | null
           generation_type: string
           height_px: number
           html_scaffold?: string | null
@@ -361,6 +363,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           editable_fields?: Json | null
+          funnel_stage?: string | null
           generation_type?: string
           height_px?: number
           html_scaffold?: string | null
