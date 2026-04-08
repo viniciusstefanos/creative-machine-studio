@@ -120,6 +120,7 @@ export const MetaAccountSettings = ({ clientId }: MetaAccountSettingsProps) => {
       ad_account_id: adsForm.ad_account_id || null,
       ad_account_name: adsForm.ad_account_name || null,
       page_access_token: adsForm.page_access_token || null,
+      pixel_id: adsForm.pixel_id || null,
     };
 
     if (adsRecord && adsRecord.platform === "meta_ads") {
