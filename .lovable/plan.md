@@ -1,57 +1,50 @@
 
 
-# Implementar P1 — UX e Usabilidade
+# Melhorar nomenclatura dos assets
 
-## O que já foi feito (P0/P1 parcial)
-- Busca global Cmd+K (item 4) — já implementado
-- Skeleton loaders e React Query nas páginas Dashboard e ActivationHub
-- Lazy loading de rotas
+## Problema atual
 
-## O que falta no P1
+Assets são criados sem nome (`name: null`). O display cai em fallbacks genéricos como "carousel" ou "Peça v1". A ID única (UUID) é longa demais para uso visual.
 
-### 1. Empty states acionáveis (item 5)
+## Nova nomenclatura proposta
 
-Vários empty states já existem mas alguns são apenas texto. Melhorar:
+**Formato**: `{ID_CURTA}-{SIGLA_TEMPLATE} {título_da_copy}`
 
-- **BriefTab** — não tem empty state quando brief está vazio; adicionar CTA "Preencher brief"
-- **CopiesTab** — já tem CTA para brief, mas quando `briefDone === true` falta botão "Gerar com IA" no empty state
-- **AssetsTab** — já tem CTAs bons (manter)
-- **CampaignsTab** — empty state tem texto mas falta botão CTA "Criar campanha"
-- **ScheduleTab** — empty state com `assetsApproved === 0` falta CTA para ir a peças
+Exemplo: `042-CRS Sua pele merece mais`
 
-**Arquivos**: `CopiesTab.tsx`, `CampaignsTab.tsx`, `ScheduleTab.tsx`
+- **ID curta**: número sequencial de 3 dígitos (ex: `042`), baseado em `count(*)` de assets da ativação + 1
+- **Sigla do template**: primeiras 3 letras da categoria ou slug do template em maiúsculo (ex: `CRS` = carousel, `STC` = static, `STR` = stories, `RLS` = reels). Usar um mapa fixo no código
+- **Título da copy**: primeiras ~5 palavras do hook da copy associada, truncado
 
-### 2. Feedback de progresso em operações longas (item 6)
+Sigla da ativação **não** é incluída (já está a nível de campanha).
 
-- **CopiesTab** — ao gerar IA, o botão mostra "Gerando..." mas sem progresso. Adicionar um toast com progresso ou um banner inline com spinner + texto descritivo ("Gerando X copies com IA, aguarde...")
-- **BulkScheduleDialog** — já tem step wizard mas submissão mostra apenas "Agendando...". Adicionar progresso `(X de Y agendados)` com barra de progresso
-- **AddAdsToCampaignDialog** — mesma lógica: progresso por peça subida
-- **ScheduleTab publish** — ao publicar (especialmente carrossel com render de slides), mostrar progresso dos steps ("Renderizando slide 2/5...", "Publicando...")
+## Mudanças
 
-**Arquivos**: `CopiesTab.tsx`, `BulkScheduleDialog.tsx`, `AddAdsToCampaignDialog.tsx`, `ScheduleTab.tsx`
+### 1. Função utilitária `buildAssetName`
 
-### 3. Mobile responsivo (item 7)
+Criar em `src/lib/assetNaming.ts`:
+- Recebe: `sequenceNumber`, `templateCategory` (ou slug), `copyHook`
+- Retorna: string formatada tipo `042-CRS Sua pele merece mais`
+- Mapa de siglas: `{ carousel: "CRS", static: "STC", stories: "STR", reels: "RLS", feed: "FED" }` com fallback para primeiras 3 letras
 
-- **AssetsTab lista** — tabela `<Table>` não responsiva. Em telas `< md`, trocar para cards (como já faz no grid view). Forçar `viewMode="grid"` em mobile ou esconder colunas não essenciais
-- **ScheduleTab** — grid `md:grid-cols-[240px_1fr]` já collapsa. OK
-- **CampaignsTab** — cards já responsivos. OK
-- **Header breadcrumbs** — já tem `pl-10 md:pl-0` para mobile. OK
-- **CopiesTab form** — grid `sm:grid-cols-4` já collapsa. OK
+### 2. `NewAsset.tsx` — gerar nome na criação
 
-**Arquivo**: `AssetsTab.tsx`
+Antes do insert:
+- Contar assets existentes na ativação (`count`)
+- Pegar hook da copy selecionada
+- Chamar `buildAssetName(count + 1, template.category, copy.hook)`
+- Incluir `name` no insert
 
----
+### 3. `BatchAssets.tsx` — gerar nome na criação em lote
 
-## Resumo de mudanças
+Mesmo padrão, incrementando o contador a cada asset no loop.
 
-| Arquivo | Mudança |
-|---------|---------|
-| `CopiesTab.tsx` | Botão "Gerar com IA" no empty state; banner de progresso inline durante geração |
-| `CampaignsTab.tsx` | Botão CTA no empty state |
-| `ScheduleTab.tsx` | CTA no empty state para ir a peças; progresso step-by-step ao publicar (render slides + publish) |
-| `BulkScheduleDialog.tsx` | Barra de progresso `X/Y` durante submissão |
-| `AddAdsToCampaignDialog.tsx` | Barra de progresso `X/Y` durante upload de anúncios |
-| `AssetsTab.tsx` | Forçar grid view em mobile (esconder tabela em `< md`) |
+### 4. Display (sem mudança estrutural)
 
-Nenhuma migration necessária.
+`AssetsTab.tsx`, `AssetDetail.tsx`, `AddAdsToCampaignDialog.tsx`, `BulkScheduleDialog.tsx` e `CreateCampaignWizard.tsx` já usam `asset.name` — como agora sempre terá valor, os fallbacks genéricos deixam de aparecer.
+
+## Arquivos modificados
+- **`src/lib/assetNaming.ts`** — novo, função `buildAssetName`
+- **`src/pages/NewAsset.tsx`** — gerar nome antes do insert
+- **`src/pages/BatchAssets.tsx`** — gerar nome no loop de criação
 
