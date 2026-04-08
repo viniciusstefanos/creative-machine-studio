@@ -645,16 +645,21 @@ Deno.serve(async (req) => {
         payload.customer_file_source = customer_file_source;
       }
 
-      console.log("create_audience payload:", JSON.stringify(payload));
+      // Use URLSearchParams — Meta expects form-data style
+      const params = new URLSearchParams();
+      params.append("name", payload.name);
+      if (payload.description) params.append("description", payload.description);
+      if (payload.subtype) params.append("subtype", payload.subtype);
+      if (payload.rule) params.append("rule", payload.rule);
+      if (payload.customer_file_source) params.append("customer_file_source", payload.customer_file_source);
+      params.append("access_token", token);
 
-      const res = await fetch(
-        `${META_GRAPH_URL}/${ad_account_id}/customaudiences?access_token=${token}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...payload, access_token: undefined }),
-        }
-      );
+      console.log("create_audience rule:", payload.rule);
+
+      const res = await fetch(`${META_GRAPH_URL}/${ad_account_id}/customaudiences`, {
+        method: "POST",
+        body: params,
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(`Create audience failed [${res.status}]: ${JSON.stringify(data)}`);
 
