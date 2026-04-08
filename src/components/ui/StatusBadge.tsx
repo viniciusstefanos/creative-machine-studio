@@ -10,6 +10,7 @@ const statusMap: Record<string, { cssVar: string; label: string }> = {
   scheduled: { cssVar: "--status-scheduled", label: "Agendado" },
   published: { cssVar: "--status-published", label: "Publicado" },
   generating: { cssVar: "--status-generating", label: "Gerando" },
+  rendering: { cssVar: "--status-generating", label: "Renderizando" },
   active: { cssVar: "--status-approved", label: "Ativo" },
   paused: { cssVar: "--status-review", label: "Pausado" },
   done: { cssVar: "--status-draft", label: "Concluído" },

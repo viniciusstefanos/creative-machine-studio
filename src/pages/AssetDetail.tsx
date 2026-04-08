@@ -159,7 +159,10 @@ const AssetDetail = () => {
     const pendingRenders = renderRows.filter(r => !r.png_url && r.html_content);
     if (pendingRenders.length === 0) return;
 
-    // Get template dimensions
+    // Set status to rendering
+    await supabase.from("assets").update({ status: "rendering" }).eq("id", assetId);
+    setAsset((prev: any) => ({ ...prev, status: "rendering" }));
+
     const tpl = template;
     const w = tpl?.width_px || 1080;
     const h = tpl?.height_px || 1350;
@@ -176,6 +179,10 @@ const AssetDetail = () => {
         console.error(`Background render failed for slide ${render.slide_index}:`, e);
       }
     }
+
+    // Set back to approved
+    await supabase.from("assets").update({ status: "approved" }).eq("id", assetId);
+    setAsset((prev: any) => ({ ...prev, status: "approved" }));
   }, [assetId, template]);
 
   const updateStatus = async (status: string, extraFields?: Record<string, any>) => {
