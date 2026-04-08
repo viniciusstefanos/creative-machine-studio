@@ -1,33 +1,35 @@
 
 
-# Corrigir vazamento de texto explicativo no preview de assets
+# Adicionar opção "Subir para tráfego" ao aprovar peça
 
 ## Problema
 
-A IA retorna o HTML do criativo junto com texto explicativo em markdown (ex: "### Por que este layout funciona para o Instagram 2026?..."). O código atual só remove code fences (` ```html ``` `) mas não remove o texto antes/depois do HTML. Esse texto acaba salvo no `html_content` e renderizado no iframe de preview.
+Quando a peça é aprovada, só aparece "Agendar publicação" (orgânico). Falta a opção de adicionar a peça a uma campanha de tráfego pago (Meta Ads).
 
 ## Solução
 
-Duas camadas de proteção:
+No bloco de ações pós-aprovação (`asset.status === "approved"`, linhas 827-838 de `AssetDetail.tsx`), adicionar um botão **"Adicionar a campanha"** que:
 
-### 1. Edge function — limpeza robusta do output da IA
+1. Abre o `AddAdsToCampaignDialog` já existente, com o asset pré-selecionado
+2. Busca o `metaAccount` do cliente (mesma lógica que `CampaignsTab` usa)
+3. Busca campanhas existentes da ativação para o dialog
 
-Em `supabase/functions/generate-asset-from-template/index.ts`, criar uma função `extractHtml()` que:
+## Mudanças em `AssetDetail.tsx`
 
-- Remove code fences (já faz)
-- Extrai apenas o conteúdo HTML: busca o primeiro `<link` ou `<div` ou `<html` e o último `</div>` ou `</html>` e retorna só esse trecho
-- Remove qualquer texto markdown antes/depois do HTML
-- Aplicar em todos os pontos onde `rawContent` / `rawHtml` é processado (linhas 470-481, 509-510)
+1. **Importar** `AddAdsToCampaignDialog` e o ícone `Megaphone` (ou `Target`)
+2. **Adicionar state**: `addToCampaignOpen`, `metaAccount`, `campaigns`
+3. **Fetch metaAccount** junto com os dados do asset (usar `client_meta_accounts` via `activation.client_id`)
+4. **Adicionar botão** no bloco `approved`:
 
-Também aplicar em `supabase/functions/generate-asset/index.ts` (linhas 133-136) e `supabase/functions/edit-asset-render/index.ts` (onde refine_html retorna conteúdo).
+```text
+[Agendar publicação]        ← orgânico (já existe)
+[Adicionar a campanha ▸]    ← tráfego (NOVO)
+[Criar outra peça →]        ← já existe
+[Desaprovar]                ← já existe
+```
 
-### 2. Prompt — instrução mais forte
+5. **Renderizar** `<AddAdsToCampaignDialog>` com `activationId`, `metaAccount`, e `landingPageUrl` do activation
 
-Adicionar ao final do prompt do sistema: `"Retorne SOMENTE o código HTML. ZERO texto explicativo, ZERO markdown, ZERO comentários fora do HTML."`
-
-## Arquivos modificados
-
-- **`supabase/functions/generate-asset-from-template/index.ts`** — função `extractHtml()` + aplicar nos 3 pontos de parsing + reforço no prompt
-- **`supabase/functions/generate-asset/index.ts`** — mesma função `extractHtml()` na linha 133
-- **`supabase/functions/edit-asset-render/index.ts`** — mesma limpeza no retorno de `refine_html`
+## Arquivo modificado
+- `src/pages/AssetDetail.tsx`
 
