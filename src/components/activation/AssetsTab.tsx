@@ -336,28 +336,35 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
                     />
                   </TableCell>
                   <TableCell>
-                    {asset.image_url ? (
+                    {asset.thumb_url ? (
                       <img
-                        src={asset.image_url}
+                        src={asset.thumb_url}
                         alt=""
-                        className="w-10 h-10 rounded object-cover"
+                        className="w-12 h-12 rounded-md object-cover"
                         style={{
                           border: "1px solid hsl(var(--border-subtle))",
                         }}
                       />
                     ) : (
                       <div
-                        className="w-10 h-10 rounded flex items-center justify-center"
+                        className="w-12 h-12 rounded-md flex items-center justify-center"
                         style={{
                           background: "hsl(var(--surface-3))",
+                          border: "1px solid hsl(var(--border-subtle))",
                         }}
                       >
-                        <Image
-                          size={14}
-                          style={{
-                            color: "hsl(var(--text-ghost))",
-                          }}
-                        />
+                        {asset.status === "generating" ? (
+                          <Loader2
+                            size={14}
+                            className="animate-spin"
+                            style={{ color: "hsl(var(--accent))" }}
+                          />
+                        ) : (
+                          <Image
+                            size={14}
+                            style={{ color: "hsl(var(--text-ghost))" }}
+                          />
+                        )}
                       </div>
                     )}
                   </TableCell>
@@ -471,12 +478,23 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
                 className="card-base card-interactive block overflow-hidden"
                 style={{ padding: 0 }}
               >
-                {asset.image_url && (
+                {asset.thumb_url ? (
                   <img
-                    src={asset.image_url}
+                    src={asset.thumb_url}
                     alt=""
-                    className="w-full h-40 object-cover"
+                    className="w-full aspect-square object-cover"
                   />
+                ) : (
+                  <div
+                    className="w-full aspect-square flex items-center justify-center"
+                    style={{ background: "hsl(var(--surface-3))" }}
+                  >
+                    {asset.status === "generating" ? (
+                      <Loader2 size={24} className="animate-spin" style={{ color: "hsl(var(--accent))" }} />
+                    ) : (
+                      <Image size={24} style={{ color: "hsl(var(--text-ghost))" }} />
+                    )}
+                  </div>
                 )}
                 <div className="p-4 flex items-center justify-between">
                   <span className="text-mono-label">
