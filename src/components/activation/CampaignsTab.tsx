@@ -334,6 +334,16 @@ export const CampaignsTab = ({ activationId }: CampaignsTabProps) => {
         landingPageUrl={landingPageUrl}
         onCreated={fetchData}
       />
+
+      <AddAdsToCampaignDialog
+        open={addAdsOpen}
+        onOpenChange={setAddAdsOpen}
+        activationId={activationId}
+        metaAccount={metaAccount}
+        landingPageUrl={landingPageUrl}
+        preSelectedCampaignId={addAdsPreselectedCampaign}
+        onCreated={fetchData}
+      />
     </div>
   );
 };
