@@ -55,14 +55,29 @@ const NewAsset = () => {
   useEffect(() => {
     if (!id) return;
     const fetchData = async () => {
-      const [copiesRes, templatesRes, actRes, briefRes] = await Promise.all([
+      const [copiesRes, templatesRes, actRes, briefRes, settingsRes] = await Promise.all([
         supabase.from("copies").select("*").eq("activation_id", id).eq("status", "approved").order("created_at", { ascending: false }),
         supabase.from("asset_templates").select("*").eq("active", true).order("category"),
-        supabase.from("activations").select("*, clients(name)").eq("id", id).single(),
+        supabase.from("activations").select("*, clients(name, id)").eq("id", id).single(),
         supabase.from("briefs").select("*").eq("activation_id", id).maybeSingle(),
+        supabase.from("client_template_settings").select("template_id, enabled"),
       ]);
       setCopies(copiesRes.data || []);
-      setTemplates(templatesRes.data || []);
+
+      // Filter templates by client visibility
+      const allTemplates = templatesRes.data || [];
+      const clientId = (actRes.data as any)?.clients?.id || (actRes.data as any)?.client_id;
+      const settings = settingsRes.data || [];
+      const disabledIds = new Set(settings.filter((s: any) => !s.enabled).map((s: any) => s.template_id));
+
+      const filtered = allTemplates.filter((t: any) => {
+        // Client-exclusive templates: only show for matching client
+        if (t.visibility === "client_only" && t.client_id && t.client_id !== clientId) return false;
+        // Global templates: hide if explicitly disabled for this client
+        if (t.visibility === "global" && disabledIds.has(t.id)) return false;
+        return true;
+      });
+      setTemplates(filtered);
       if (actRes.data) {
         setActivation(actRes.data);
         setClientName((actRes.data as any).clients?.name || "");

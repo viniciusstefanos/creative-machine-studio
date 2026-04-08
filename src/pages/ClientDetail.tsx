@@ -129,6 +129,9 @@ const ClientDetail = () => {
         </div>
       )}
 
+      {/* Templates */}
+      <ClientTemplates clientId={id!} />
+
       {/* Meta Accounts */}
       <div className="mt-8">
         <MetaAccountSettings clientId={id!} />
