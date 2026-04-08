@@ -267,9 +267,11 @@ export const CreateCampaignWizard = ({
 
   const buildUtmTags = () => {
     const parts: string[] = [];
-    if (utmSource) parts.push(`utm_source=${encodeURIComponent(utmSource)}`);
-    if (utmMedium) parts.push(`utm_medium=${encodeURIComponent(utmMedium)}`);
-    if (utmCampaign) parts.push(`utm_campaign=${encodeURIComponent(utmCampaign)}`);
+    if (utmSource) parts.push(`utm_source=${utmDynamic ? utmSource : encodeURIComponent(utmSource)}`);
+    if (utmMedium) parts.push(`utm_medium=${utmDynamic ? utmMedium : encodeURIComponent(utmMedium)}`);
+    if (utmCampaign) parts.push(`utm_campaign=${utmDynamic ? utmCampaign : encodeURIComponent(utmCampaign)}`);
+    if (utmContent) parts.push(`utm_content=${utmDynamic ? utmContent : encodeURIComponent(utmContent)}`);
+    if (utmTerm) parts.push(`utm_term=${utmDynamic ? utmTerm : encodeURIComponent(utmTerm)}`);
     return parts.join("&");
   };
 
