@@ -308,6 +308,7 @@ export type Database = {
           active: boolean | null
           aspect_ratio: string | null
           category: string
+          client_id: string | null
           created_at: string | null
           created_by: string | null
           description: string | null
@@ -324,12 +325,14 @@ export type Database = {
           slug: string
           system_prompt: string | null
           thumbnail_url: string | null
+          visibility: string
           width_px: number
         }
         Insert: {
           active?: boolean | null
           aspect_ratio?: string | null
           category: string
+          client_id?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
@@ -346,12 +349,14 @@ export type Database = {
           slug: string
           system_prompt?: string | null
           thumbnail_url?: string | null
+          visibility?: string
           width_px: number
         }
         Update: {
           active?: boolean | null
           aspect_ratio?: string | null
           category?: string
+          client_id?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
@@ -368,9 +373,18 @@ export type Database = {
           slug?: string
           system_prompt?: string | null
           thumbnail_url?: string | null
+          visibility?: string
           width_px?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "asset_templates_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       assets: {
         Row: {
@@ -596,6 +610,42 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_template_settings: {
+        Row: {
+          client_id: string
+          enabled: boolean
+          id: string
+          template_id: string
+        }
+        Insert: {
+          client_id: string
+          enabled?: boolean
+          id?: string
+          template_id: string
+        }
+        Update: {
+          client_id?: string
+          enabled?: boolean
+          id?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_template_settings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_template_settings_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "asset_templates"
             referencedColumns: ["id"]
           },
         ]
