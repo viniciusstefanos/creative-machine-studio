@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { SectionLabel } from "@/components/ui/SectionLabel";
@@ -8,8 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, FileText, Sparkles, Loader2, Trash2, LayoutGrid, LayoutList } from "lucide-react";
+import { Plus, FileText, Sparkles, Loader2, Trash2, LayoutGrid, LayoutList, Search, ChevronDown, ChevronRight, GitBranch } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 
@@ -31,11 +33,24 @@ const purposeColor: Record<string, string> = {
   ads: "--accent",
 };
 
+const STATUS_OPTIONS = [
+  { value: "draft", label: "Rascunho" },
+  { value: "review", label: "Revisão" },
+  { value: "approved", label: "Aprovado" },
+  { value: "rejected", label: "Rejeitado" },
+];
+
 const FUNNEL_OPTIONS = [
   { value: "top", label: "Topo" },
   { value: "mid", label: "Meio" },
   { value: "bottom", label: "Fundo" },
 ] as const;
+
+const FUNNEL_FILTER_OPTIONS = [
+  { value: "top", label: "Topo" },
+  { value: "mid", label: "Meio" },
+  { value: "bottom", label: "Fundo" },
+];
 
 export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
   const queryClient = useQueryClient();
@@ -48,6 +63,13 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+
+  // New filters
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [funnelFilter, setFunnelFilter] = useState<string | null>(null);
+  const [batchFilter, setBatchFilter] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [collapsedBatches, setCollapsedBatches] = useState<Set<string>>(new Set());
 
   // Generation dialog state
   const [showGenDialog, setShowGenDialog] = useState(false);
@@ -91,7 +113,6 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
     if (!confirm(`Excluir ${selected.size} copy(ies) permanentemente?`)) return;
     setDeleting(true);
     const ids = Array.from(selected);
-    // Remove associated assets' copy_id references first
     await supabase.from("assets").update({ copy_id: null }).in("copy_id", ids);
     const { error } = await supabase.from("copies").delete().in("id", ids);
     if (error) {
@@ -105,7 +126,46 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
     setDeleting(false);
   };
 
-  const filtered = filter === "all" ? copies : copies.filter(c => (c.purpose || "organic") === filter);
+  // Apply all filters
+  const filtered = useMemo(() => {
+    let result = copies;
+    if (filter !== "all") result = result.filter(c => (c.purpose || "organic") === filter);
+    if (statusFilter) result = result.filter(c => c.status === statusFilter);
+    if (funnelFilter) result = result.filter(c => c.funnel_stage === funnelFilter);
+    if (batchFilter) result = result.filter(c => c.batch_label === batchFilter);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(c => (c.hook || "").toLowerCase().includes(q) || (c.body || "").toLowerCase().includes(q));
+    }
+    return result;
+  }, [copies, filter, statusFilter, funnelFilter, batchFilter, searchQuery]);
+
+  // Group by batch
+  const batchGroups = useMemo(() => {
+    const groups = new Map<string, any[]>();
+    for (const c of filtered) {
+      const label = c.batch_label || "Sem lote";
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label)!.push(c);
+    }
+    return groups;
+  }, [filtered]);
+
+  // Get unique batch labels for filter
+  const batchLabels = useMemo(() => {
+    const labels = new Set<string>();
+    copies.forEach(c => { if (c.batch_label) labels.add(c.batch_label); });
+    return Array.from(labels).sort();
+  }, [copies]);
+
+  // Group variations under parent
+  const getVariationLetter = (copy: any, allCopies: any[]) => {
+    if (!copy.parent_id) return null;
+    const siblings = allCopies.filter(c => c.parent_id === copy.parent_id).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const idx = siblings.findIndex(c => c.id === copy.id);
+    return String.fromCharCode(66 + idx); // B, C, D...
+  };
+
   const orgCount = copies.filter(c => (c.purpose || "organic") === "organic").length;
   const adsCount = copies.filter(c => (c.purpose || "organic") === "ads").length;
 
@@ -116,6 +176,14 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
     } else {
       setSelected(new Set(filtered.map(c => c.id)));
     }
+  };
+
+  const toggleBatchCollapse = (label: string) => {
+    setCollapsedBatches(prev => {
+      const next = new Set(prev);
+      next.has(label) ? next.delete(label) : next.add(label);
+      return next;
+    });
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -174,7 +242,9 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
 
       if (error) throw error;
 
-      toast.success(`${data.copies?.length || 0} copies gerados com IA`);
+      toast.success(`${data.copies?.length || 0} copies gerados — ${data.batch_label || ""}`, {
+        description: "Copies organizados em lote automaticamente.",
+      });
       fetchCopies();
     } catch (err) {
       console.error("AI generation error:", err);
@@ -183,7 +253,132 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
     setGenerating(false);
   };
 
+  const hasActiveFilters = statusFilter || funnelFilter || batchFilter || searchQuery.trim();
+
   if (loading) return <div className="text-caption">Carregando...</div>;
+
+  const renderCopyRow = (copy: any) => {
+    const purpose = copy.purpose || "organic";
+    const isSelected = selected.has(copy.id);
+    const varLetter = getVariationLetter(copy, copies);
+
+    return (
+      <TableRow
+        key={copy.id}
+        className="cursor-pointer"
+        style={{ borderColor: "hsl(var(--border-subtle))" }}
+        data-state={isSelected ? "selected" : undefined}
+      >
+        <TableCell className="py-2">
+          <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(copy.id)} />
+        </TableCell>
+        <TableCell className="py-2">
+          <div className="flex items-center gap-1.5">
+            <span
+              className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                background: `hsl(var(${purposeColor[purpose]}) / 0.12)`,
+                color: `hsl(var(${purposeColor[purpose]}))`,
+                border: `1px solid hsl(var(${purposeColor[purpose]}) / 0.25)`,
+              }}
+            >
+              {purposeLabel[purpose]}
+            </span>
+            {varLetter && (
+              <span
+                className="text-[9px] font-bold px-1 py-0.5 rounded"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  background: "hsl(var(--accent) / 0.1)",
+                  color: "hsl(var(--accent))",
+                  border: "1px solid hsl(var(--accent) / 0.2)",
+                }}
+              >
+                <GitBranch size={8} className="inline mr-0.5" />Var {varLetter}
+              </span>
+            )}
+          </div>
+        </TableCell>
+        <TableCell className="py-2">
+          <Link
+            to={`/activations/${activationId}/copies/${copy.id}`}
+            className="text-body text-sm hover:underline line-clamp-1"
+            style={{ color: "hsl(var(--text-primary))" }}
+          >
+            {copy.hook || "Copy sem gancho"}
+          </Link>
+        </TableCell>
+        <TableCell className="py-2">
+          <span className="text-mono-label">{copy.type} · {copy.channel || "—"}</span>
+        </TableCell>
+        <TableCell className="py-2">
+          <span className="text-mono text-[10px] px-1.5 py-0.5 rounded" style={{ background: "hsl(var(--bg-surface2))", color: "hsl(var(--text-muted))" }}>
+            {copy.funnel_stage || "—"}
+          </span>
+        </TableCell>
+        <TableCell className="py-2 text-right">
+          <StatusBadge status={copy.status} />
+        </TableCell>
+      </TableRow>
+    );
+  };
+
+  const renderCopyCard = (copy: any) => {
+    const purpose = copy.purpose || "organic";
+    const isSelected = selected.has(copy.id);
+    const varLetter = getVariationLetter(copy, copies);
+
+    return (
+      <div key={copy.id} className="flex items-start gap-2">
+        <div className="pt-4">
+          <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(copy.id)} />
+        </div>
+        <Link
+          to={`/activations/${activationId}/copies/${copy.id}`}
+          className="card-base card-interactive block flex-1"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span
+                className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  background: `hsl(var(${purposeColor[purpose]}) / 0.12)`,
+                  color: `hsl(var(${purposeColor[purpose]}))`,
+                  border: `1px solid hsl(var(${purposeColor[purpose]}) / 0.25)`,
+                }}
+              >
+                {purposeLabel[purpose]}
+              </span>
+              {varLetter && (
+                <span
+                  className="text-[9px] font-bold px-1 py-0.5 rounded"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    background: "hsl(var(--accent) / 0.1)",
+                    color: "hsl(var(--accent))",
+                  }}
+                >
+                  <GitBranch size={8} className="inline mr-0.5" />Var {varLetter}
+                </span>
+              )}
+              <span className="text-mono-label">
+                {copy.type} · {copy.channel || "—"} · v{copy.version}
+              </span>
+            </div>
+            <StatusBadge status={copy.status} />
+          </div>
+          <p className="text-body line-clamp-2">{copy.hook || "Copy sem gancho"}</p>
+          {copy.funnel_stage && (
+            <span className="text-mono mt-2 inline-block px-1.5 py-0.5 rounded bg-surface-2 text-txt-muted">
+              {copy.funnel_stage}
+            </span>
+          )}
+        </Link>
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -325,8 +520,9 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
         </DialogContent>
       </Dialog>
 
-      {/* Filter chips */}
-      <div className="flex gap-2 mb-4">
+      {/* Filter chips row */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {/* Purpose filter */}
         {([
           { key: "all" as PurposeFilter, label: "Todos", count: copies.length },
           { key: "organic" as PurposeFilter, label: "Orgânico", count: orgCount },
@@ -346,7 +542,101 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
             {chip.label} ({chip.count})
           </button>
         ))}
+
+        <span className="w-px h-5 mx-1" style={{ background: "hsl(var(--border-subtle))" }} />
+
+        {/* Status filter */}
+        {STATUS_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setStatusFilter(statusFilter === opt.value ? null : opt.value)}
+            className="px-2.5 py-1 rounded-md text-[10px] font-medium transition-all"
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              background: statusFilter === opt.value ? "hsl(var(--accent) / 0.12)" : "transparent",
+              color: statusFilter === opt.value ? "hsl(var(--accent))" : "hsl(var(--text-muted))",
+              border: `1px solid ${statusFilter === opt.value ? "hsl(var(--accent) / 0.3)" : "hsl(var(--border-subtle))"}`,
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+
+        <span className="w-px h-5 mx-1" style={{ background: "hsl(var(--border-subtle))" }} />
+
+        {/* Funnel filter */}
+        {FUNNEL_FILTER_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setFunnelFilter(funnelFilter === opt.value ? null : opt.value)}
+            className="px-2.5 py-1 rounded-md text-[10px] font-medium transition-all"
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              background: funnelFilter === opt.value ? "hsl(var(--accent) / 0.12)" : "transparent",
+              color: funnelFilter === opt.value ? "hsl(var(--accent))" : "hsl(var(--text-muted))",
+              border: `1px solid ${funnelFilter === opt.value ? "hsl(var(--accent) / 0.3)" : "hsl(var(--border-subtle))"}`,
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+
+        {/* Batch filter */}
+        {batchLabels.length > 0 && (
+          <>
+            <span className="w-px h-5 mx-1" style={{ background: "hsl(var(--border-subtle))" }} />
+            {batchLabels.map((label) => (
+              <button
+                key={label}
+                onClick={() => setBatchFilter(batchFilter === label ? null : label)}
+                className="px-2.5 py-1 rounded-md text-[10px] font-medium transition-all"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  background: batchFilter === label ? "hsl(var(--accent) / 0.12)" : "transparent",
+                  color: batchFilter === label ? "hsl(var(--accent))" : "hsl(var(--text-muted))",
+                  border: `1px solid ${batchFilter === label ? "hsl(var(--accent) / 0.3)" : "hsl(var(--border-subtle))"}`,
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </>
+        )}
+
+        {/* Search */}
+        <div className="relative ml-auto">
+          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: "hsl(var(--text-muted))" }} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar hook..."
+            className="pl-7 pr-3 py-1.5 rounded-md text-[11px] w-44"
+            style={{
+              background: "hsl(var(--bg-surface2))",
+              border: "1px solid hsl(var(--border-subtle))",
+              color: "hsl(var(--text-primary))",
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          />
+        </div>
       </div>
+
+      {/* Clear filters */}
+      {hasActiveFilters && (
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[10px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'JetBrains Mono', monospace" }}>
+            {filtered.length} resultado(s)
+          </span>
+          <button
+            onClick={() => { setStatusFilter(null); setFunnelFilter(null); setBatchFilter(null); setSearchQuery(""); }}
+            className="text-[10px] underline"
+            style={{ color: "hsl(var(--accent))" }}
+          >
+            Limpar filtros
+          </button>
+        </div>
+      )}
 
       {/* New Copy Form */}
       {showForm && (
@@ -404,8 +694,7 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
         </form>
       )}
 
-      {/* Copies List */}
-      {/* Inline progress banner */}
+      {/* Generating banner */}
       {generating && (
         <div className="card-base flex items-center gap-3 mb-4" style={{ borderColor: "hsl(var(--accent) / 0.3)" }}>
           <Loader2 size={16} className="animate-spin" style={{ color: "hsl(var(--accent))" }} />
@@ -415,18 +704,21 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
         </div>
       )}
 
+      {/* Copies List — grouped by batch */}
       {filtered.length === 0 ? (
         <div className="empty-state card-base">
           <FileText size={32} className="text-txt-ghost" />
           <p className="empty-state__title">
-            {filter !== "all" ? `Nenhum copy ${filter === "organic" ? "orgânico" : "ads"} ainda` : "Nenhum copy ainda"}
+            {hasActiveFilters ? "Nenhum copy encontrado com esses filtros" : filter !== "all" ? `Nenhum copy ${filter === "organic" ? "orgânico" : "ads"} ainda` : "Nenhum copy ainda"}
           </p>
           <p className="empty-state__desc">
-            {briefDone === false
-              ? "Preencha o brief primeiro para gerar copies com IA."
-              : "Clique em 'Gerar com IA' para criar copies a partir do brief."}
+            {hasActiveFilters
+              ? "Tente alterar os filtros."
+              : briefDone === false
+                ? "Preencha o brief primeiro para gerar copies com IA."
+                : "Clique em 'Gerar com IA' para criar copies a partir do brief."}
           </p>
-          {briefDone === false ? (
+          {!hasActiveFilters && briefDone === false ? (
             <Link
               to={`/activations/${activationId}/brief`}
               className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 text-xs font-medium rounded-md transition-all"
@@ -434,7 +726,7 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
             >
               ← Preencher brief primeiro
             </Link>
-          ) : (
+          ) : !hasActiveFilters ? (
             <Button
               size="sm"
               className="mt-3 gap-2"
@@ -443,121 +735,60 @@ export const CopiesTab = ({ activationId, briefDone }: CopiesTabProps) => {
             >
               <Sparkles size={14} /> Gerar com IA
             </Button>
-          )}
+          ) : null}
         </div>
-      ) : viewMode === "list" ? (
-        <Table>
-          <TableHeader>
-            <TableRow style={{ borderColor: "hsl(var(--border-subtle))" }}>
-              <TableHead className="w-10">
-                <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
-              </TableHead>
-              <TableHead className="w-20 text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Tipo</TableHead>
-              <TableHead className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Gancho</TableHead>
-              <TableHead className="w-28 text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Canal</TableHead>
-              <TableHead className="w-20 text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Funil</TableHead>
-              <TableHead className="w-24 text-[10px] text-right" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((copy) => {
-              const purpose = copy.purpose || "organic";
-              const isSelected = selected.has(copy.id);
-              return (
-                <TableRow
-                  key={copy.id}
-                  className="cursor-pointer"
-                  style={{ borderColor: "hsl(var(--border-subtle))" }}
-                  data-state={isSelected ? "selected" : undefined}
-                >
-                  <TableCell className="py-2">
-                    <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(copy.id)} />
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span
-                      className="text-[9px] font-bold px-1.5 py-0.5 rounded"
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        background: `hsl(var(${purposeColor[purpose]}) / 0.12)`,
-                        color: `hsl(var(${purposeColor[purpose]}))`,
-                        border: `1px solid hsl(var(${purposeColor[purpose]}) / 0.25)`,
-                      }}
-                    >
-                      {purposeLabel[purpose]}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <Link
-                      to={`/activations/${activationId}/copies/${copy.id}`}
-                      className="text-body text-sm hover:underline line-clamp-1"
-                      style={{ color: "hsl(var(--text-primary))" }}
-                    >
-                      {copy.hook || "Copy sem gancho"}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span className="text-mono-label">{copy.type} · {copy.channel || "—"}</span>
-                  </TableCell>
-                  <TableCell className="py-2">
-                    <span className="text-mono text-[10px] px-1.5 py-0.5 rounded" style={{ background: "hsl(var(--bg-surface2))", color: "hsl(var(--text-muted))" }}>
-                      {copy.funnel_stage || "—"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-2 text-right">
-                    <StatusBadge status={copy.status} />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
       ) : (
-        <div className="grid grid-cols-1 gap-3">
-          {filtered.map((copy) => {
-            const purpose = copy.purpose || "organic";
-            const isSelected = selected.has(copy.id);
-            return (
-              <div key={copy.id} className="flex items-start gap-2">
-                <div className="pt-4">
-                  <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={() => toggleSelect(copy.id)}
-                  />
-                </div>
-                <Link
-                  to={`/activations/${activationId}/copies/${copy.id}`}
-                  className="card-base card-interactive block flex-1"
+        Array.from(batchGroups.entries()).map(([batchLabel, batchCopies]) => {
+          const isCollapsed = collapsedBatches.has(batchLabel);
+          const approvedCount = batchCopies.filter(c => c.status === "approved").length;
+
+          return (
+            <div key={batchLabel} className="mb-4">
+              {/* Batch header */}
+              {batchGroups.size > 1 || batchLabel !== "Sem lote" ? (
+                <button
+                  onClick={() => toggleBatchCollapse(batchLabel)}
+                  className="flex items-center gap-2 w-full py-2 px-3 rounded-md mb-2 transition-colors hover:bg-accent/5"
+                  style={{ background: "hsl(var(--bg-surface2))" }}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="text-[9px] font-bold px-1.5 py-0.5 rounded"
-                        style={{
-                          fontFamily: "'JetBrains Mono', monospace",
-                          background: `hsl(var(${purposeColor[purpose]}) / 0.12)`,
-                          color: `hsl(var(${purposeColor[purpose]}))`,
-                          border: `1px solid hsl(var(${purposeColor[purpose]}) / 0.25)`,
-                        }}
-                      >
-                        {purposeLabel[purpose]}
-                      </span>
-                      <span className="text-mono-label">
-                        {copy.type} · {copy.channel || "—"} · v{copy.version}
-                      </span>
-                    </div>
-                    <StatusBadge status={copy.status} />
+                  {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                  <span className="text-[11px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-primary))" }}>
+                    {batchLabel}
+                  </span>
+                  <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
+                    {batchCopies.length} copies · {approvedCount} aprovados
+                  </span>
+                </button>
+              ) : null}
+
+              {!isCollapsed && (
+                viewMode === "list" ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow style={{ borderColor: "hsl(var(--border-subtle))" }}>
+                        <TableHead className="w-10">
+                          <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
+                        </TableHead>
+                        <TableHead className="w-20 text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Tipo</TableHead>
+                        <TableHead className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Gancho</TableHead>
+                        <TableHead className="w-28 text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Canal</TableHead>
+                        <TableHead className="w-20 text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Funil</TableHead>
+                        <TableHead className="w-24 text-[10px] text-right" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {batchCopies.map(renderCopyRow)}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3">
+                    {batchCopies.map(renderCopyCard)}
                   </div>
-                  <p className="text-body line-clamp-2">{copy.hook || "Copy sem gancho"}</p>
-                  {copy.funnel_stage && (
-                    <span className="text-mono mt-2 inline-block px-1.5 py-0.5 rounded bg-surface-2 text-txt-muted">
-                      {copy.funnel_stage}
-                    </span>
-                  )}
-                </Link>
-              </div>
-            );
-          })}
-        </div>
+                )
+              )}
+            </div>
+          );
+        })
       )}
     </div>
   );

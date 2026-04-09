@@ -27,6 +27,10 @@ import {
   Check,
   X,
   Loader2,
+  Search,
+  ChevronDown,
+  ChevronRight,
+  GitBranch,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -34,6 +38,20 @@ interface AssetsTabProps {
   activationId: string;
   copiesApproved?: number;
 }
+
+const STATUS_OPTIONS = [
+  { value: "generating", label: "Gerando" },
+  { value: "review", label: "Revisão" },
+  { value: "approved", label: "Aprovado" },
+  { value: "rejected", label: "Rejeitado" },
+];
+
+const CATEGORY_OPTIONS = [
+  { value: "static", label: "Estático" },
+  { value: "carousel", label: "Carrossel" },
+  { value: "stories", label: "Story" },
+  { value: "reels", label: "Reels" },
+];
 
 export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
   const isMobile = useIsMobile();
@@ -46,6 +64,12 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
   const [editingName, setEditingName] = useState<string | null>(null);
   const [nameValue, setNameValue] = useState("");
   const [savingName, setSavingName] = useState(false);
+
+  // Filters
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [batchFilter, setBatchFilter] = useState<string | null>(null);
+  const [collapsedBatches, setCollapsedBatches] = useState<Set<string>>(new Set());
 
   const fetchAssets = async () => {
     const { data } = await supabase
@@ -60,7 +84,6 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
       return;
     }
 
-    // Fetch first render thumbnail for each asset
     const assetIds = data.map(a => a.id);
     const { data: renders } = await supabase
       .from("asset_template_renders")
@@ -90,13 +113,49 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
     fetchAssets();
   }, [activationId]);
 
-  const allSelected = assets.length > 0 && selected.size === assets.length;
+  // Apply filters
+  const filtered = useMemo(() => {
+    let result = assets;
+    if (statusFilter) result = result.filter(a => a.status === statusFilter);
+    if (categoryFilter) result = result.filter(a => (a.category || (a as any).asset_formats?.category) === categoryFilter);
+    if (batchFilter) result = result.filter(a => a.batch_label === batchFilter);
+    return result;
+  }, [assets, statusFilter, categoryFilter, batchFilter]);
+
+  // Group by batch
+  const batchGroups = useMemo(() => {
+    const groups = new Map<string, any[]>();
+    for (const a of filtered) {
+      const label = a.batch_label || "Sem lote";
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label)!.push(a);
+    }
+    return groups;
+  }, [filtered]);
+
+  // Unique batch labels
+  const batchLabels = useMemo(() => {
+    const labels = new Set<string>();
+    assets.forEach(a => { if (a.batch_label) labels.add(a.batch_label); });
+    return Array.from(labels).sort();
+  }, [assets]);
+
+  // Variation letter
+  const getVariationLetter = (asset: any) => {
+    if (!asset.parent_id) return null;
+    const siblings = assets.filter(a => a.parent_id === asset.parent_id).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const idx = siblings.findIndex(a => a.id === asset.id);
+    return String.fromCharCode(66 + idx);
+  };
+
+  const allFiltered = filtered;
+  const allSelected = allFiltered.length > 0 && selected.size === allFiltered.length;
 
   const toggleAll = () => {
     if (allSelected) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(assets.map((a) => a.id)));
+      setSelected(new Set(allFiltered.map((a) => a.id)));
     }
   };
 
@@ -107,6 +166,14 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
     setSelected(next);
   };
 
+  const toggleBatchCollapse = (label: string) => {
+    setCollapsedBatches(prev => {
+      const next = new Set(prev);
+      next.has(label) ? next.delete(label) : next.add(label);
+      return next;
+    });
+  };
+
   const handleBulkDelete = async () => {
     if (selected.size === 0) return;
     const confirm = window.confirm(
@@ -115,7 +182,6 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
     if (!confirm) return;
     setDeleting(true);
     try {
-      // Delete renders first
       const ids = Array.from(selected);
       await supabase
         .from("asset_template_renders")
@@ -172,6 +238,8 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
     );
   };
 
+  const hasActiveFilters = statusFilter || categoryFilter || batchFilter;
+
   if (loading)
     return <div className="text-caption">Carregando...</div>;
 
@@ -181,7 +249,6 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
       <div className="flex items-center justify-between mb-4">
         <SectionLabel>Peças Visuais</SectionLabel>
         <div className="flex items-center gap-2">
-          {/* View toggle */}
           <div
             className="flex rounded-md overflow-hidden"
             style={{
@@ -235,6 +302,80 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {STATUS_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setStatusFilter(statusFilter === opt.value ? null : opt.value)}
+            className="px-2.5 py-1 rounded-md text-[10px] font-medium transition-all"
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              background: statusFilter === opt.value ? "hsl(var(--accent) / 0.12)" : "transparent",
+              color: statusFilter === opt.value ? "hsl(var(--accent))" : "hsl(var(--text-muted))",
+              border: `1px solid ${statusFilter === opt.value ? "hsl(var(--accent) / 0.3)" : "hsl(var(--border-subtle))"}`,
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+
+        <span className="w-px h-5 mx-1" style={{ background: "hsl(var(--border-subtle))" }} />
+
+        {CATEGORY_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setCategoryFilter(categoryFilter === opt.value ? null : opt.value)}
+            className="px-2.5 py-1 rounded-md text-[10px] font-medium transition-all"
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              background: categoryFilter === opt.value ? "hsl(var(--accent) / 0.12)" : "transparent",
+              color: categoryFilter === opt.value ? "hsl(var(--accent))" : "hsl(var(--text-muted))",
+              border: `1px solid ${categoryFilter === opt.value ? "hsl(var(--accent) / 0.3)" : "hsl(var(--border-subtle))"}`,
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+
+        {batchLabels.length > 0 && (
+          <>
+            <span className="w-px h-5 mx-1" style={{ background: "hsl(var(--border-subtle))" }} />
+            {batchLabels.map((label) => (
+              <button
+                key={label}
+                onClick={() => setBatchFilter(batchFilter === label ? null : label)}
+                className="px-2.5 py-1 rounded-md text-[10px] font-medium transition-all"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  background: batchFilter === label ? "hsl(var(--accent) / 0.12)" : "transparent",
+                  color: batchFilter === label ? "hsl(var(--accent))" : "hsl(var(--text-muted))",
+                  border: `1px solid ${batchFilter === label ? "hsl(var(--accent) / 0.3)" : "hsl(var(--border-subtle))"}`,
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </>
+        )}
+
+        {hasActiveFilters && (
+          <>
+            <span className="w-px h-5 mx-1" style={{ background: "hsl(var(--border-subtle))" }} />
+            <button
+              onClick={() => { setStatusFilter(null); setCategoryFilter(null); setBatchFilter(null); }}
+              className="text-[10px] underline"
+              style={{ color: "hsl(var(--accent))" }}
+            >
+              Limpar filtros
+            </button>
+            <span className="text-[10px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'JetBrains Mono', monospace" }}>
+              {filtered.length} resultado(s)
+            </span>
+          </>
+        )}
+      </div>
+
       {/* Bulk actions bar */}
       {selected.size > 0 && (
         <div
@@ -271,247 +412,269 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
         </div>
       )}
 
-      {assets.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="empty-state card-base">
           <Image size={32} className="text-txt-ghost" />
-          <p className="empty-state__title">Nenhuma peça ainda</p>
-          <p className="empty-state__desc">
-            {copiesApproved === 0
-              ? "Aprove copies antes de criar peças visuais."
-              : "Clique em 'Nova peça' para criar sua primeira peça visual."}
+          <p className="empty-state__title">
+            {hasActiveFilters ? "Nenhuma peça encontrada com esses filtros" : "Nenhuma peça ainda"}
           </p>
-          {copiesApproved === 0 ? (
+          <p className="empty-state__desc">
+            {hasActiveFilters
+              ? "Tente alterar os filtros."
+              : copiesApproved === 0
+                ? "Aprove copies antes de criar peças visuais."
+                : "Clique em 'Nova peça' para criar sua primeira peça visual."}
+          </p>
+          {!hasActiveFilters && copiesApproved === 0 ? (
             <Link
               to={`/activations/${activationId}/copies`}
               className="btn-primary inline-flex items-center gap-1.5 mt-3 px-4 py-2 text-xs font-medium rounded-md"
             >
               ← Aprovar copies primeiro
             </Link>
-          ) : (
+          ) : !hasActiveFilters ? (
             <Link
               to={`/activations/${activationId}/assets/new`}
               className="btn-primary inline-flex items-center gap-1.5 mt-3 px-4 py-2 text-xs font-medium rounded-md"
             >
               <Plus size={14} /> Criar primeira peça
             </Link>
-          )}
-        </div>
-      ) : (viewMode === "list" && !isMobile) ? (
-        /* ──── LIST VIEW ──── */
-        <div
-          className="rounded-md overflow-hidden"
-          style={{ border: "1px solid hsl(var(--border-subtle))" }}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow
-                style={{ background: "hsl(var(--surface-2))" }}
-              >
-                <TableHead className="w-10">
-                  <Checkbox
-                    checked={allSelected}
-                    onCheckedChange={toggleAll}
-                  />
-                </TableHead>
-                <TableHead className="w-16">Thumb</TableHead>
-                <TableHead>Nome / Nomenclatura</TableHead>
-                <TableHead>Formato</TableHead>
-                <TableHead className="w-16 text-center">V.</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-24">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {assets.map((asset) => (
-                <TableRow
-                  key={asset.id}
-                  className={
-                    selected.has(asset.id) ? "bg-accent/5" : ""
-                  }
-                  style={{
-                    borderColor: "hsl(var(--border-subtle))",
-                  }}
-                >
-                  <TableCell>
-                    <Checkbox
-                      checked={selected.has(asset.id)}
-                      onCheckedChange={() => toggleOne(asset.id)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {asset.thumb_url ? (
-                      <img
-                        src={asset.thumb_url}
-                        alt=""
-                        className="w-12 h-12 rounded-md object-cover"
-                        style={{
-                          border: "1px solid hsl(var(--border-subtle))",
-                        }}
-                      />
-                    ) : (
-                      <div
-                        className="w-12 h-12 rounded-md flex items-center justify-center"
-                        style={{
-                          background: "hsl(var(--surface-3))",
-                          border: "1px solid hsl(var(--border-subtle))",
-                        }}
-                      >
-                        {asset.status === "generating" ? (
-                          <Loader2
-                            size={14}
-                            className="animate-spin"
-                            style={{ color: "hsl(var(--accent))" }}
-                          />
-                        ) : (
-                          <Image
-                            size={14}
-                            style={{ color: "hsl(var(--text-ghost))" }}
-                          />
-                        )}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {editingName === asset.id ? (
-                      <div className="flex items-center gap-1.5">
-                        <Input
-                          value={nameValue}
-                          onChange={(e) =>
-                            setNameValue(e.target.value)
-                          }
-                          className="h-7 text-xs font-mono"
-                          style={{ maxWidth: 200 }}
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter")
-                              saveName(asset.id);
-                            if (e.key === "Escape")
-                              setEditingName(null);
-                          }}
-                        />
-                        <button
-                          onClick={() => saveName(asset.id)}
-                          disabled={savingName}
-                          className="p-1 rounded transition-colors hover:bg-accent/10"
-                          style={{
-                            color: "hsl(var(--status-approved))",
-                          }}
-                        >
-                          <Check size={14} />
-                        </button>
-                        <button
-                          onClick={() => setEditingName(null)}
-                          className="p-1 rounded transition-colors hover:bg-accent/10"
-                          style={{
-                            color: "hsl(var(--text-muted))",
-                          }}
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => startEditName(asset)}
-                        className="flex items-center gap-1.5 text-left group"
-                      >
-                        <span className="text-mono-label">
-                          {getDisplayName(asset)}
-                        </span>
-                        <Pencil
-                          size={11}
-                          className="opacity-0 group-hover:opacity-60 transition-opacity"
-                          style={{
-                            color: "hsl(var(--text-muted))",
-                          }}
-                        />
-                      </button>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className="text-mono px-1.5 py-0.5 rounded text-xs"
-                      style={{
-                        background: "hsl(var(--surface-3))",
-                        color: "hsl(var(--text-secondary))",
-                      }}
-                    >
-                      {(asset as any).asset_formats?.category ||
-                        "—"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <span className="text-mono-label">
-                      v{asset.version}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={asset.status} />
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      to={`/activations/${activationId}/assets/${asset.id}`}
-                      className="text-xs font-medium transition-colors"
-                      style={{ color: "hsl(var(--accent))" }}
-                    >
-                      Abrir →
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          ) : null}
         </div>
       ) : (
-        /* ──── GRID VIEW ──── */
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {assets.map((asset) => (
-            <div key={asset.id} className="relative group">
-              <div
-                className="absolute top-2 left-2 z-10"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Checkbox
-                  checked={selected.has(asset.id)}
-                  onCheckedChange={() => toggleOne(asset.id)}
-                  className="bg-background/80 backdrop-blur-sm"
-                />
-              </div>
-              <Link
-                to={`/activations/${activationId}/assets/${asset.id}`}
-                className="card-base card-interactive block overflow-hidden"
-                style={{ padding: 0 }}
-              >
-                {asset.thumb_url ? (
-                  <img
-                    src={asset.thumb_url}
-                    alt=""
-                    className="w-full aspect-square object-cover"
-                  />
-                ) : (
+        Array.from(batchGroups.entries()).map(([batchLabel, batchAssets]) => {
+          const isCollapsed = collapsedBatches.has(batchLabel);
+          const approvedCount = batchAssets.filter(a => a.status === "approved").length;
+
+          return (
+            <div key={batchLabel} className="mb-4">
+              {/* Batch header */}
+              {batchGroups.size > 1 || batchLabel !== "Sem lote" ? (
+                <button
+                  onClick={() => toggleBatchCollapse(batchLabel)}
+                  className="flex items-center gap-2 w-full py-2 px-3 rounded-md mb-2 transition-colors hover:bg-accent/5"
+                  style={{ background: "hsl(var(--bg-surface2))" }}
+                >
+                  {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                  <span className="text-[11px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-primary))" }}>
+                    {batchLabel}
+                  </span>
+                  <span className="text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: "hsl(var(--text-muted))" }}>
+                    {batchAssets.length} peças · {approvedCount} aprovadas
+                  </span>
+                </button>
+              ) : null}
+
+              {!isCollapsed && (
+                (viewMode === "list" && !isMobile) ? (
                   <div
-                    className="w-full aspect-square flex items-center justify-center"
-                    style={{ background: "hsl(var(--surface-3))" }}
+                    className="rounded-md overflow-hidden mb-2"
+                    style={{ border: "1px solid hsl(var(--border-subtle))" }}
                   >
-                    {asset.status === "generating" ? (
-                      <Loader2 size={24} className="animate-spin" style={{ color: "hsl(var(--accent))" }} />
-                    ) : (
-                      <Image size={24} style={{ color: "hsl(var(--text-ghost))" }} />
-                    )}
+                    <Table>
+                      <TableHeader>
+                        <TableRow style={{ background: "hsl(var(--surface-2))" }}>
+                          <TableHead className="w-10">
+                            <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
+                          </TableHead>
+                          <TableHead className="w-16">Thumb</TableHead>
+                          <TableHead>Nome / Nomenclatura</TableHead>
+                          <TableHead>Formato</TableHead>
+                          <TableHead className="w-16 text-center">V.</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-24">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {batchAssets.map((asset) => {
+                          const varLetter = getVariationLetter(asset);
+                          return (
+                            <TableRow
+                              key={asset.id}
+                              className={selected.has(asset.id) ? "bg-accent/5" : ""}
+                              style={{ borderColor: "hsl(var(--border-subtle))" }}
+                            >
+                              <TableCell>
+                                <Checkbox
+                                  checked={selected.has(asset.id)}
+                                  onCheckedChange={() => toggleOne(asset.id)}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                {asset.thumb_url ? (
+                                  <img
+                                    src={asset.thumb_url}
+                                    alt=""
+                                    className="w-12 h-12 rounded-md object-cover"
+                                    style={{ border: "1px solid hsl(var(--border-subtle))" }}
+                                  />
+                                ) : (
+                                  <div
+                                    className="w-12 h-12 rounded-md flex items-center justify-center"
+                                    style={{
+                                      background: "hsl(var(--surface-3))",
+                                      border: "1px solid hsl(var(--border-subtle))",
+                                    }}
+                                  >
+                                    {asset.status === "generating" ? (
+                                      <Loader2 size={14} className="animate-spin" style={{ color: "hsl(var(--accent))" }} />
+                                    ) : (
+                                      <Image size={14} style={{ color: "hsl(var(--text-ghost))" }} />
+                                    )}
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1.5">
+                                  {editingName === asset.id ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <Input
+                                        value={nameValue}
+                                        onChange={(e) => setNameValue(e.target.value)}
+                                        className="h-7 text-xs font-mono"
+                                        style={{ maxWidth: 200 }}
+                                        autoFocus
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") saveName(asset.id);
+                                          if (e.key === "Escape") setEditingName(null);
+                                        }}
+                                      />
+                                      <button
+                                        onClick={() => saveName(asset.id)}
+                                        disabled={savingName}
+                                        className="p-1 rounded transition-colors hover:bg-accent/10"
+                                        style={{ color: "hsl(var(--status-approved))" }}
+                                      >
+                                        <Check size={14} />
+                                      </button>
+                                      <button
+                                        onClick={() => setEditingName(null)}
+                                        className="p-1 rounded transition-colors hover:bg-accent/10"
+                                        style={{ color: "hsl(var(--text-muted))" }}
+                                      >
+                                        <X size={14} />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => startEditName(asset)}
+                                      className="flex items-center gap-1.5 text-left group"
+                                    >
+                                      <span className="text-mono-label">{getDisplayName(asset)}</span>
+                                      <Pencil size={11} className="opacity-0 group-hover:opacity-60 transition-opacity" style={{ color: "hsl(var(--text-muted))" }} />
+                                    </button>
+                                  )}
+                                  {varLetter && (
+                                    <span
+                                      className="text-[9px] font-bold px-1 py-0.5 rounded ml-1"
+                                      style={{
+                                        fontFamily: "'JetBrains Mono', monospace",
+                                        background: "hsl(var(--accent) / 0.1)",
+                                        color: "hsl(var(--accent))",
+                                      }}
+                                    >
+                                      <GitBranch size={8} className="inline mr-0.5" />Var {varLetter}
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <span
+                                  className="text-mono px-1.5 py-0.5 rounded text-xs"
+                                  style={{
+                                    background: "hsl(var(--surface-3))",
+                                    color: "hsl(var(--text-secondary))",
+                                  }}
+                                >
+                                  {(asset as any).asset_formats?.category || asset.category || "—"}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <span className="text-mono-label">v{asset.version}</span>
+                              </TableCell>
+                              <TableCell>
+                                <StatusBadge status={asset.status} />
+                              </TableCell>
+                              <TableCell>
+                                <Link
+                                  to={`/activations/${activationId}/assets/${asset.id}`}
+                                  className="text-xs font-medium transition-colors"
+                                  style={{ color: "hsl(var(--accent))" }}
+                                >
+                                  Abrir →
+                                </Link>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
                   </div>
-                )}
-                <div className="p-3 space-y-1">
-                  <p className="text-[10px] font-medium truncate" style={{ color: "hsl(var(--text-primary))", fontFamily: "'JetBrains Mono', monospace" }}>
-                    {getDisplayName(asset)}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'JetBrains Mono', monospace" }}>v{asset.version}</span>
-                    <StatusBadge status={asset.status} />
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-2">
+                    {batchAssets.map((asset) => {
+                      const varLetter = getVariationLetter(asset);
+                      return (
+                        <div key={asset.id} className="relative group">
+                          <div className="absolute top-2 left-2 z-10" onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selected.has(asset.id)}
+                              onCheckedChange={() => toggleOne(asset.id)}
+                              className="bg-background/80 backdrop-blur-sm"
+                            />
+                          </div>
+                          {varLetter && (
+                            <div className="absolute top-2 right-2 z-10">
+                              <span
+                                className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                                style={{
+                                  fontFamily: "'JetBrains Mono', monospace",
+                                  background: "hsl(var(--accent) / 0.8)",
+                                  color: "hsl(var(--text-inverse))",
+                                }}
+                              >
+                                Var {varLetter}
+                              </span>
+                            </div>
+                          )}
+                          <Link
+                            to={`/activations/${activationId}/assets/${asset.id}`}
+                            className="card-base card-interactive block overflow-hidden"
+                            style={{ padding: 0 }}
+                          >
+                            {asset.thumb_url ? (
+                              <img src={asset.thumb_url} alt="" className="w-full aspect-square object-cover" />
+                            ) : (
+                              <div
+                                className="w-full aspect-square flex items-center justify-center"
+                                style={{ background: "hsl(var(--surface-3))" }}
+                              >
+                                {asset.status === "generating" ? (
+                                  <Loader2 size={24} className="animate-spin" style={{ color: "hsl(var(--accent))" }} />
+                                ) : (
+                                  <Image size={24} style={{ color: "hsl(var(--text-ghost))" }} />
+                                )}
+                              </div>
+                            )}
+                            <div className="p-3 space-y-1">
+                              <p className="text-[10px] font-medium truncate" style={{ color: "hsl(var(--text-primary))", fontFamily: "'JetBrains Mono', monospace" }}>
+                                {getDisplayName(asset)}
+                              </p>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[9px]" style={{ color: "hsl(var(--text-muted))", fontFamily: "'JetBrains Mono', monospace" }}>v{asset.version}</span>
+                                <StatusBadge status={asset.status} />
+                              </div>
+                            </div>
+                          </Link>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-              </Link>
+                )
+              )}
             </div>
-          ))}
-        </div>
+          );
+        })
       )}
 
       {/* Summary */}
@@ -520,12 +683,12 @@ export const AssetsTab = ({ activationId, copiesApproved }: AssetsTabProps) => {
           className="mt-3 text-xs flex items-center gap-4"
           style={{ color: "hsl(var(--text-ghost))" }}
         >
-          <span>{assets.length} peça(s) total</span>
+          <span>{filtered.length} peça(s) {hasActiveFilters ? "filtrada(s)" : "total"}</span>
           <span>
-            {assets.filter((a) => a.status === "approved").length} aprovada(s)
+            {filtered.filter((a) => a.status === "approved").length} aprovada(s)
           </span>
           <span>
-            {assets.filter((a) => a.status === "review").length} em revisão
+            {filtered.filter((a) => a.status === "review").length} em revisão
           </span>
         </div>
       )}
