@@ -651,7 +651,7 @@ const AssetDetail = () => {
             )}
             {showImageRegen && (
               <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditMode("image")}>
-                <Image size={14} /> Regerar imagem
+                <Wand2 size={14} /> Refinar imagem
               </Button>
             )}
             {copy && (
@@ -704,59 +704,114 @@ const AssetDetail = () => {
 
         {/* Image regeneration — enriched */}
         {editMode === "image" && (
-          <div className="card-base space-y-3">
+          <div className="card-base space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-label">Regerar imagem</span>
+              <div className="flex items-center gap-2">
+                <Wand2 size={14} className="text-accent" />
+                <span className="text-label">Refinar imagem com IA</span>
+              </div>
               <Button variant="ghost" size="sm" onClick={() => setEditMode("none")}>
                 <X size={14} />
               </Button>
             </div>
 
-            {/* Current image thumbnail */}
-            {(currentRender?.image_url || asset?.image_url) && (
-              <div className="flex items-start gap-3">
-                <img
-                  src={currentRender?.image_url || asset?.image_url}
-                  alt="Imagem atual"
-                  className="w-16 h-16 rounded-md object-cover border border-line flex-shrink-0"
-                />
-                <div className="flex-1 space-y-1.5">
-                  <p className="text-body-sm text-txt-muted">
-                    Descreva a imagem desejada. O contexto do briefing e da copy será usado automaticamente.
-                  </p>
-                  {/* Toggle edit vs generate */}
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editCurrentImage}
-                      onChange={(e) => setEditCurrentImage(e.target.checked)}
-                      className="rounded border-line accent-accent"
+            {/* Reference mode selector */}
+            {(currentRender?.image_url || currentRender?.png_url || asset?.image_url) && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium" style={{ color: "hsl(var(--text-secondary))" }}>
+                  Modo de geração
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Option: Use reference */}
+                  <button
+                    type="button"
+                    onClick={() => setEditCurrentImage(true)}
+                    className="relative flex flex-col items-center gap-2 p-3 rounded-lg border transition-all text-left"
+                    style={{
+                      borderColor: editCurrentImage ? "hsl(var(--accent))" : "hsl(var(--border-subtle))",
+                      background: editCurrentImage ? "hsl(var(--accent) / 0.08)" : "hsl(var(--surface-2))",
+                    }}
+                  >
+                    <img
+                      src={currentRender?.png_url || currentRender?.image_url || asset?.image_url}
+                      alt="Referência"
+                      className="w-full aspect-square rounded-md object-cover border border-line"
+                      style={{ maxHeight: 80 }}
                     />
-                    <span className="text-xs text-txt-secondary">
-                      Usar imagem atual como referência
-                    </span>
-                  </label>
+                    <div className="w-full">
+                      <p className="text-xs font-medium" style={{ color: editCurrentImage ? "hsl(var(--accent))" : "hsl(var(--text-primary))" }}>
+                        Usar como referência
+                      </p>
+                      <p className="text-[10px]" style={{ color: "hsl(var(--text-muted))" }}>
+                        Edita a imagem atual mantendo a essência
+                      </p>
+                    </div>
+                    {editCurrentImage && (
+                      <div className="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "hsl(var(--accent))" }}>
+                        <Check size={10} className="text-white" />
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Option: Generate from scratch */}
+                  <button
+                    type="button"
+                    onClick={() => setEditCurrentImage(false)}
+                    className="relative flex flex-col items-center gap-2 p-3 rounded-lg border transition-all text-left"
+                    style={{
+                      borderColor: !editCurrentImage ? "hsl(var(--accent))" : "hsl(var(--border-subtle))",
+                      background: !editCurrentImage ? "hsl(var(--accent) / 0.08)" : "hsl(var(--surface-2))",
+                    }}
+                  >
+                    <div
+                      className="w-full aspect-square rounded-md flex items-center justify-center border border-dashed"
+                      style={{ maxHeight: 80, borderColor: "hsl(var(--border-subtle))", background: "hsl(var(--surface-3))" }}
+                    >
+                      <Image size={24} style={{ color: "hsl(var(--text-muted))" }} />
+                    </div>
+                    <div className="w-full">
+                      <p className="text-xs font-medium" style={{ color: !editCurrentImage ? "hsl(var(--accent))" : "hsl(var(--text-primary))" }}>
+                        Gerar do zero
+                      </p>
+                      <p className="text-[10px]" style={{ color: "hsl(var(--text-muted))" }}>
+                        Cria uma imagem nova sem referência visual
+                      </p>
+                    </div>
+                    {!editCurrentImage && (
+                      <div className="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "hsl(var(--accent))" }}>
+                        <Check size={10} className="text-white" />
+                      </div>
+                    )}
+                  </button>
                 </div>
               </div>
             )}
 
-            {!(currentRender?.image_url || asset?.image_url) && (
+            {!(currentRender?.image_url || currentRender?.png_url || asset?.image_url) && (
               <p className="text-body-sm text-txt-muted">
                 Descreva a imagem desejada. O contexto do briefing e da copy será usado automaticamente.
               </p>
             )}
 
-            <Textarea
-              value={imagePrompt}
-              onChange={(e) => setImagePrompt(e.target.value)}
-              className="text-sm min-h-[80px]"
-              placeholder={template?.image_prompt_template
-                ? `Sugestão: ${template.image_prompt_template.substring(0, 100)}...`
-                : "Ex: pessoa brasileira sorrindo em escritório moderno, luz natural, estilo UGC..."}
-            />
-            <Button size="sm" className="gap-2" onClick={regenerateImage} disabled={editLoading || !imagePrompt.trim()}>
-              {editLoading ? <Loader2 size={14} className="animate-spin" /> : <Image size={14} />}
-              {editCurrentImage && (currentRender?.image_url || asset?.image_url) ? "Editar imagem" : "Gerar nova imagem"}
+            <div>
+              <p className="text-xs font-medium mb-1.5" style={{ color: "hsl(var(--text-secondary))" }}>
+                {editCurrentImage ? "O que quer mudar?" : "Descreva a imagem"}
+              </p>
+              <Textarea
+                value={imagePrompt}
+                onChange={(e) => setImagePrompt(e.target.value)}
+                className="text-sm min-h-[80px]"
+                placeholder={editCurrentImage
+                  ? "Ex: mude o fundo para azul marinho, adicione mais luz natural, troque a expressão..."
+                  : (template?.image_prompt_template
+                    ? `Sugestão: ${template.image_prompt_template.substring(0, 100)}...`
+                    : "Ex: pessoa brasileira sorrindo em escritório moderno, luz natural, estilo UGC...")}
+              />
+            </div>
+
+            <Button size="sm" className="gap-2 w-full" onClick={regenerateImage} disabled={editLoading || !imagePrompt.trim()}>
+              {editLoading ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
+              {editCurrentImage && (currentRender?.image_url || asset?.image_url) ? "Refinar imagem" : "Gerar nova imagem"}
             </Button>
           </div>
         )}
