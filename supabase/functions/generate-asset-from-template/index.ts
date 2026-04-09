@@ -510,10 +510,10 @@ Deno.serve(async (req) => {
         : "";
 
       const brandColorInstruction = context.brand_colors
-        ? `\n\n## CORES DA MARCA (OBRIGATÓRIO)\nUse EXCLUSIVAMENTE estas cores da identidade visual do cliente: ${context.brand_colors}\n- Cor primária para elementos dominantes (fundo, seções)\n- Cor de acento APENAS para CTA/botões\n- NÃO use cores genéricas quando as cores da marca estiverem definidas\n- Respeite os valores hex exatos fornecidos\n`
+        ? `\n\n## CORES DA MARCA (OBRIGATÓRIO — PRIORIDADE MÁXIMA)\nA identidade visual do cliente define estas cores: ${context.brand_colors}\n- EXTRAIA os códigos hex desta descrição e aplique-os:\n  • Cor primária/dominante → fundo principal, seções, barras\n  • Cor secundária/suporte → textos, elementos de apoio\n  • Cor de acento/CTA → APENAS para botões e calls-to-action\n- NÃO use cores genéricas (#00C9A7, #FF6B6B, #0f0f23, etc.) quando as cores da marca estiverem definidas\n- NÃO invente cores. Use EXATAMENTE os hex fornecidos pelo cliente\n- Se a descrição mencionar "dominante", "principal", "primária" → use como fundo\n- Se mencionar "acento", "destaque", "CTA" → use apenas em botões/destaques\n`
         : "";
       const typographyInstruction = context.typography
-        ? `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO)\nUse estas fontes conforme a identidade visual do cliente: ${context.typography}\n`
+        ? `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO)\nUse estas fontes conforme a identidade visual do cliente: ${context.typography}\nImporte via Google Fonts se disponível. Se a fonte não existir no Google Fonts, use a mais próxima visualmente.\n`
         : "";
       const visualStyleInstruction = context.visual_style
         ? `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\nSiga este estilo visual: ${context.visual_style}\n`
@@ -579,10 +579,10 @@ Deno.serve(async (req) => {
       const bgImageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
 
       const brandColorInstruction2 = context.brand_colors
-        ? `\n\n## CORES DA MARCA (OBRIGATÓRIO)\nUse EXCLUSIVAMENTE estas cores: ${context.brand_colors}\n- Cor primária para elementos dominantes\n- Cor de acento para CTA/botões\n`
+        ? `\n\n## CORES DA MARCA (OBRIGATÓRIO — PRIORIDADE MÁXIMA)\nA identidade visual do cliente define estas cores: ${context.brand_colors}\n- EXTRAIA os códigos hex e aplique-os: primária→fundo, acento→CTA/botões\n- NÃO use cores genéricas. Use EXATAMENTE os hex do cliente.\n`
         : "";
       const typographyInstruction2 = context.typography
-        ? `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO)\n${context.typography}\n`
+        ? `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO)\n${context.typography}\nImporte via Google Fonts se disponível.\n`
         : "";
       const visualStyleInstruction2 = context.visual_style
         ? `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\n${context.visual_style}\n`
