@@ -36,13 +36,24 @@ const FUNNEL_LABELS: Record<string, string> = {
   bofu: "Fundo",
 };
 
-/** Extract hex colors from brief */
-function extractBriefColors(brief: any): Record<string, string | undefined> {
+/** Extract hex colors from brief + brief_files */
+function extractBriefColors(brief: any, briefFiles?: any[]): Record<string, string | undefined> {
   const colors: string[] = [];
   const hexMatches = (brief?.brand_colors || "").match(/#[0-9A-Fa-f]{6}/g) || [];
   colors.push(...hexMatches);
   const consolidated = (brief?.consolidated_context as any)?.visual_guidelines?.colors_hex || [];
   colors.push(...consolidated.filter((c: string) => !colors.includes(c)));
+  if (colors.length === 0 && briefFiles?.length) {
+    for (const f of briefFiles) {
+      const ef = f.extracted_fields;
+      if (ef?.visual_guidelines?.colors_hex) {
+        for (const c of (ef.visual_guidelines.colors_hex as string[])) {
+          const hex = c.match(/#[0-9A-Fa-f]{6}/)?.[0];
+          if (hex && !colors.includes(hex)) colors.push(hex);
+        }
+      }
+    }
+  }
   return {
     primary: colors[0], secondary: colors[1], accent: colors[1] || colors[0],
     background: colors[0], text: colors[2] || "#f5f5f0",
@@ -50,10 +61,10 @@ function extractBriefColors(brief: any): Record<string, string | undefined> {
 }
 
 /** Build render_config from template's editable_fields + brief colors */
-function buildRenderConfig(template: any, brief: any): Record<string, any> {
+function buildRenderConfig(template: any, brief: any, briefFiles?: any[]): Record<string, any> {
   const fields = template?.editable_fields as Record<string, any> | null;
   if (!fields) return {};
-  const briefColors = extractBriefColors(brief);
+  const briefColors = extractBriefColors(brief, briefFiles);
   const fromBriefMap: Record<string, string | undefined> = {
     background: briefColors.primary, accent: briefColors.accent,
     text: briefColors.text || "#f5f5f0", primary: briefColors.primary, secondary: briefColors.secondary,
@@ -78,6 +89,7 @@ const BatchAssets = () => {
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [activation, setActivation] = useState<any>(null);
   const [brief, setBrief] = useState<any>(null);
+  const [briefFiles, setBriefFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [hoveredCol, setHoveredCol] = useState<string | null>(null);
@@ -86,16 +98,18 @@ const BatchAssets = () => {
   useEffect(() => {
     if (!id) return;
     const fetchData = async () => {
-      const [copiesRes, templatesRes, actRes, briefRes] = await Promise.all([
+      const [copiesRes, templatesRes, actRes, briefRes, briefFilesRes] = await Promise.all([
         supabase.from("copies").select("*").eq("activation_id", id).eq("status", "approved").order("created_at", { ascending: false }),
         supabase.from("asset_templates").select("*").eq("active", true).order("name"),
         supabase.from("activations").select("*, clients(name)").eq("id", id).single(),
         supabase.from("briefs").select("*").eq("activation_id", id).maybeSingle(),
+        supabase.from("brief_files").select("extracted_fields").eq("activation_id", id).not("extracted_fields", "is", null),
       ]);
       setCopies(copiesRes.data || []);
       setTemplates(templatesRes.data || []);
       setActivation(actRes.data);
       setBrief(briefRes.data);
+      setBriefFiles(briefFilesRes.data || []);
       setLoading(false);
     };
     fetchData();
@@ -198,7 +212,7 @@ const BatchAssets = () => {
       seq++;
 
       try {
-        const renderConfig = buildRenderConfig(template, brief);
+        const renderConfig = buildRenderConfig(template, brief, briefFiles);
         const { data: asset } = await supabase
           .from("assets")
           .insert({

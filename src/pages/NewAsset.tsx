@@ -22,13 +22,28 @@ interface EditableField {
   from_brief?: string;
 }
 
-/** Extract hex colors from brief's brand_colors text and consolidated_context */
-function extractBriefColors(brief: any): Record<string, string | undefined> {
+/** Extract hex colors from brief's brand_colors text, consolidated_context, and brief_files */
+function extractBriefColors(brief: any, briefFiles?: any[]): Record<string, string | undefined> {
   const colors: string[] = [];
+  // 1. Direct brief.brand_colors text
   const hexMatches = (brief?.brand_colors || "").match(/#[0-9A-Fa-f]{6}/g) || [];
   colors.push(...hexMatches);
+  // 2. Consolidated context
   const consolidated = (brief?.consolidated_context as any)?.visual_guidelines?.colors_hex || [];
   colors.push(...consolidated.filter((c: string) => !colors.includes(c)));
+  // 3. Fallback: brief_files extracted_fields
+  if (colors.length === 0 && briefFiles?.length) {
+    for (const f of briefFiles) {
+      const ef = f.extracted_fields;
+      if (ef?.visual_guidelines?.colors_hex) {
+        const fileColors = ef.visual_guidelines.colors_hex as string[];
+        for (const c of fileColors) {
+          const hex = c.match(/#[0-9A-Fa-f]{6}/)?.[0];
+          if (hex && !colors.includes(hex)) colors.push(hex);
+        }
+      }
+    }
+  }
   return {
     primary: colors[0],
     secondary: colors[1],
@@ -61,6 +76,7 @@ const NewAsset = () => {
   // Image prompt review state
   const [imagePrompt, setImagePrompt] = useState("");
   const [brief, setBrief] = useState<any>(null);
+  const [briefFiles, setBriefFiles] = useState<any[]>([]);
 
   const templateUsesImage = selectedTemplate?.generation_type === "image_only" || selectedTemplate?.generation_type === "html_and_image";
 
@@ -73,12 +89,13 @@ const NewAsset = () => {
   useEffect(() => {
     if (!id) return;
     const fetchData = async () => {
-      const [copiesRes, templatesRes, actRes, briefRes, settingsRes] = await Promise.all([
+      const [copiesRes, templatesRes, actRes, briefRes, settingsRes, briefFilesRes] = await Promise.all([
         supabase.from("copies").select("*").eq("activation_id", id).eq("status", "approved").order("created_at", { ascending: false }),
         supabase.from("asset_templates").select("*").eq("active", true).order("category"),
         supabase.from("activations").select("*, clients(name, id)").eq("id", id).single(),
         supabase.from("briefs").select("*").eq("activation_id", id).maybeSingle(),
         supabase.from("client_template_settings").select("template_id, enabled"),
+        supabase.from("brief_files").select("extracted_fields").eq("activation_id", id).not("extracted_fields", "is", null),
       ]);
       setCopies(copiesRes.data || []);
 
@@ -101,6 +118,7 @@ const NewAsset = () => {
         setClientName((actRes.data as any).clients?.name || "");
       }
       setBrief(briefRes.data);
+      setBriefFiles(briefFilesRes.data || []);
       setLoading(false);
     };
     fetchData();
@@ -117,7 +135,7 @@ const NewAsset = () => {
     }
     const defaults: Record<string, any> = {};
     const fields = selectedTemplate.editable_fields as Record<string, EditableField>;
-    const briefColors = extractBriefColors(brief);
+    const briefColors = extractBriefColors(brief, briefFiles);
     const filledFromBrief = new Set<string>();
 
     // Dynamic color mapping via from_brief property
@@ -153,7 +171,7 @@ const NewAsset = () => {
     });
     setRenderConfig(defaults);
     setBriefColorFields(filledFromBrief);
-  }, [selectedTemplate, brief]);
+  }, [selectedTemplate, brief, briefFiles]);
 
   // Build image prompt when entering the prompt review step
   const buildImagePrompt = () => {

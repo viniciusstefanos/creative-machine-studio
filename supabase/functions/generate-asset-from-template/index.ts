@@ -402,7 +402,7 @@ Deno.serve(async (req) => {
 
     const config = render_config || {};
 
-    // Resolve visual identity: prefer explicit brief fields, fallback to consolidated_context
+    // Resolve visual identity: prefer explicit brief fields, then consolidated_context, then brief_files
     const resolvedBrandColors = (brief as any)?.brand_colors
       || consolidated.visual_guidelines?.colors
       || consolidated.brand_colors
@@ -415,6 +415,20 @@ Deno.serve(async (req) => {
       || consolidated.visual_guidelines?.style
       || consolidated.visual_style
       || "";
+
+    // If no brand colors from brief/consolidated, extract from brief_files
+    let briefFileColors: string[] = [];
+    if (!resolvedBrandColors && briefFiles.length > 0) {
+      for (const f of briefFiles) {
+        const ef = (f as any).extracted_fields;
+        if (ef?.visual_guidelines?.colors_hex) {
+          for (const c of ef.visual_guidelines.colors_hex) {
+            const hex = (c as string).match(/#[0-9A-Fa-f]{6}/)?.[0];
+            if (hex && !briefFileColors.includes(hex)) briefFileColors.push(hex);
+          }
+        }
+      }
+    }
 
     const context = {
       hook: copy.hook || "",
@@ -435,10 +449,13 @@ Deno.serve(async (req) => {
     function buildBrandInstructions(ctx: typeof context, renderCfg: Record<string, any>): string {
       let instructions = "";
 
-      // Check if render_config already has explicit hex colors from from_brief mapping
-      const hasExplicitBg = renderCfg.bg_color && /^#[0-9A-Fa-f]{6}$/i.test(renderCfg.bg_color);
-      const hasExplicitAccent = renderCfg.accent_color && /^#[0-9A-Fa-f]{6}$/i.test(renderCfg.accent_color);
-      const hasExplicitText = renderCfg.text_color && /^#[0-9A-Fa-f]{6}$/i.test(renderCfg.text_color);
+      // Default colors from templates that should NOT be treated as brand colors
+      const DEFAULT_COLORS = new Set(["#0a0a0a", "#00c9a7", "#f5f5f0", "#111111", "#ffffff"]);
+      const isRealColor = (c: string) => c && /^#[0-9A-Fa-f]{6}$/i.test(c) && !DEFAULT_COLORS.has(c.toLowerCase());
+
+      const hasExplicitBg = isRealColor(renderCfg.bg_color);
+      const hasExplicitAccent = isRealColor(renderCfg.accent_color);
+      const hasExplicitText = isRealColor(renderCfg.text_color);
 
       if (hasExplicitBg || hasExplicitAccent || hasExplicitText) {
         instructions += `\n\n## CORES DA MARCA (OBRIGATÓRIO — PRIORIDADE MÁXIMA)\nUse EXATAMENTE estas cores:`;
@@ -448,6 +465,11 @@ Deno.serve(async (req) => {
         instructions += `\n- NÃO use cores genéricas. Use EXATAMENTE os hex acima.`;
       } else if (ctx.brand_colors) {
         instructions += `\n\n## CORES DA MARCA (OBRIGATÓRIO — PRIORIDADE MÁXIMA)\nA identidade visual do cliente define estas cores: ${ctx.brand_colors}\n- EXTRAIA os códigos hex desta descrição e aplique-os:\n  • Cor primária/dominante → fundo principal, seções, barras\n  • Cor secundária/suporte → textos, elementos de apoio\n  • Cor de acento/CTA → APENAS para botões e calls-to-action\n- NÃO use cores genéricas (#00C9A7, #FF6B6B, #0f0f23, etc.) quando as cores da marca estiverem definidas\n- NÃO invente cores. Use EXATAMENTE os hex fornecidos pelo cliente`;
+      } else if (briefFileColors.length > 0) {
+        // Fallback: colors found in brief_files extracted_fields
+        instructions += `\n\n## CORES DA MARCA (OBRIGATÓRIO — PRIORIDADE MÁXIMA)\nCores extraídas dos documentos do briefing: ${briefFileColors.join(", ")}`;
+        instructions += `\n- Use a 1ª cor como primária/destaque, a 2ª como fundo ou suporte, a 3ª como texto/detalhe.`;
+        instructions += `\n- NÃO use cores genéricas (#00C9A7, #FF6B6B, etc.). Use EXATAMENTE os hex acima.`;
       }
 
       if (ctx.typography) {
