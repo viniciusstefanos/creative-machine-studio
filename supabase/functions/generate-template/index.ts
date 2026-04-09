@@ -1,4 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+import { getPrompt } from "../_shared/get-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -104,6 +106,11 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseClient = createClient(supabaseUrl, serviceKey);
+    const dbTemplateDesign = await getPrompt(supabaseClient, "template_design", TEMPLATE_DESIGN_RULES);
+
     const dimensions: Record<string, { w: number; h: number }> = {
       "4:5": { w: 1080, h: 1350 },
       "9:16": { w: 1080, h: 1920 },
@@ -139,7 +146,7 @@ REGRAS PARA system_prompt:
   4. Limitar texto a max 2 linhas visíveis por bloco
   5. Usar Google Fonts via <link>
 
-${TEMPLATE_DESIGN_RULES}
+${dbTemplateDesign}
 
 ${category === "carousel" ? "- Para carrossel, gere HTML com múltiplos slides separados por comentários <!-- SLIDE -->.\n- Slide 1 = gancho forte, nunca título de relatório.\n- Slides do meio = 1 ponto por slide, max 3 linhas.\n- Último slide = CTA claro." : ""}
 
