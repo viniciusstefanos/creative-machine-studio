@@ -19,10 +19,11 @@ interface EditableField {
   min?: number;
   max?: number;
   locked?: boolean;
+  from_brief?: string;
 }
 
 /** Extract hex colors from brief's brand_colors text and consolidated_context */
-function extractBriefColors(brief: any): { primary?: string; secondary?: string; accent?: string } {
+function extractBriefColors(brief: any): Record<string, string | undefined> {
   const colors: string[] = [];
   const hexMatches = (brief?.brand_colors || "").match(/#[0-9A-Fa-f]{6}/g) || [];
   colors.push(...hexMatches);
@@ -32,6 +33,8 @@ function extractBriefColors(brief: any): { primary?: string; secondary?: string;
     primary: colors[0],
     secondary: colors[1],
     accent: colors[2] || colors[0],
+    background: colors[0],
+    text: colors[1] ? undefined : "#f5f5f0", // default light text if no secondary
   };
 }
 
@@ -117,19 +120,35 @@ const NewAsset = () => {
     const briefColors = extractBriefColors(brief);
     const filledFromBrief = new Set<string>();
 
-    const colorMap: Record<string, string | undefined> = {
+    // Dynamic color mapping via from_brief property
+    const fromBriefMap: Record<string, string | undefined> = {
+      background: briefColors.primary,
+      accent: briefColors.accent,
+      text: briefColors.text || "#f5f5f0",
+      primary: briefColors.primary,
+      secondary: briefColors.secondary,
+    };
+
+    // Legacy fallback by field name
+    const legacyColorMap: Record<string, string | undefined> = {
       brand_color: briefColors.primary,
       accent_color: briefColors.accent,
       cta_color: briefColors.accent || briefColors.primary,
       primary_color: briefColors.primary,
       secondary_color: briefColors.secondary,
+      bg_color: briefColors.primary,
+      text_color: briefColors.text || "#f5f5f0",
     };
 
     Object.entries(fields).forEach(([key, field]) => {
       defaults[key] = field.default;
-      if (field.type === "color" && !field.locked && colorMap[key]) {
-        defaults[key] = colorMap[key]!;
-        filledFromBrief.add(key);
+      if (field.type === "color" && !field.locked) {
+        // Prefer from_brief mapping, fallback to legacy name-based mapping
+        const briefValue = field.from_brief ? fromBriefMap[field.from_brief] : legacyColorMap[key];
+        if (briefValue) {
+          defaults[key] = briefValue;
+          filledFromBrief.add(key);
+        }
       }
     });
     setRenderConfig(defaults);

@@ -36,6 +36,38 @@ const FUNNEL_LABELS: Record<string, string> = {
   bofu: "Fundo",
 };
 
+/** Extract hex colors from brief */
+function extractBriefColors(brief: any): Record<string, string | undefined> {
+  const colors: string[] = [];
+  const hexMatches = (brief?.brand_colors || "").match(/#[0-9A-Fa-f]{6}/g) || [];
+  colors.push(...hexMatches);
+  const consolidated = (brief?.consolidated_context as any)?.visual_guidelines?.colors_hex || [];
+  colors.push(...consolidated.filter((c: string) => !colors.includes(c)));
+  return {
+    primary: colors[0], secondary: colors[1], accent: colors[2] || colors[0],
+    background: colors[0], text: undefined,
+  };
+}
+
+/** Build render_config from template's editable_fields + brief colors */
+function buildRenderConfig(template: any, brief: any): Record<string, any> {
+  const fields = template?.editable_fields as Record<string, any> | null;
+  if (!fields) return {};
+  const briefColors = extractBriefColors(brief);
+  const fromBriefMap: Record<string, string | undefined> = {
+    background: briefColors.primary, accent: briefColors.accent,
+    text: briefColors.text || "#f5f5f0", primary: briefColors.primary, secondary: briefColors.secondary,
+  };
+  const config: Record<string, any> = {};
+  Object.entries(fields).forEach(([key, field]: [string, any]) => {
+    config[key] = field.default;
+    if (field.type === "color" && field.from_brief && fromBriefMap[field.from_brief]) {
+      config[key] = fromBriefMap[field.from_brief];
+    }
+  });
+  return config;
+}
+
 const BatchAssets = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -45,6 +77,7 @@ const BatchAssets = () => {
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [activation, setActivation] = useState<any>(null);
+  const [brief, setBrief] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [hoveredCol, setHoveredCol] = useState<string | null>(null);
@@ -53,14 +86,16 @@ const BatchAssets = () => {
   useEffect(() => {
     if (!id) return;
     const fetchData = async () => {
-      const [copiesRes, templatesRes, actRes] = await Promise.all([
+      const [copiesRes, templatesRes, actRes, briefRes] = await Promise.all([
         supabase.from("copies").select("*").eq("activation_id", id).eq("status", "approved").order("created_at", { ascending: false }),
         supabase.from("asset_templates").select("*").eq("active", true).order("name"),
         supabase.from("activations").select("*, clients(name)").eq("id", id).single(),
+        supabase.from("briefs").select("*").eq("activation_id", id).maybeSingle(),
       ]);
       setCopies(copiesRes.data || []);
       setTemplates(templatesRes.data || []);
       setActivation(actRes.data);
+      setBrief(briefRes.data);
       setLoading(false);
     };
     fetchData();
@@ -163,6 +198,7 @@ const BatchAssets = () => {
       seq++;
 
       try {
+        const renderConfig = buildRenderConfig(template, brief);
         const { data: asset } = await supabase
           .from("assets")
           .insert({
@@ -171,7 +207,7 @@ const BatchAssets = () => {
             template_id,
             status: "generating",
             category: template?.category || "static",
-            render_config: {},
+            render_config: renderConfig,
             name: assetName,
             batch_label: batchLabel,
           })
@@ -180,7 +216,7 @@ const BatchAssets = () => {
 
         if (asset) {
           supabase.functions.invoke("generate-asset-from-template", {
-            body: { asset_id: asset.id, activation_id: id, copy_id, template_id, render_config: {} },
+            body: { asset_id: asset.id, activation_id: id, copy_id, template_id, render_config: renderConfig },
           }).catch((err) => console.error("batch gen error:", err));
         }
       } catch (err) {
