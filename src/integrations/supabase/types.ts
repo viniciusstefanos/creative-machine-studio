@@ -965,6 +965,42 @@ export type Database = {
         }
         Relationships: []
       }
+      prompt_templates: {
+        Row: {
+          category: string
+          content: string
+          description: string | null
+          id: string
+          is_system: boolean | null
+          name: string
+          slug: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          category: string
+          content: string
+          description?: string | null
+          id?: string
+          is_system?: boolean | null
+          name: string
+          slug: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          category?: string
+          content?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean | null
+          name?: string
+          slug?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       scheduled_posts: {
         Row: {
           activation_id: string

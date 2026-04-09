@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { decodeBase64 } from "jsr:@std/encoding@1/base64";
 import { BRIEF_SYSTEM_PROMPT } from "../_shared/brief-system-prompt.ts";
+import { getPrompt } from "../_shared/get-prompt.ts";
 
 /** Strip code fences and any markdown/explanation text around HTML */
 function extractHtml(raw: string): string {
@@ -219,11 +220,11 @@ async function callTextAI(systemPrompt: string, userPrompt: string, useClaude: b
 }
 
 // ─── Generate optimized image prompt ─────────────────────────
-async function generateImagePrompt(basePrompt: string, useClaude: boolean, anthropicKey: string, lovableKey: string): Promise<string> {
+async function generateImagePrompt(basePrompt: string, useClaude: boolean, anthropicKey: string, lovableKey: string, imageRules: string): Promise<string> {
   const res = await callTextAI(
     `Você é um especialista em prompts para geração de imagem para Instagram Brasil.
 
-${IMAGE_CREATIVE_RULES}
+${imageRules}
 
 Receba um rascunho de prompt e otimize-o para gerar a melhor imagem possível, mantendo o contexto brasileiro e a estética Instagram BR.
 Retorne APENAS o prompt otimizado em inglês, sem explicação.`,
@@ -370,12 +371,15 @@ Deno.serve(async (req) => {
       return result;
     }
 
-    const [templateRes, copyRes, briefRes, briefFilesRes, activationRes] = await Promise.all([
+    const [templateRes, copyRes, briefRes, briefFilesRes, activationRes, dbBriefSystem, dbHtmlRules, dbImageRules] = await Promise.all([
       supabase.from("asset_templates").select("*").eq("id", template_id).single(),
       supabase.from("copies").select("*").eq("id", copy_id).single(),
       supabase.from("briefs").select("*").eq("activation_id", activation_id).maybeSingle(),
       supabase.from("brief_files").select("category, raw_text, extracted_fields, file_name").eq("activation_id", activation_id).not("raw_text", "is", null),
       supabase.from("activations").select("social_display_name, social_handle, social_avatar_url").eq("id", activation_id).single(),
+      getPrompt(supabase, "brief_system", BRIEF_SYSTEM_PROMPT),
+      getPrompt(supabase, "asset_html_rules", HTML_CREATIVE_RULES),
+      getPrompt(supabase, "asset_image_rules", IMAGE_CREATIVE_RULES),
     ]);
 
     const template = templateRes.data;
@@ -524,7 +528,7 @@ Fontes extraídas dos documentos do briefing: ${briefFileFonts.join(", ")}
 
       const brandInstructions = buildBrandInstructions(context, config);
       const socialInstruction = buildSocialInstruction(activationSocial);
-      const systemWithRules = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction + brandInstructions + socialInstruction + customPrompt;
+      const systemWithRules = dbBriefSystem + "\n" + (template.system_prompt || "") + "\n" + dbHtmlRules + carouselInstruction + brandInstructions + socialInstruction + customPrompt;
 
       // Build rich brief context for user prompt
       const briefContextBlock = consolidatedStr
@@ -568,7 +572,7 @@ Fontes extraídas dos documentos do briefing: ${briefFileFonts.join(", ")}
       for (let i = 0; i < maxSlides; i++) {
         const filledPrompt = fillTemplate(template.image_prompt_template || "", { ...context, slide_content: slideParts[i] });
         const optimizedPrompt = await generateImagePrompt(
-          filledPrompt, useClaude, anthropicKey, lovableKey,
+          filledPrompt, useClaude, anthropicKey, lovableKey, dbImageRules,
         );
         const imageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
         await saveRender(i, { image_url: imageUrl });
@@ -580,13 +584,13 @@ Fontes extraídas dos documentos do briefing: ${briefFileFonts.join(", ")}
     } else if (template.generation_type === "html_and_image") {
       const filledPrompt2 = fillTemplate(template.image_prompt_template || "", context);
       const optimizedPrompt = await generateImagePrompt(
-        filledPrompt2, useClaude, anthropicKey, lovableKey,
+        filledPrompt2, useClaude, anthropicKey, lovableKey, dbImageRules,
       );
       const bgImageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
 
       const brandInstructions2 = buildBrandInstructions(context, config);
       const socialInstruction2 = buildSocialInstruction(activationSocial);
-      const overlaySystem = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + brandInstructions2 + socialInstruction2 + customPrompt;
+      const overlaySystem = dbBriefSystem + "\n" + (template.system_prompt || "") + "\n" + dbHtmlRules + brandInstructions2 + socialInstruction2 + customPrompt;
       const briefContextBlock2 = consolidatedStr
         ? `\n\n## BRIEFING DO CLIENTE\n${consolidatedStr}`
         : "";

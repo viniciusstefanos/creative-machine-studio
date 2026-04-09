@@ -24,6 +24,7 @@ const Notifications = lazy(() => import("./pages/Notifications"));
 const SettingsTeam = lazy(() => import("./pages/SettingsTeam"));
 const SettingsFormats = lazy(() => import("./pages/SettingsFormats"));
 const SettingsTemplates = lazy(() => import("./pages/SettingsTemplates"));
+const SettingsPrompts = lazy(() => import("./pages/SettingsPrompts"));
 const BatchAssets = lazy(() => import("./pages/BatchAssets"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -80,6 +81,7 @@ const App = () => (
               <Route path="/settings/team" element={<P><SettingsTeam /></P>} />
               <Route path="/settings/templates" element={<P><SettingsTemplates /></P>} />
               <Route path="/settings/formats" element={<P><SettingsFormats /></P>} />
+              <Route path="/settings/prompts" element={<P><SettingsPrompts /></P>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
