@@ -418,13 +418,21 @@ Deno.serve(async (req) => {
 
     // If no brand colors from brief/consolidated, extract from brief_files
     let briefFileColors: string[] = [];
-    if (!resolvedBrandColors && briefFiles.length > 0) {
+    let briefFileFonts: string[] = [];
+    if (briefFiles.length > 0) {
       for (const f of briefFiles) {
         const ef = (f as any).extracted_fields;
-        if (ef?.visual_guidelines?.colors_hex) {
+        if (ef?.visual_guidelines?.colors_hex && !resolvedBrandColors) {
           for (const c of ef.visual_guidelines.colors_hex) {
             const hex = (c as string).match(/#[0-9A-Fa-f]{6}/)?.[0];
             if (hex && !briefFileColors.includes(hex)) briefFileColors.push(hex);
+          }
+        }
+        if (ef?.visual_guidelines?.fonts && !resolvedTypography) {
+          for (const font of ef.visual_guidelines.fonts) {
+            if (font && typeof font === "string" && !briefFileFonts.includes(font)) {
+              briefFileFonts.push(font);
+            }
           }
         }
       }
