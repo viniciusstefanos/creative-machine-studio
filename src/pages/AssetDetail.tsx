@@ -551,9 +551,14 @@ const AssetDetail = () => {
     }
 
     if (asset.html_content) {
+      const w = template?.width_px || 1080;
+      const h = template?.height_px || 1350;
+      const scale = 540 / w;
       return (
-        <div className="rounded-lg overflow-hidden border border-line">
-          <iframe srcDoc={asset.html_content} sandbox="allow-scripts" className="w-full border-0" style={{ minHeight: 500 }} title="Asset preview" />
+        <div className="rounded-lg overflow-hidden border border-line mx-auto" style={{ maxWidth: 540 }}>
+          <div style={{ height: scale * h, overflow: "hidden" }}>
+            <iframe srcDoc={asset.html_content} sandbox="allow-scripts" scrolling="no" className="border-0 origin-top-left pointer-events-none" style={{ width: w, height: h, transform: `scale(${scale})` }} title="Asset preview" />
+          </div>
         </div>
       );
     }
