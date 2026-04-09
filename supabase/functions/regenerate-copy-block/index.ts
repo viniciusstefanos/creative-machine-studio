@@ -21,6 +21,15 @@ Deno.serve(async (req) => {
 
     if (!lovableKey && !anthropicKey) throw new Error("No AI API key configured");
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseClient = createClient(supabaseUrl, serviceKey);
+
+    const [briefSystemContent, regenContent] = await Promise.all([
+      getPrompt(supabaseClient, "brief_system", BRIEF_SYSTEM_PROMPT),
+      getPrompt(supabaseClient, "copy_regen", ""),
+    ]);
+
     const blockLabels: Record<string, string> = { hook: "Gancho (Hook)", body: "Corpo (Body)", cta: "CTA (Call to Action)" };
 
     // Dynamic tone instruction from brief instead of hardcoded food rules
@@ -31,7 +40,9 @@ Deno.serve(async (req) => {
       ? `\n### Contexto adicional: ${extra_context}`
       : "";
 
-    const systemPrompt = `${BRIEF_SYSTEM_PROMPT}
+    const systemPrompt = regenContent
+      ? `${briefSystemContent}\n${regenContent}${toneInstruction}${extraInstruction}\n${brief_context ? `Brief context: ${brief_context}` : ""}${channel ? `\nChannel: ${channel}` : ""}${funnel_stage ? `\nFunnel stage: ${funnel_stage}` : ""}\nReturn ONLY the new text for this block, nothing else.`
+      : `${briefSystemContent}
 You are an expert marketing copywriter for Meta Ads and Instagram. Regenerate only the "${blockLabels[block] || block}" section of a marketing copy.
 Keep the same language (Portuguese BR), tone, and style.
 
