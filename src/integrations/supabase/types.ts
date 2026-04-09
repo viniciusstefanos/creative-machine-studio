@@ -401,6 +401,7 @@ export type Database = {
       assets: {
         Row: {
           activation_id: string
+          batch_label: string | null
           category: string | null
           copy_id: string | null
           created_at: string | null
@@ -413,6 +414,7 @@ export type Database = {
           id: string
           image_url: string | null
           name: string | null
+          parent_id: string | null
           render_config: Json | null
           status: string | null
           tags: string[] | null
@@ -421,6 +423,7 @@ export type Database = {
         }
         Insert: {
           activation_id: string
+          batch_label?: string | null
           category?: string | null
           copy_id?: string | null
           created_at?: string | null
@@ -433,6 +436,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           name?: string | null
+          parent_id?: string | null
           render_config?: Json | null
           status?: string | null
           tags?: string[] | null
@@ -441,6 +445,7 @@ export type Database = {
         }
         Update: {
           activation_id?: string
+          batch_label?: string | null
           category?: string | null
           copy_id?: string | null
           created_at?: string | null
@@ -453,6 +458,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           name?: string | null
+          parent_id?: string | null
           render_config?: Json | null
           status?: string | null
           tags?: string[] | null
@@ -479,6 +485,13 @@ export type Database = {
             columns: ["format_id"]
             isOneToOne: false
             referencedRelation: "asset_formats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
             referencedColumns: ["id"]
           },
           {
@@ -749,6 +762,7 @@ export type Database = {
       copies: {
         Row: {
           activation_id: string
+          batch_label: string | null
           body: string | null
           channel: string | null
           created_at: string | null
@@ -759,6 +773,7 @@ export type Database = {
           hook: string | null
           id: string
           landing_page_url: string | null
+          parent_id: string | null
           purpose: string | null
           status: string | null
           tags: string[] | null
@@ -767,6 +782,7 @@ export type Database = {
         }
         Insert: {
           activation_id: string
+          batch_label?: string | null
           body?: string | null
           channel?: string | null
           created_at?: string | null
@@ -777,6 +793,7 @@ export type Database = {
           hook?: string | null
           id?: string
           landing_page_url?: string | null
+          parent_id?: string | null
           purpose?: string | null
           status?: string | null
           tags?: string[] | null
@@ -785,6 +802,7 @@ export type Database = {
         }
         Update: {
           activation_id?: string
+          batch_label?: string | null
           body?: string | null
           channel?: string | null
           created_at?: string | null
@@ -795,6 +813,7 @@ export type Database = {
           hook?: string | null
           id?: string
           landing_page_url?: string | null
+          parent_id?: string | null
           purpose?: string | null
           status?: string | null
           tags?: string[] | null
@@ -807,6 +826,13 @@ export type Database = {
             columns: ["activation_id"]
             isOneToOne: false
             referencedRelation: "activations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "copies_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "copies"
             referencedColumns: ["id"]
           },
         ]
