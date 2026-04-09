@@ -452,6 +452,34 @@ Deno.serve(async (req) => {
 
   try {
     await supabase.from("asset_template_renders").delete().eq("asset_id", asset_id);
+
+    // ─── Helper: save render to asset_template_renders ─────────
+    async function saveRender(slideIndex: number, data: Record<string, any>) {
+      const { error } = await supabase.from("asset_template_renders").upsert(
+        { asset_id, slide_index: slideIndex, ...data, status: "done" },
+        { onConflict: "asset_id,slide_index" },
+      );
+      if (error) console.error("saveRender error:", error);
+    }
+
+    // ─── Helper: split copy into N slide parts ─────────────────
+    function splitCopyIntoSlides(minSlides: number): string[] {
+      const fullText = `${copy?.hook || ""}\n${copy?.body || ""}\n${copy?.cta || ""}`.trim();
+      const sentences = fullText.split(/(?<=[.!?;])\s+/).filter(Boolean);
+      if (sentences.length <= minSlides) {
+        // Pad with empty strings if fewer sentences than slides
+        while (sentences.length < minSlides) sentences.push("");
+        return sentences;
+      }
+      // Distribute sentences across slides
+      const result: string[] = [];
+      const perSlide = Math.ceil(sentences.length / minSlides);
+      for (let i = 0; i < sentences.length; i += perSlide) {
+        result.push(sentences.slice(i, i + perSlide).join(" "));
+      }
+      return result;
+    }
+
     const [templateRes, copyRes, briefRes, briefFilesRes, activationRes] = await Promise.all([
       supabase.from("asset_templates").select("*").eq("id", template_id).single(),
       supabase.from("copies").select("*").eq("id", copy_id).single(),
