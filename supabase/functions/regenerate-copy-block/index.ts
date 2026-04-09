@@ -11,13 +11,23 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { block, current_content, feedback, brief_context, channel, funnel_stage } = await req.json();
+    const { block, current_content, feedback, brief_context, channel, funnel_stage, tone_of_voice, extra_context } = await req.json();
     if (!block || !current_content) throw new Error("block and current_content are required");
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY") || "";
+    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY") || "";
+
+    if (!lovableKey && !anthropicKey) throw new Error("No AI API key configured");
 
     const blockLabels: Record<string, string> = { hook: "Gancho (Hook)", body: "Corpo (Body)", cta: "CTA (Call to Action)" };
+
+    // Dynamic tone instruction from brief instead of hardcoded food rules
+    const toneInstruction = tone_of_voice
+      ? `\n### Tom de voz do cliente: ${tone_of_voice}\nAdapte o tom da copy a este estilo.`
+      : "";
+    const extraInstruction = extra_context
+      ? `\n### Contexto adicional: ${extra_context}`
+      : "";
 
     const systemPrompt = `${BRIEF_SYSTEM_PROMPT}
 You are an expert marketing copywriter for Meta Ads and Instagram. Regenerate only the "${blockLabels[block] || block}" section of a marketing copy.
@@ -36,21 +46,14 @@ Keep the same language (Portuguese BR), tone, and style.
 ### Para CTA:
 - Verbo no imperativo, específico ao segmento
 - PROIBIDO: "Saiba mais", "Clique aqui" sem contexto
-- CTAs food & beverage: "Peça agora", "Ver cardápio", "Reserve sua mesa", "Aproveitar oferta"
 - O CTA deve fechar a lacuna criada pelo hook
-
-### Tom de voz por segmento:
-- Fast food: direto, energético, popular
-- Casual: amigável, convidativo, sensorial
-- Fine dining: sofisticado, evocativo, minimalista
-- Saudável: leve, consciente, positivo
-- Bar/drinks: descontraído, sedutor, atitude
 
 ### Anti-patterns (NUNCA):
 - Copy genérico sem benefício ou proposta de valor
 - Múltiplas mensagens numa peça
 - Dados de prova social inventados
-
+${toneInstruction}
+${extraInstruction}
 ${brief_context ? `Brief context: ${brief_context}` : ""}
 ${channel ? `Channel: ${channel}` : ""}
 ${funnel_stage ? `Funnel stage: ${funnel_stage}` : ""}
@@ -58,34 +61,71 @@ Return ONLY the new text for this block, nothing else.`;
 
     const userPrompt = `Current ${block}: "${current_content}"${feedback ? `\n\nFeedback for improvement: "${feedback}"` : ""}\n\nRegenerate this ${block}:`;
 
-    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
-    });
+    let newContent: string;
 
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (lovableKey) {
+      // Use Lovable AI Gateway (default)
+      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-pro",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+        }),
+      });
+
+      if (!aiResponse.ok) {
+        const status = aiResponse.status;
+        if (status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        if (status === 402) {
+          return new Response(JSON.stringify({ error: "Credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const errText = await aiResponse.text();
+        throw new Error("AI error: " + errText);
       }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "Credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+      const data = await aiResponse.json();
+      newContent = data.choices?.[0]?.message?.content?.trim() || "";
+    } else {
+      // Fallback: Anthropic
+      const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": anthropicKey,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userPrompt }],
+        }),
+      });
+
+      if (!aiResponse.ok) {
+        const status = aiResponse.status;
+        if (status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        if (status === 402) {
+          return new Response(JSON.stringify({ error: "Credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const errText = await aiResponse.text();
+        throw new Error("AI error: " + errText);
       }
-      throw new Error("Claude error: " + errText);
+
+      const data = await aiResponse.json();
+      newContent = data.content?.[0]?.text?.trim() || "";
     }
-
-    const data = await aiResponse.json();
-    const newContent = data.content?.[0]?.text?.trim() || "";
 
     return new Response(JSON.stringify({ content: newContent }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
