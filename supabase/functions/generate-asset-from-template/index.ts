@@ -504,6 +504,11 @@ Deno.serve(async (req) => {
         ? `\n\nDivida o copy em ${template.slides_count_min} a ${template.slides_count_max} slides.\nSlide 1: sempre o GANCHO — visual forte que para o scroll, NUNCA título de relatório.\nSlides do meio: 1 ponto por slide, máx 3 linhas de texto. Visual consistente.\nSlide final: sempre o CTA único e claro.\nO usuário deve entender a proposta lendo apenas slide 1 e o último.\nRetorne APENAS um array JSON: [{"slide_index": 0, "html": "..."}]. Zero markdown.`
         : "";
 
+      // Social profile instruction
+      const socialProfileInstruction = (activationSocial as any)?.social_display_name || (activationSocial as any)?.social_handle
+        ? `\n\n## PERFIL SOCIAL (OBRIGATÓRIO nos templates que exibem perfil)\nNome: ${(activationSocial as any)?.social_display_name || ""}\nHandle: ${(activationSocial as any)?.social_handle || ""}\nFoto de perfil URL: ${(activationSocial as any)?.social_avatar_url || ""}\nQuando o template incluir avatar, nome de perfil ou @handle, use EXATAMENTE estes dados.\nNÃO invente nomes de perfil ou handles fictícios.${(activationSocial as any)?.social_avatar_url ? `\nPara avatar, use: <img src="${(activationSocial as any).social_avatar_url}" style="width:40px;height:40px;border-radius:50%;object-fit:cover" />` : ""}\n`
+        : "";
+
       const brandColorInstruction = context.brand_colors
         ? `\n\n## CORES DA MARCA (OBRIGATÓRIO)\nUse EXCLUSIVAMENTE estas cores da identidade visual do cliente: ${context.brand_colors}\n- Cor primária para elementos dominantes (fundo, seções)\n- Cor de acento APENAS para CTA/botões\n- NÃO use cores genéricas quando as cores da marca estiverem definidas\n- Respeite os valores hex exatos fornecidos\n`
         : "";
@@ -513,7 +518,7 @@ Deno.serve(async (req) => {
       const visualStyleInstruction = context.visual_style
         ? `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\nSiga este estilo visual: ${context.visual_style}\n`
         : "";
-      const systemWithRules = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction + brandColorInstruction + typographyInstruction + visualStyleInstruction + customPrompt;
+      const systemWithRules = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction + brandColorInstruction + typographyInstruction + visualStyleInstruction + socialProfileInstruction + customPrompt;
 
       // Build rich brief context for user prompt
       const briefContextBlock = consolidatedStr
