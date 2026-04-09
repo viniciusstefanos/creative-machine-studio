@@ -101,43 +101,61 @@ const ADS_RULES = `
 - **Meio**: Retargeting. Prova social, comparativo, oferta de conteúdo gratuito (isca).
 - **Fundo**: Oferta direta, urgência real, escassez. CTA forte de compra/agendamento.`;
 
-async function callClaude(systemPrompt: string, userPrompt: string, apiKey: string): Promise<string> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+// ─── AI call via Lovable AI Gateway (default) or Claude (fallback) ───
+async function callAI(systemPrompt: string, userPrompt: string, lovableKey: string, anthropicKey: string, useClaude: boolean): Promise<string> {
+  if (useClaude && anthropicKey) {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": anthropicKey,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        temperature: 0.8,
+      }),
+    });
+    if (!res.ok) {
+      const status = res.status;
+      if (status === 429) throw new Error("rate_limit");
+      if (status === 402 || status === 400) throw new Error("credits");
+      throw new Error("ai_failed");
+    }
+    const data = await res.json();
+    return data.content?.[0]?.text || "";
+  }
+
+  // Default: Lovable AI Gateway
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
+      Authorization: `Bearer ${lovableKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
+      model: "google/gemini-2.5-pro",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
       temperature: 0.8,
     }),
   });
-
   if (!res.ok) {
-    const errText = await res.text();
-    console.error("Claude API error:", res.status, errText);
-    if (res.status === 429) throw new Error("rate_limit");
-    if (res.status === 402 || res.status === 400) throw new Error("credits");
+    const status = res.status;
+    if (status === 429) throw new Error("rate_limit");
+    if (status === 402) throw new Error("credits");
     throw new Error("ai_failed");
   }
-
   const data = await res.json();
-  return data.content?.[0]?.text || "";
+  return data.choices?.[0]?.message?.content || "";
 }
 
 async function getNextBatchLabel(supabase: any, activationId: string): Promise<string> {
-  const { count } = await supabase
-    .from("copies")
-    .select("batch_label", { count: "exact", head: true })
-    .eq("activation_id", activationId)
-    .not("batch_label", "is", null);
-
-  // Count distinct batch labels
   const { data: distinctBatches } = await supabase
     .from("copies")
     .select("batch_label")
@@ -155,7 +173,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { activation_id, brief, activation_name, channels, funnel_stages, purpose = "both", quantity = 6, topic } = await req.json();
+    const { activation_id, brief, activation_name, channels, funnel_stages, purpose = "both", quantity = 6, topic, use_claude } = await req.json();
 
     const safeQuantity = Math.min(Math.max(Number(quantity) || 6, 1), 20);
 
@@ -165,9 +183,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!anthropicKey) {
-      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }), {
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY") || "";
+    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY") || "";
+    const useClaude = !!use_claude;
+
+    if (!lovableKey && !anthropicKey) {
+      return new Response(JSON.stringify({ error: "No AI API key configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -176,22 +197,37 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Calculate batch label
     const batchLabel = await getNextBatchLabel(supabase, activation_id);
 
-    const { data: briefFiles } = await supabase
-      .from("brief_files")
-      .select("category, raw_text, extracted_fields, file_name")
-      .eq("activation_id", activation_id)
-      .not("raw_text", "is", null);
+    // Fetch brief files and consolidated context
+    const [briefFilesRes, fullBriefRes] = await Promise.all([
+      supabase
+        .from("brief_files")
+        .select("category, raw_text, extracted_fields, file_name")
+        .eq("activation_id", activation_id)
+        .not("raw_text", "is", null),
+      supabase
+        .from("briefs")
+        .select("consolidated_context")
+        .eq("activation_id", activation_id)
+        .maybeSingle(),
+    ]);
 
-    // Build context from extracted_fields (rich) + raw_text (fallback)
-    const filesContext = briefFiles?.length
+    const briefFiles = briefFilesRes.data || [];
+    const consolidatedContext = (fullBriefRes.data as any)?.consolidated_context || {};
+
+    // Build context from extracted_fields + raw_text
+    const filesContext = briefFiles.length
       ? "\n\n## DOCUMENTOS DE REFERÊNCIA COMPLETOS\n" +
         briefFiles.map((f: any) => {
           const efStr = f.extracted_fields ? `\n**Dados estruturados:**\n${JSON.stringify(f.extracted_fields, null, 2)}` : "";
           return `### [${f.category}] ${f.file_name}${efStr}\n\n**Texto:**\n${(f.raw_text || "").slice(0, 15000)}`;
         }).join("\n\n---\n\n")
+      : "";
+
+    // Build consolidated context block
+    const consolidatedBlock = Object.keys(consolidatedContext).length > 0
+      ? `\n\n## CONTEXTO CONSOLIDADO DO BRIEFING\n${JSON.stringify(consolidatedContext, null, 2)}`
       : "";
 
     const topicBlock = topic
@@ -207,6 +243,7 @@ Deno.serve(async (req) => {
 - Tipografia: ${brief.typography || "Não especificado"}
 - Estilo visual: ${brief.visual_style || "Não especificado"}
 ${filesContext}
+${consolidatedBlock}
 ${topicBlock}
 CANAIS: ${(channels || ["instagram"]).join(", ")}
 ETAPAS DO FUNIL: ${(funnel_stages || ["top", "mid", "bottom"]).join(", ")}`;
@@ -244,7 +281,7 @@ Gere exatamente ${quantityForPurpose} copies variados.
 Responda APENAS com um JSON array válido. Exemplo:
 [{"hook":"...","body":"...","cta":"...","type":"${p === "organic" ? "post" : "ad"}","channel":"instagram","funnel_stage":"top"}]`;
 
-      const content = await callClaude(systemPrompt, userPrompt, anthropicKey);
+      const content = await callAI(systemPrompt, userPrompt, lovableKey, anthropicKey, useClaude);
 
       let jsonStr = content;
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -258,7 +295,7 @@ Responda APENAS com um JSON array válido. Exemplo:
       try {
         copies = JSON.parse(jsonStr);
       } catch {
-        console.error("Failed to parse Claude response for purpose:", p, content);
+        console.error("Failed to parse AI response for purpose:", p, content);
         continue;
       }
 
