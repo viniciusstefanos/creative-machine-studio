@@ -452,6 +452,34 @@ Deno.serve(async (req) => {
 
   try {
     await supabase.from("asset_template_renders").delete().eq("asset_id", asset_id);
+
+    // ─── Helper: save render to asset_template_renders ─────────
+    async function saveRender(slideIndex: number, data: Record<string, any>) {
+      const { error } = await supabase.from("asset_template_renders").upsert(
+        { asset_id, slide_index: slideIndex, ...data, status: "done" },
+        { onConflict: "asset_id,slide_index" },
+      );
+      if (error) console.error("saveRender error:", error);
+    }
+
+    // ─── Helper: split copy into N slide parts ─────────────────
+    function splitCopyIntoSlides(minSlides: number): string[] {
+      const fullText = `${copy?.hook || ""}\n${copy?.body || ""}\n${copy?.cta || ""}`.trim();
+      const sentences = fullText.split(/(?<=[.!?;])\s+/).filter(Boolean);
+      if (sentences.length <= minSlides) {
+        // Pad with empty strings if fewer sentences than slides
+        while (sentences.length < minSlides) sentences.push("");
+        return sentences;
+      }
+      // Distribute sentences across slides
+      const result: string[] = [];
+      const perSlide = Math.ceil(sentences.length / minSlides);
+      for (let i = 0; i < sentences.length; i += perSlide) {
+        result.push(sentences.slice(i, i + perSlide).join(" "));
+      }
+      return result;
+    }
+
     const [templateRes, copyRes, briefRes, briefFilesRes, activationRes] = await Promise.all([
       supabase.from("asset_templates").select("*").eq("id", template_id).single(),
       supabase.from("copies").select("*").eq("id", copy_id).single(),
@@ -608,9 +636,9 @@ Deno.serve(async (req) => {
       const maxSlides = Math.min(slideParts.length, template.slides_count_max || 5);
 
       for (let i = 0; i < maxSlides; i++) {
-        const optimizedPrompt = await getImagePrompt(
-          template.image_prompt_template || "",
-          { ...context, slide_content: slideParts[i] },
+        const filledPrompt = fillTemplate(template.image_prompt_template || "", { ...context, slide_content: slideParts[i] });
+        const optimizedPrompt = await generateImagePrompt(
+          filledPrompt, useClaude, anthropicKey, lovableKey,
         );
         const imageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
         await saveRender(i, { image_url: imageUrl });
@@ -620,9 +648,9 @@ Deno.serve(async (req) => {
       }
 
     } else if (template.generation_type === "html_and_image") {
-      const optimizedPrompt = await getImagePrompt(
-        template.image_prompt_template || "",
-        context,
+      const filledPrompt2 = fillTemplate(template.image_prompt_template || "", context);
+      const optimizedPrompt = await generateImagePrompt(
+        filledPrompt2, useClaude, anthropicKey, lovableKey,
       );
       const bgImageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
 
@@ -652,7 +680,11 @@ Deno.serve(async (req) => {
     const feedbackMsg = msg === "rate_limit" ? "Limite de requisições. Tente novamente." :
       msg === "credits" ? "Créditos insuficientes." : "Erro na geração. Tente novamente.";
 
-    await supabase.from("assets").update({ status: "rejected", feedback: feedbackMsg }).eq("id", asset_id).catch(console.error);
+    try {
+      await supabase.from("assets").update({ status: "rejected", feedback: feedbackMsg }).eq("id", asset_id);
+    } catch (cleanupErr) {
+      console.error("Cleanup failed:", cleanupErr);
+    }
 
     return new Response(JSON.stringify({ error: feedbackMsg }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
