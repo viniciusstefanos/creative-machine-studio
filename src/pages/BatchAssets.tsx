@@ -36,13 +36,24 @@ const FUNNEL_LABELS: Record<string, string> = {
   bofu: "Fundo",
 };
 
-/** Extract hex colors from brief */
-function extractBriefColors(brief: any): Record<string, string | undefined> {
+/** Extract hex colors from brief + brief_files */
+function extractBriefColors(brief: any, briefFiles?: any[]): Record<string, string | undefined> {
   const colors: string[] = [];
   const hexMatches = (brief?.brand_colors || "").match(/#[0-9A-Fa-f]{6}/g) || [];
   colors.push(...hexMatches);
   const consolidated = (brief?.consolidated_context as any)?.visual_guidelines?.colors_hex || [];
   colors.push(...consolidated.filter((c: string) => !colors.includes(c)));
+  if (colors.length === 0 && briefFiles?.length) {
+    for (const f of briefFiles) {
+      const ef = f.extracted_fields;
+      if (ef?.visual_guidelines?.colors_hex) {
+        for (const c of (ef.visual_guidelines.colors_hex as string[])) {
+          const hex = c.match(/#[0-9A-Fa-f]{6}/)?.[0];
+          if (hex && !colors.includes(hex)) colors.push(hex);
+        }
+      }
+    }
+  }
   return {
     primary: colors[0], secondary: colors[1], accent: colors[1] || colors[0],
     background: colors[0], text: colors[2] || "#f5f5f0",

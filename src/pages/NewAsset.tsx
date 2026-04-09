@@ -22,13 +22,28 @@ interface EditableField {
   from_brief?: string;
 }
 
-/** Extract hex colors from brief's brand_colors text and consolidated_context */
-function extractBriefColors(brief: any): Record<string, string | undefined> {
+/** Extract hex colors from brief's brand_colors text, consolidated_context, and brief_files */
+function extractBriefColors(brief: any, briefFiles?: any[]): Record<string, string | undefined> {
   const colors: string[] = [];
+  // 1. Direct brief.brand_colors text
   const hexMatches = (brief?.brand_colors || "").match(/#[0-9A-Fa-f]{6}/g) || [];
   colors.push(...hexMatches);
+  // 2. Consolidated context
   const consolidated = (brief?.consolidated_context as any)?.visual_guidelines?.colors_hex || [];
   colors.push(...consolidated.filter((c: string) => !colors.includes(c)));
+  // 3. Fallback: brief_files extracted_fields
+  if (colors.length === 0 && briefFiles?.length) {
+    for (const f of briefFiles) {
+      const ef = f.extracted_fields;
+      if (ef?.visual_guidelines?.colors_hex) {
+        const fileColors = ef.visual_guidelines.colors_hex as string[];
+        for (const c of fileColors) {
+          const hex = c.match(/#[0-9A-Fa-f]{6}/)?.[0];
+          if (hex && !colors.includes(hex)) colors.push(hex);
+        }
+      }
+    }
+  }
   return {
     primary: colors[0],
     secondary: colors[1],
