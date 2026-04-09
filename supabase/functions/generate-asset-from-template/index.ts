@@ -75,10 +75,18 @@ const HTML_CREATIVE_RULES = `
 1. Âncora (headline/produto) 2. Suporte (sub/benefício) 3. CTA/detalhe
 - Máx 2 linhas texto por bloco. Texto ≤20% da área. Espaço negativo ≥30%.
 
+### ALINHAMENTO E LAYOUT
+- Container principal: align-items:center para centralizar todos os elementos horizontalmente.
+- CTA botão: SEMPRE centralizado horizontalmente (align-self:center ou text-align:center no container).
+- NUNCA alinhe o CTA à esquerda (flex-start) ou à direita (flex-end) — SEMPRE centralizado.
+- Todos os blocos de texto: text-align:center por padrão em posts single. Carrossel pode ser left-aligned.
+- Espaçamento entre blocos: gap:24px no container flex.
+
 ### CSS AVANÇADO
 - text-shadow headlines, gradientes 3+ stops, radial-gradient focal, glassmorphism
 - Elementos decorativos: linhas de acento, círculos position:absolute opacity:0.1
-- Botão: accent + box-shadow glow + padding 16px 48px + border-radius 8px
+- Botão CTA: accent + box-shadow glow + padding 16px 48px + border-radius 8px + align-self:center
+- NUNCA border-radius > 8px em botões. NUNCA border-radius > 12px em qualquer elemento.
 
 ### CORES
 - 1 dominante + 1 suporte + 1 acento (CTA only). Contraste ≥4.5:1. Nunca #fff puro → #f5f5f0
