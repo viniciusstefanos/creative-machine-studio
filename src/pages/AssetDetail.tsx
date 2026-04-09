@@ -479,11 +479,14 @@ const AssetDetail = () => {
             {currentRender.png_url ? (
               <img src={currentRender.png_url} alt={`Slide ${currentRender.slide_index + 1}`} className="w-full h-full object-contain" />
             ) : currentRender.html_content ? (
-              <div className="w-full h-full relative overflow-hidden">
+              <div className="w-full h-full relative overflow-hidden" style={{
+                height: 540 / (template?.width_px || 1080) * (template?.height_px || 1350),
+              }}>
                 <iframe
                   srcDoc={currentRender.html_content}
                   sandbox="allow-scripts"
-                  className="border-0 origin-top-left"
+                  scrolling="no"
+                  className="border-0 origin-top-left pointer-events-none"
                   style={{
                     width: template?.width_px || 1080,
                     height: template?.height_px || 1080,
