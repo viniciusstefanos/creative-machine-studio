@@ -3,6 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // @ts-ignore - JSZip for DOCX parsing
 import JSZip from "https://esm.sh/jszip@3.10.1";
 import { BRIEF_SYSTEM_PROMPT, DEEP_EXTRACTION_SCHEMA } from "../_shared/brief-system-prompt.ts";
+import { getPrompt } from "../_shared/get-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -95,10 +96,20 @@ Deno.serve(async (req) => {
 
     let extracted: any = {};
 
+    // Load prompts from DB with fallback
+    const [extractionSystemContent, extractionSchemaContent] = await Promise.all([
+      getPrompt(supabase, "brief_extraction", EXTRACTION_SYSTEM.replace(BRIEF_SYSTEM_PROMPT + "\n\n", "")),
+      getPrompt(supabase, "brief_extraction_schema", JSON.stringify(DEEP_EXTRACTION_SCHEMA)),
+    ]);
+    const briefSystemContent = await getPrompt(supabase, "brief_system", BRIEF_SYSTEM_PROMPT);
+    const fullExtractionSystem = briefSystemContent + "\n\n" + extractionSystemContent;
+    let schemaForExtraction: any;
+    try { schemaForExtraction = JSON.parse(extractionSchemaContent); } catch { schemaForExtraction = DEEP_EXTRACTION_SCHEMA; }
+
     if (LOVABLE_API_KEY) {
-      extracted = await extractWithLovableAI(textForAI, LOVABLE_API_KEY);
+      extracted = await extractWithLovableAI(textForAI, LOVABLE_API_KEY, fullExtractionSystem, schemaForExtraction);
     } else if (ANTHROPIC_API_KEY) {
-      extracted = await extractWithClaude(textForAI, ANTHROPIC_API_KEY);
+      extracted = await extractWithClaude(textForAI, ANTHROPIC_API_KEY, fullExtractionSystem);
     } else {
       throw new Error("No AI key configured");
     }
@@ -116,14 +127,14 @@ Deno.serve(async (req) => {
   }
 });
 
-async function extractWithLovableAI(text: string, apiKey: string): Promise<any> {
+async function extractWithLovableAI(text: string, apiKey: string, systemPrompt: string, schema: any): Promise<any> {
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "google/gemini-3-flash-preview",
       messages: [
-        { role: "system", content: EXTRACTION_SYSTEM },
+        { role: "system", content: systemPrompt },
         { role: "user", content: `Analise este documento INTEGRALMENTE e extraia TODOS os campos com máxima profundidade:\n\n${text}` },
       ],
       tools: [{
@@ -131,7 +142,7 @@ async function extractWithLovableAI(text: string, apiKey: string): Promise<any> 
         function: {
           name: "extract_brief_deep",
           description: "Extract all structured fields from a marketing/branding document with maximum depth",
-          parameters: DEEP_EXTRACTION_SCHEMA,
+          parameters: schema,
         },
       }],
       tool_choice: { type: "function", function: { name: "extract_brief_deep" } },
@@ -150,7 +161,7 @@ async function extractWithLovableAI(text: string, apiKey: string): Promise<any> 
   return toolCall ? JSON.parse(toolCall.function.arguments) : {};
 }
 
-async function extractWithClaude(text: string, apiKey: string): Promise<any> {
+async function extractWithClaude(text: string, apiKey: string, systemPrompt: string): Promise<any> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -161,7 +172,7 @@ async function extractWithClaude(text: string, apiKey: string): Promise<any> {
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
-      system: EXTRACTION_SYSTEM,
+      system: systemPrompt,
       messages: [{ role: "user", content: `Analise este documento INTEGRALMENTE e extraia TODOS os campos com máxima profundidade. Responda APENAS com JSON válido seguindo o schema.\n\n${text}` }],
     }),
   });

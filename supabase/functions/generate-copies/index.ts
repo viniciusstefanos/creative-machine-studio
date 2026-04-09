@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { BRIEF_SYSTEM_PROMPT } from "../_shared/brief-system-prompt.ts";
+import { getPrompt } from "../_shared/get-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -254,9 +255,15 @@ ETAPAS DO FUNIL: ${(funnel_stages || ["top", "mid", "bottom"]).join(", ")}`;
     let allCopies: any[] = [];
 
     for (const p of purposesToGenerate) {
-      const purposeRules = p === "organic" ? ORGANIC_RULES : ADS_RULES;
+      const [briefSystemContent, copyBaseContent, purposeContent] = await Promise.all([
+        getPrompt(supabase, "brief_system", BRIEF_SYSTEM_PROMPT),
+        getPrompt(supabase, "copy_base", BASE_SYSTEM_PROMPT),
+        p === "organic"
+          ? getPrompt(supabase, "copy_organic", ORGANIC_RULES)
+          : getPrompt(supabase, "copy_ads", ADS_RULES),
+      ]);
       const customPrompt = brief.system_prompt ? `\n\n## INSTRUÇÕES CUSTOMIZADAS DA ATIVAÇÃO\n${brief.system_prompt}` : "";
-      const systemPrompt = BASE_SYSTEM_PROMPT + "\n" + purposeRules + customPrompt;
+      const systemPrompt = briefSystemContent + "\n" + copyBaseContent + "\n" + purposeContent + customPrompt;
 
       const purposeInstruction = p === "organic"
         ? `FINALIDADE: ORGÂNICO — gere copies para publicação orgânica. Caption longo, hashtags, CTA de engajamento.`
