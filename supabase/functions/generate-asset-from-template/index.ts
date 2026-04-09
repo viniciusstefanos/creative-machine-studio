@@ -94,10 +94,10 @@ const HTML_CREATIVE_RULES = `
 ### OUTPUT
 Retorne SOMENTE HTML puro. ZERO markdown, explicação ou comentário. Comece com <link> ou <div>.
 
-### TEMPLATE BASE
+### TEMPLATE BASE (exemplo — SUBSTITUA as fontes pelas da marca quando especificadas no briefing)
 \`\`\`
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<div style="width:{W}px;height:{H}px;box-sizing:border-box;padding:{PADDING};background:linear-gradient(135deg,{BG1} 0%,{BG2} 100%);display:flex;flex-direction:column;justify-content:center;font-family:'DM Sans',sans-serif;overflow:hidden;position:relative">
+<link href="https://fonts.googleapis.com/css2?family={FONT_HEADLINE}:wght@400;500;600;700&family={FONT_BODY}:wght@400;500;600;700&display=swap" rel="stylesheet">
+<div style="width:{W}px;height:{H}px;box-sizing:border-box;padding:{PADDING};background:linear-gradient(135deg,{BG1} 0%,{BG2} 100%);display:flex;flex-direction:column;justify-content:center;font-family:'{FONT_BODY}',sans-serif;overflow:hidden;position:relative">
   <!-- conteúdo -->
 </div>
 \`\`\`
