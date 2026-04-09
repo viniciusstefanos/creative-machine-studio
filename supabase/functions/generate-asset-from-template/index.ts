@@ -402,7 +402,7 @@ Deno.serve(async (req) => {
 
     const config = render_config || {};
 
-    // Resolve visual identity: prefer explicit brief fields, fallback to consolidated_context
+    // Resolve visual identity: prefer explicit brief fields, then consolidated_context, then brief_files
     const resolvedBrandColors = (brief as any)?.brand_colors
       || consolidated.visual_guidelines?.colors
       || consolidated.brand_colors
@@ -415,6 +415,20 @@ Deno.serve(async (req) => {
       || consolidated.visual_guidelines?.style
       || consolidated.visual_style
       || "";
+
+    // If no brand colors from brief/consolidated, extract from brief_files
+    let briefFileColors: string[] = [];
+    if (!resolvedBrandColors && briefFiles.length > 0) {
+      for (const f of briefFiles) {
+        const ef = (f as any).extracted_fields;
+        if (ef?.visual_guidelines?.colors_hex) {
+          for (const c of ef.visual_guidelines.colors_hex) {
+            const hex = (c as string).match(/#[0-9A-Fa-f]{6}/)?.[0];
+            if (hex && !briefFileColors.includes(hex)) briefFileColors.push(hex);
+          }
+        }
+      }
+    }
 
     const context = {
       hook: copy.hook || "",
