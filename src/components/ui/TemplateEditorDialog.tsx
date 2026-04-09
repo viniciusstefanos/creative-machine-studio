@@ -137,10 +137,26 @@ export function TemplateEditorDialog({ open, onOpenChange, template, clients, on
 
       if (data.html_scaffold) setHtmlScaffold(data.html_scaffold);
       if (data.system_prompt) setSystemPrompt(data.system_prompt);
-      if (data.editable_fields) setEditableFieldsJson(JSON.stringify(data.editable_fields, null, 2));
       if (data.image_prompt_template) setImagePromptTemplate(data.image_prompt_template);
 
-      toast({ title: "Template gerado!", description: "Revise e ajuste os campos gerados pela IA." });
+      // Auto-fill required color fields if missing
+      const fields = data.editable_fields || {};
+      if (!fields.bg_color) fields.bg_color = { label: "Cor de fundo", type: "color", default: "#0a0a0a" };
+      if (!fields.accent_color) fields.accent_color = { label: "Cor destaque", type: "color", default: "#00C9A7" };
+      if (!fields.text_color) fields.text_color = { label: "Cor do texto", type: "color", default: "#ffffff" };
+      setEditableFieldsJson(JSON.stringify(fields, null, 2));
+
+      // Warn if scaffold doesn't reference color variables
+      const scaffold = data.html_scaffold || "";
+      const missingVars = [];
+      if (!scaffold.includes("{{bg_color}}")) missingVars.push("{{bg_color}}");
+      if (!scaffold.includes("{{accent_color}}")) missingVars.push("{{accent_color}}");
+
+      if (missingVars.length > 0) {
+        toast({ title: "Template gerado!", description: `⚠ Scaffold sem ${missingVars.join(", ")}. Revise o HTML.` });
+      } else {
+        toast({ title: "Template gerado!", description: "Revise e ajuste os campos gerados pela IA." });
+      }
     } catch (err: any) {
       toast({ title: "Erro na geração", description: err.message || "Falha ao gerar template", variant: "destructive" });
     } finally {
