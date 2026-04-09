@@ -557,7 +557,10 @@ Deno.serve(async (req) => {
       }
       return instr;
     }
-      const systemWithRules = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction + brandColorInstruction + typographyInstruction + visualStyleInstruction + socialProfileInstruction + customPrompt;
+
+      const brandInstructions = buildBrandInstructions(context, config);
+      const socialInstruction = buildSocialInstruction(activationSocial);
+      const systemWithRules = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction + brandInstructions + socialInstruction + customPrompt;
 
       // Build rich brief context for user prompt
       const briefContextBlock = consolidatedStr
@@ -617,19 +620,9 @@ Deno.serve(async (req) => {
       );
       const bgImageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
 
-      const brandColorInstruction2 = context.brand_colors
-        ? `\n\n## CORES DA MARCA (OBRIGATÓRIO — PRIORIDADE MÁXIMA)\nA identidade visual do cliente define estas cores: ${context.brand_colors}\n- EXTRAIA os códigos hex e aplique-os: primária→fundo, acento→CTA/botões\n- NÃO use cores genéricas. Use EXATAMENTE os hex do cliente.\n`
-        : "";
-      const typographyInstruction2 = context.typography
-        ? `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO)\n${context.typography}\nImporte via Google Fonts se disponível.\n`
-        : "";
-      const visualStyleInstruction2 = context.visual_style
-        ? `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\n${context.visual_style}\n`
-        : "";
-      const socialProfileInstruction2 = (activationSocial as any)?.social_display_name || (activationSocial as any)?.social_handle
-        ? `\n\n## PERFIL SOCIAL (OBRIGATÓRIO)\nNome: ${(activationSocial as any)?.social_display_name || ""}\nHandle: ${(activationSocial as any)?.social_handle || ""}\nFoto URL: ${(activationSocial as any)?.social_avatar_url || ""}\nUse EXATAMENTE estes dados. NÃO invente handles fictícios.\n`
-        : "";
-      const overlaySystem = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + brandColorInstruction2 + typographyInstruction2 + visualStyleInstruction2 + socialProfileInstruction2 + customPrompt;
+      const brandInstructions2 = buildBrandInstructions(context, config);
+      const socialInstruction2 = buildSocialInstruction(activationSocial);
+      const overlaySystem = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + brandInstructions2 + socialInstruction2 + customPrompt;
       const briefContextBlock2 = consolidatedStr
         ? `\n\n## BRIEFING DO CLIENTE\n${consolidatedStr}`
         : "";
