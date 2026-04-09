@@ -135,7 +135,7 @@ const NewAsset = () => {
     }
     const defaults: Record<string, any> = {};
     const fields = selectedTemplate.editable_fields as Record<string, EditableField>;
-    const briefColors = extractBriefColors(brief);
+    const briefColors = extractBriefColors(brief, briefFiles);
     const filledFromBrief = new Set<string>();
 
     // Dynamic color mapping via from_brief property
