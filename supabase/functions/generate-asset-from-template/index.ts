@@ -481,7 +481,17 @@ Deno.serve(async (req) => {
       }
 
       if (ctx.typography) {
-        instructions += `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO)\nUse estas fontes conforme a identidade visual do cliente: ${ctx.typography}\nImporte via Google Fonts se disponível. Se a fonte não existir no Google Fonts, use a mais próxima visualmente.\n`;
+        instructions += `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO — PRIORIDADE MÁXIMA)
+SUBSTITUA as fontes padrão do template (Space Grotesk, DM Sans, Inter, etc.) pelas fontes da marca: ${ctx.typography}
+- Importe via Google Fonts com <link>. Se a fonte não existir no Google Fonts, use a mais próxima visualmente.
+- NÃO use fontes genéricas (Inter, Arial, Helvetica, system-ui) quando as fontes da marca estiverem definidas.
+- Aplique a hierarquia: font de display para títulos/headlines, font de corpo para body/labels/CTA.`;
+      } else if (briefFileFonts.length > 0) {
+        instructions += `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO — PRIORIDADE MÁXIMA)
+Fontes extraídas dos documentos do briefing: ${briefFileFonts.join(", ")}
+- SUBSTITUA as fontes padrão do template pelas fontes acima.
+- Importe via Google Fonts com <link>. Use a 1ª como headline e a 2ª como corpo.
+- NÃO use fontes genéricas (Inter, Arial, Helvetica) quando as fontes da marca estiverem definidas.`;
       }
       if (ctx.visual_style) {
         instructions += `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\nSiga este estilo visual: ${ctx.visual_style}\n`;
