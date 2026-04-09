@@ -1,67 +1,53 @@
 
 
-# Fix: Renderização Puxando Fontes da App + Botões Desalinhados
+# Cadastro de Perfil Social por Ativação
 
-## Problema Raiz
-
-1. **Fontes erradas**: `renderHtmlToPng()` injeta o HTML do asset diretamente no DOM da página (`document.body.appendChild`). O CSS global do app (`src/index.css` linha 89-91) aplica `font-family: 'Syne'` em todos os `h1-h6`. Resultado: títulos do asset renderizado usam Syne em vez da fonte definida no HTML gerado.
-
-2. **Botões desalinhados**: `html2canvas` tem problemas conhecidos com `display: flex`, `align-items: center` em botões. O texto do botão fica descentralizado no PNG final.
+## Problema
+Templates que exibem foto de perfil, nome e @handle usam dados genéricos ou vazios. Não há cadastro para essas informações, e a Edge Function de geração não as injeta no prompt.
 
 ## Solução
 
-### Isolar o HTML do asset em um iframe (sandbox CSS)
+### 1. Migration — Novos campos na tabela `activations`
 
-Substituir a abordagem atual (innerHTML no DOM) por um **iframe offscreen** com `srcdoc`. O iframe cria um contexto CSS completamente isolado — nenhum estilo do app vaza para dentro.
+Adicionar 3 colunas à tabela `activations`:
+- `social_display_name` (text, nullable) — nome de exibição no perfil
+- `social_handle` (text, nullable) — @handle (ex: `@meucliente`)
+- `social_avatar_url` (text, nullable) — URL da foto de perfil
 
-#### `src/lib/renderPng.ts` — reescrever `renderHtmlToPng`
+### 2. UI — Formulário de criação/edição de ativação
+
+No `NewActivation.tsx`, adicionar seção "Perfil Social" com 3 campos:
+- Nome de exibição (text input)
+- @Handle (text input com placeholder `@perfil`)
+- Foto de perfil (upload ou URL) — upload para bucket `assets` (já público)
+
+Auto-preencher com dados do `client_meta_accounts` (se existir `instagram_username`), mas permitir edição.
+
+### 3. Edge Function — Injetar dados no prompt
+
+No `generate-asset-from-template/index.ts`:
+- Buscar `social_display_name`, `social_handle`, `social_avatar_url` da ativação (já temos o `activation_id`)
+- Adicionar instrução ao prompt:
 
 ```
-Antes:
-  container.innerHTML = htmlContent → herda CSS global (Syne, etc.)
-  html2canvas(container) → problemas com flex em botões
-
-Depois:
-  1. Criar iframe offscreen com srcdoc contendo:
-     - Link do Google Fonts extraído do HTML
-     - Reset CSS (*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 })
-     - O HTML do asset
-  2. Aguardar iframe carregar + fonts.ready
-  3. Usar html2canvas no iframe.contentDocument.body
-  4. Remover iframe
+## PERFIL SOCIAL (OBRIGATÓRIO nos templates que exibem perfil)
+Nome: {social_display_name}
+Handle: {social_handle}
+Foto de perfil URL: {social_avatar_url}
+Quando o template incluir avatar, nome de perfil ou @handle, use EXATAMENTE estes dados.
+NÃO invente nomes de perfil ou handles fictícios.
 ```
 
-**Detalhe técnico do iframe**:
-```typescript
-const iframe = document.createElement("iframe");
-iframe.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${width}px;height:${height}px;border:none;`;
-iframe.sandbox = "allow-same-origin"; // permite acessar contentDocument
-document.body.appendChild(iframe);
+- Se `social_avatar_url` existir, instruir o HTML a usar `<img src="{url}">` em vez de placeholder
 
-const doc = iframe.contentDocument!;
-doc.open();
-doc.write(`<!DOCTYPE html><html><head>
-  <meta charset="utf-8">
-  <link rel="stylesheet" href="${fontsUrl}">
-  <style>*{margin:0;padding:0;box-sizing:border-box}
-  button,a{display:inline-flex;align-items:center;justify-content:center;text-align:center}
-  </style>
-</head><body style="width:${width}px;height:${height}px;overflow:hidden">
-  ${htmlContent}
-</body></html>`);
-doc.close();
+### 4. Edição posterior
 
-// Esperar load + fonts
-await new Promise(r => iframe.addEventListener("load", r));
-await doc.fonts.ready;
+Na página da ativação (`ActivationHub`), permitir editar os dados de perfil social na aba de Brief ou em uma seção dedicada.
 
-const canvas = await html2canvas(doc.body, { width, height, scale: 2, ... });
-```
+## Arquivos modificados
 
-Isso resolve ambos os problemas:
-- **Fontes**: O iframe não herda o CSS do app. Os `h1-h6` usam apenas o que está no HTML do asset.
-- **Botões**: O reset CSS dentro do iframe inclui regras específicas para `button` e `a` com `display:inline-flex; align-items:center; justify-content:center` garantindo centralização.
-
-### Arquivo modificado
-- **`src/lib/renderPng.ts`** — reescrever `renderHtmlToPng` para usar iframe isolado em vez de `innerHTML` no DOM principal
+- **Migration SQL** — 3 colunas em `activations`
+- **`src/pages/NewActivation.tsx`** — campos de perfil social no formulário, auto-fill do client_meta_accounts
+- **`supabase/functions/generate-asset-from-template/index.ts`** — buscar dados de perfil e injetar no prompt
+- **`src/pages/ActivationHub.tsx`** ou **`src/components/activation/BriefTab.tsx`** — edição dos dados de perfil social
 
