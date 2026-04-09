@@ -94,10 +94,10 @@ const HTML_CREATIVE_RULES = `
 ### OUTPUT
 Retorne SOMENTE HTML puro. ZERO markdown, explicação ou comentário. Comece com <link> ou <div>.
 
-### TEMPLATE BASE
+### TEMPLATE BASE (exemplo — SUBSTITUA as fontes pelas da marca quando especificadas no briefing)
 \`\`\`
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<div style="width:{W}px;height:{H}px;box-sizing:border-box;padding:{PADDING};background:linear-gradient(135deg,{BG1} 0%,{BG2} 100%);display:flex;flex-direction:column;justify-content:center;font-family:'DM Sans',sans-serif;overflow:hidden;position:relative">
+<link href="https://fonts.googleapis.com/css2?family={FONT_HEADLINE}:wght@400;500;600;700&family={FONT_BODY}:wght@400;500;600;700&display=swap" rel="stylesheet">
+<div style="width:{W}px;height:{H}px;box-sizing:border-box;padding:{PADDING};background:linear-gradient(135deg,{BG1} 0%,{BG2} 100%);display:flex;flex-direction:column;justify-content:center;font-family:'{FONT_BODY}',sans-serif;overflow:hidden;position:relative">
   <!-- conteúdo -->
 </div>
 \`\`\`
@@ -418,13 +418,21 @@ Deno.serve(async (req) => {
 
     // If no brand colors from brief/consolidated, extract from brief_files
     let briefFileColors: string[] = [];
-    if (!resolvedBrandColors && briefFiles.length > 0) {
+    let briefFileFonts: string[] = [];
+    if (briefFiles.length > 0) {
       for (const f of briefFiles) {
         const ef = (f as any).extracted_fields;
-        if (ef?.visual_guidelines?.colors_hex) {
+        if (ef?.visual_guidelines?.colors_hex && !resolvedBrandColors) {
           for (const c of ef.visual_guidelines.colors_hex) {
             const hex = (c as string).match(/#[0-9A-Fa-f]{6}/)?.[0];
             if (hex && !briefFileColors.includes(hex)) briefFileColors.push(hex);
+          }
+        }
+        if (ef?.visual_guidelines?.fonts && !resolvedTypography) {
+          for (const font of ef.visual_guidelines.fonts) {
+            if (font && typeof font === "string" && !briefFileFonts.includes(font)) {
+              briefFileFonts.push(font);
+            }
           }
         }
       }
@@ -473,7 +481,17 @@ Deno.serve(async (req) => {
       }
 
       if (ctx.typography) {
-        instructions += `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO)\nUse estas fontes conforme a identidade visual do cliente: ${ctx.typography}\nImporte via Google Fonts se disponível. Se a fonte não existir no Google Fonts, use a mais próxima visualmente.\n`;
+        instructions += `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO — PRIORIDADE MÁXIMA)
+SUBSTITUA as fontes padrão do template (Space Grotesk, DM Sans, Inter, etc.) pelas fontes da marca: ${ctx.typography}
+- Importe via Google Fonts com <link>. Se a fonte não existir no Google Fonts, use a mais próxima visualmente.
+- NÃO use fontes genéricas (Inter, Arial, Helvetica, system-ui) quando as fontes da marca estiverem definidas.
+- Aplique a hierarquia: font de display para títulos/headlines, font de corpo para body/labels/CTA.`;
+      } else if (briefFileFonts.length > 0) {
+        instructions += `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO — PRIORIDADE MÁXIMA)
+Fontes extraídas dos documentos do briefing: ${briefFileFonts.join(", ")}
+- SUBSTITUA as fontes padrão do template pelas fontes acima.
+- Importe via Google Fonts com <link>. Use a 1ª como headline e a 2ª como corpo.
+- NÃO use fontes genéricas (Inter, Arial, Helvetica) quando as fontes da marca estiverem definidas.`;
       }
       if (ctx.visual_style) {
         instructions += `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\nSiga este estilo visual: ${ctx.visual_style}\n`;
