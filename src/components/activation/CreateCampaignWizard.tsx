@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Check, ChevronRight, ChevronLeft, Image as ImageIcon, Target, Crosshair, LayoutGrid, Megaphone, ClipboardList } from "lucide-react";
+import { buildCampaignName, buildAdsetName, buildAdName } from "@/lib/adNaming";
 
 interface CreateCampaignWizardProps {
   open: boolean;
@@ -281,7 +282,7 @@ export const CreateCampaignWizard = ({
     setSubmitting(true);
     try {
       const budgetCents = Math.round(parseFloat(dailyBudget) * 100);
-      const fullCampaignName = activationSlug ? `${activationSlug} — ${campaignName}` : campaignName;
+      const fullCampaignName = buildCampaignName(activationSlug, campaignName, objective);
 
       // 1. Create campaign
       const { data: campRes, error: campErr } = await supabase.functions.invoke("meta-ads", {
@@ -310,7 +311,7 @@ export const CreateCampaignWizard = ({
         action: "create_adset",
         ad_account_id: metaAccount.ad_account_id,
         campaign_id: platformCampaignId,
-        name: `${fullCampaignName} — Conjunto`,
+        name: buildAdsetName(fullCampaignName, placementMode === "automatic" ? "BROAD" : "MANUAL"),
         daily_budget: budgetCents,
         optimization_goal: objConfig?.optimization_goal || "REACH",
         bid_strategy: bidStrategy,
@@ -354,9 +355,12 @@ export const CreateCampaignWizard = ({
       let successCount = 0;
       const urlTags = buildUtmTags();
 
-      for (const asset of selectedAssets) {
+      for (let i = 0; i < selectedAssets.length; i++) {
+        const asset = selectedAssets[i];
         const imageUrls = sortRenders(asset.renders).map(r => r.png_url).filter((url): url is string => Boolean(url));
         if (imageUrls.length === 0) continue;
+
+        const adName = buildAdName(asset.name?.includes("CRS") ? "carousel" : "static", i, 1);
 
         try {
           const { data: adRes, error: adErr } = await supabase.functions.invoke("meta-ads", {
@@ -364,7 +368,7 @@ export const CreateCampaignWizard = ({
               action: "create_ad",
               ad_account_id: metaAccount.ad_account_id,
               adset_id: adsetId,
-              name: asset.name || `Ad ${successCount + 1}`,
+              name: adName,
               image_url: imageUrls[0],
               image_urls: imageUrls,
               caption: asset.copy?.full_copy || asset.copy?.hook || "",
