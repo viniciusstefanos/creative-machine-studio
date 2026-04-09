@@ -169,6 +169,7 @@ const CopyDetail = () => {
     if (!copy) return;
     setCreatingVariation(true);
     const newPurpose = (copy.purpose || "organic") === "organic" ? "ads" : "organic";
+    const parentId = copy.parent_id || copy.id; // link to original
     try {
       const { data, error } = await supabase.from("copies").insert([{
         activation_id: activationId,
@@ -181,6 +182,8 @@ const CopyDetail = () => {
         funnel_stage: copy.funnel_stage,
         purpose: newPurpose,
         status: "draft",
+        parent_id: parentId,
+        batch_label: copy.batch_label,
       }]).select().single();
 
       if (error) throw error;

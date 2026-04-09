@@ -130,6 +130,25 @@ async function callClaude(systemPrompt: string, userPrompt: string, apiKey: stri
   return data.content?.[0]?.text || "";
 }
 
+async function getNextBatchLabel(supabase: any, activationId: string): Promise<string> {
+  const { count } = await supabase
+    .from("copies")
+    .select("batch_label", { count: "exact", head: true })
+    .eq("activation_id", activationId)
+    .not("batch_label", "is", null);
+
+  // Count distinct batch labels
+  const { data: distinctBatches } = await supabase
+    .from("copies")
+    .select("batch_label")
+    .eq("activation_id", activationId)
+    .not("batch_label", "is", null);
+
+  const uniqueLabels = new Set((distinctBatches || []).map((r: any) => r.batch_label));
+  const nextNum = uniqueLabels.size + 1;
+  return `Lote #${nextNum}`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -156,6 +175,9 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
+
+    // Calculate batch label
+    const batchLabel = await getNextBatchLabel(supabase, activation_id);
 
     const { data: briefFiles } = await supabase
       .from("brief_files")
@@ -251,6 +273,7 @@ Responda APENAS com um JSON array válido. Exemplo:
         funnel_stage: c.funnel_stage || "top",
         status: "draft",
         purpose: p,
+        batch_label: batchLabel,
       }));
 
       const { data, error } = await supabase.from("copies").insert(inserts).select();
@@ -267,7 +290,7 @@ Responda APENAS com um JSON array válido. Exemplo:
       });
     }
 
-    return new Response(JSON.stringify({ copies: allCopies }), {
+    return new Response(JSON.stringify({ copies: allCopies, batch_label: batchLabel }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

@@ -288,6 +288,7 @@ const AssetDetail = () => {
     if (!asset || !id) return;
     setActionLoading(true);
     const newVersion = (asset.version || 1) + 1;
+    const parentId = asset.parent_id || asset.id; // link variation to original
     const { data: newAsset, error } = await supabase
       .from("assets")
       .insert({
@@ -299,6 +300,8 @@ const AssetDetail = () => {
         status: "generating",
         version: newVersion,
         feedback: feedback || asset.feedback,
+        parent_id: parentId,
+        batch_label: asset.batch_label,
       })
       .select()
       .single();

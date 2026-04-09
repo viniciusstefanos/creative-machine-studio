@@ -140,6 +140,15 @@ const BatchAssets = () => {
       return { copy_id, template_id };
     });
 
+    // Calculate batch label for assets
+    const { data: distinctBatches } = await supabase
+      .from("assets")
+      .select("batch_label")
+      .eq("activation_id", id)
+      .not("batch_label", "is", null);
+    const uniqueLabels = new Set((distinctBatches || []).map((r: any) => r.batch_label));
+    const batchLabel = `Lote #${uniqueLabels.size + 1}`;
+
     const { count: existingCount } = await supabase
       .from("assets")
       .select("id", { count: "exact", head: true })
@@ -164,6 +173,7 @@ const BatchAssets = () => {
             category: template?.category || "static",
             render_config: {},
             name: assetName,
+            batch_label: batchLabel,
           })
           .select()
           .single();
@@ -180,7 +190,7 @@ const BatchAssets = () => {
     }
 
     setGenerating(false);
-    toast({ title: "Lote concluído", description: `${items.length} peças enviadas para geração.` });
+    toast({ title: `${batchLabel} concluído`, description: `${items.length} peças enviadas para geração.` });
     navigate(`/activations/${id}/assets`);
   };
 
