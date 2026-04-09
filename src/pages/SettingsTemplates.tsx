@@ -104,9 +104,10 @@ const SettingsTemplates = () => {
     setEditorOpen(true);
   };
 
+  const afterActive = showInactive ? templates : templates.filter((t) => t.active);
   const filtered = filterFunnel
-    ? templates.filter((t) => t.funnel_stage === filterFunnel)
-    : templates;
+    ? afterActive.filter((t) => t.funnel_stage === filterFunnel)
+    : afterActive;
 
   const categories = [...new Set(filtered.map((t) => t.category))];
 
