@@ -15,6 +15,7 @@ const settingsItems = [
   { to: "/settings/team", label: "Time" },
   { to: "/settings/templates", label: "Templates" },
   { to: "/settings/formats", label: "Formatos" },
+  { to: "/settings/prompts", label: "Prompts IA" },
 ];
 
 export const SIDEBAR_WIDTH = 220;
