@@ -212,7 +212,7 @@ const BatchAssets = () => {
       seq++;
 
       try {
-        const renderConfig = buildRenderConfig(template, brief);
+        const renderConfig = buildRenderConfig(template, brief, briefFiles);
         const { data: asset } = await supabase
           .from("assets")
           .insert({
