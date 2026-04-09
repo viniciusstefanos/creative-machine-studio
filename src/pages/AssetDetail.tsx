@@ -340,16 +340,64 @@ const AssetDetail = () => {
   const saveHtmlEdit = async () => {
     if (!currentRender) return;
     setEditLoading(true);
+
+    // Detect color replacements by comparing original vs edited HTML
+    const originalHtml = currentRender.html_content || "";
+    const hexRegex = /#(?:[0-9a-fA-F]{3,4}){1,2}\b/g;
+    const originalColors = new Set((originalHtml.match(hexRegex) || []).map((c: string) => c.toLowerCase()));
+    const editedColors = new Set((editHtml.match(hexRegex) || []).map((c: string) => c.toLowerCase()));
+    
+    // Find color replacements: colors in original that are not in edited, paired with new colors
+    const colorReplacements: Array<[string, string]> = [];
+    if (renders.length > 1) {
+      // Build mapping by checking what each original color became
+      const origArr = (originalHtml.match(hexRegex) || []).map((c: string) => c.toLowerCase());
+      const editArr = (editHtml.match(hexRegex) || []).map((c: string) => c.toLowerCase());
+      const seen = new Map<string, string>();
+      for (let ci = 0; ci < Math.min(origArr.length, editArr.length); ci++) {
+        if (origArr[ci] !== editArr[ci] && !seen.has(origArr[ci])) {
+          seen.set(origArr[ci], editArr[ci]);
+        }
+      }
+      seen.forEach((newC, oldC) => colorReplacements.push([oldC, newC]));
+    }
+
+    // Save current slide
     const { error } = await supabase.functions.invoke("edit-asset-render", {
       body: { render_id: currentRender.id, asset_id: assetId, action: "save_html", html_content: editHtml },
     });
     if (error) {
       toast.error("Falha ao salvar");
+      setEditLoading(false);
+      return;
+    }
+
+    // Apply color changes to all other slides in carousel
+    if (colorReplacements.length > 0 && renders.length > 1) {
+      const updatedRenders = [...renders];
+      updatedRenders[currentSlide] = { ...updatedRenders[currentSlide], html_content: editHtml, png_url: null };
+
+      for (let i = 0; i < renders.length; i++) {
+        if (i === currentSlide || !renders[i].html_content) continue;
+        let slideHtml = renders[i].html_content;
+        for (const [oldColor, newColor] of colorReplacements) {
+          const escaped = oldColor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          slideHtml = slideHtml.replace(new RegExp(escaped, "gi"), newColor);
+        }
+        if (slideHtml !== renders[i].html_content) {
+          await supabase.functions.invoke("edit-asset-render", {
+            body: { render_id: renders[i].id, asset_id: assetId, action: "save_html", html_content: slideHtml },
+          });
+          updatedRenders[i] = { ...updatedRenders[i], html_content: slideHtml, png_url: null };
+        }
+      }
+      setRenders(updatedRenders);
+      toast.success(`Cores aplicadas em ${renders.length} slides ✓`);
     } else {
       setRenders(prev => prev.map((r, i) => i === currentSlide ? { ...r, html_content: editHtml, png_url: null } : r));
       toast.success("Salvo ✓");
-      setEditMode("none");
     }
+    setEditMode("none");
     setEditLoading(false);
   };
 
