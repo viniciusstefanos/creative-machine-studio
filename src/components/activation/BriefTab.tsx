@@ -330,6 +330,9 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
         />
       </div>
 
+      {/* ═══ PERFIL SOCIAL ═══ */}
+      <SocialProfileSection activationId={activationId} />
+
       {/* System Prompt */}
       <div className="pt-6 mt-2" style={{ borderTop: "1px solid hsl(var(--border-subtle))" }}>
         <label className="field-label">Instruções customizadas para IA</label>
