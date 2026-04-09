@@ -58,166 +58,49 @@ const CONTEXT_BRASIL_INSTAGRAM = `
 
 // ─── Creative agent visual guidelines ────────────────────────
 const HTML_CREATIVE_RULES = `
-## REGRAS DE LAYOUT E DIMENSÕES — OBRIGATÓRIO
-O HTML gerado DEVE seguir estas regras pixel-a-pixel:
+## REGRAS HTML — OBRIGATÓRIO
 
-### DIMENSÕES DO CONTAINER
-- O elemento raiz deve ter EXATAMENTE width e height iguais às dimensões informadas (ex: 1080x1350 para 4:5, 1080x1920 para 9:16)
-- Use box-sizing: border-box em tudo
-- NUNCA use unidades relativas (%, vh, vw) para o container raiz — use px absoluto
+### DIMENSÕES E SAFE ZONES
+- Raiz: EXATAMENTE width/height em px (ex: 1080x1350). box-sizing:border-box. Sem %, vh, vw.
+- 4:5: padding 135px 80px | 9:16: padding 250px 96px 340px 96px | 1:1: padding 100px 80px
+- Conteúdo centralizado dentro da safe zone. Nada crítico fora.
 
-### SAFE ZONES E PADDING
-- Para 4:5 (1080×1350): padding: 135px 80px — SANGRIA OBRIGATÓRIA de 135px acima e abaixo. Nenhum texto, logo ou elemento crítico nos primeiros 135px superiores ou nos últimos 135px inferiores. Isso garante visibilidade no grid 3:4 e no "ver mais".
-- Para 9:16 (1080×1920): padding-top: 250px, padding-bottom: 340px, padding-left: 96px, padding-right: 96px — safe zones em pixels absolutos para evitar UI do sistema (câmera, botões nativos, barra de swipe)
-- Para 1:1 (1080×1080): padding: 100px 80px
-- NENHUM texto ou elemento importante pode ficar fora dessas safe zones
-- O conteúdo deve estar centralizado verticalmente DENTRO da safe zone
+### TIPOGRAFIA
+- Headline: 60-90px, weight 700-800, máx 8 palavras, line-height 1.1, letter-spacing -0.03em
+- Sub: 36-48px, weight 400-500 | Corpo: mín 28px | CTA botão: mín 32px, weight 700
+- Máx 2 famílias (1 display + 1 corpo). SEMPRE Google Fonts via <link>.
+- Pares: Playfair Display+DM Sans (lifestyle) | Space Grotesk+Inter (tech) | Syne+DM Sans (bold) | Bebas Neue+Inter (promo) | Outfit+DM Sans (minimal)
 
-### TIPOGRAFIA — TAMANHOS MÍNIMOS (canvas 1080px)
-- Headline: mín 60px, ideal 72-90px, font-weight 700-800, máx 8 palavras
-- Subheadline: mín 36px, ideal 40-48px, font-weight 400-500
-- Corpo/Benefícios: mín 28px, font-weight 400-500
-- CTA (botão): mín 32px, font-weight 700
-- Disclaimers/asteriscos: mín 20px
-- Número destaque: mín 100px, ideal 120-160px, font-weight 800
-- line-height: 1.1 para títulos (tight!), 1.4 para corpo
-- letter-spacing: -0.03em a -0.04em para títulos grandes (impacto editorial)
-- Máximo 2 famílias tipográficas por criativo (1 display + 1 corpo)
+### HIERARQUIA VISUAL — 3 NÍVEIS
+1. Âncora (headline/produto) 2. Suporte (sub/benefício) 3. CTA/detalhe
+- Máx 2 linhas texto por bloco. Texto ≤20% da área. Espaço negativo ≥30%.
 
-### PARES TIPOGRÁFICOS RECOMENDADOS (Google Fonts)
-Escolha UM par por criativo. Importe via <link href="https://fonts.googleapis.com/css2?family=...&display=swap">:
-- **Editorial Premium**: Playfair Display (títulos) + DM Sans (corpo) — sofisticação, lifestyle, fashion
-- **Tech/Startup**: Space Grotesk (títulos) + Inter (corpo) — moderno, limpo, SaaS
-- **Bold/Impacto**: Syne (títulos) + DM Sans (corpo) — ousado, criativo, agência
-- **Urbano/Forte**: Bebas Neue (títulos) + Inter (corpo) — esporte, varejo, promoção
-- **Elegante Moderno**: Outfit (títulos) + DM Sans (corpo) — minimalista, premium
-- **Humanista**: Nunito (títulos) + DM Sans (corpo) — amigável, saúde, educação
-NUNCA use apenas system fonts genéricas (Arial, Helvetica). SEMPRE Google Fonts.
+### CSS AVANÇADO
+- text-shadow headlines, gradientes 3+ stops, radial-gradient focal, glassmorphism
+- Elementos decorativos: linhas de acento, círculos position:absolute opacity:0.1
+- Botão: accent + box-shadow glow + padding 16px 48px + border-radius 8px
 
-### REGRA DOS 20%
-- O texto NÃO deve cobrir mais de 20% da área total do criativo (diretriz Meta)
-- Headlines: máximo 8 palavras para impacto
-- Evite parágrafos corridos — prefira bullets curtos ou frases isoladas
+### CORES
+- 1 dominante + 1 suporte + 1 acento (CTA only). Contraste ≥4.5:1. Nunca #fff puro → #f5f5f0
+- Gradientes sutis > sólidos. Overlay obrigatório sobre imagens.
 
-### HIERARQUIA VISUAL — 3 NÍVEIS OBRIGATÓRIOS
-1. Elemento âncora (maior, mais contrastante): produto, face ou headline
-2. Elemento de suporte: subheadline, benefício chave, contexto visual
-3. CTA ou detalhe: botão, logo, preço, selos
-⚠ Se houver 4º elemento com peso visual equivalente = hierarquia quebrada. Remova ou reduza.
+### PROIBIÇÕES
+- Texto ilegível, >2 fontes, >1 CTA, hierarquia ausente, fora da safe zone, system fonts genéricas
 
-### ESPAÇO NEGATIVO
-- Mínimo 30% da área deve ser espaço negativo para respiração visual
-- Em layouts com muito texto (promoção): comprimir até 20%, nunca menos
+### CARROSSEL
+- Slide 1: gancho que para o scroll. Meio: 1 ponto/slide, máx 3 linhas. Último: CTA claro.
+- Mesmas dimensões/padding/paleta em todos os slides.
 
-### PROFUNDIDADE E CAMADAS — 3 PLANOS
-- Fundo: cor sólida, gradiente, textura ou foto borrada
-- Plano médio: elemento principal (produto, pessoa)
-- Primeiro plano: texto, sobreposição, selo, sombra projetada
+### OUTPUT
+Retorne SOMENTE HTML puro. ZERO markdown, explicação ou comentário. Comece com <link> ou <div>.
 
-### TÉCNICAS CSS AVANÇADAS — USE ATIVAMENTE
-Para atingir qualidade de design profissional, use estas técnicas:
-
-**Tipografia editorial:**
-- text-shadow: 0 2px 4px rgba(0,0,0,0.3) — profundidade sutil em headlines
-- text-shadow: 0 0 40px rgba(COR_ACCENT, 0.4) — glow neon sutil
-- letter-spacing: -0.03em + line-height: 0.95 em headlines — look editorial
-- mix de font-weight dentro da mesma frase: palavras-chave em 800, resto em 400
-
-**Gradientes sofisticados (nunca flat):**
-- background: linear-gradient(135deg, #cor1 0%, #cor2 50%, #cor3 100%) — 3+ stops
-- background: radial-gradient(ellipse at 30% 20%, rgba(accent,0.15) 0%, transparent 60%) — luz focal
-- Overlay: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.7) 100%) sobre imagens
-
-**Glassmorphism & depth:**
-- backdrop-filter: blur(12px); background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12)
-- box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2) — sombra layered
-- box-shadow: inset 0 1px 0 rgba(255,255,255,0.1) — inner highlight
-
-**Elementos decorativos (via HTML/CSS inline):**
-- Linhas de acento: <div style="width:60px;height:3px;background:{{accent_color}};border-radius:2px"></div>
-- Círculos decorativos: position:absolute + border-radius:50% + opacity:0.1 + tamanhos variados
-- Grain texture: background-image com noise sutil via CSS (data URI ou repeating-pattern)
-- Bordas decorativas: border-left: 3px solid accent em blockquotes/destaques
-
-**Botões premium:**
-- background: accent_color + box-shadow: 0 4px 14px rgba(accent, 0.4) — glow
-- padding: 16px 48px + border-radius: 8px + font-weight: 700 + letter-spacing: 0.02em
-- Hover-state visual: ligeiramente mais claro que o botão
-
-### CORES — PALETA OBRIGATÓRIA
-- Defina sempre: 1 cor dominante + 1 cor de suporte + 1 cor de acento/CTA
-- A cor de acento/CTA deve aparecer APENAS no elemento de ação — não dispersar
-- Contraste obrigatório texto/fundo: ratio mín 4.5:1 (WCAG AA)
-- Texto sobre imagem: overlay semitransparente, blur ou sombra de texto OBRIGATÓRIO
-- Nunca apenas cor para diferenciar informações (usar forma ou ícone junto)
-- NUNCA branco puro (#fff) — usar off-white mín (#f5f5f0) ou cores com personalidade
-- Psicologia food & beverage: vermelho/laranja=apetite, verde=saudável, marrom=artesanal, amarelo=alegria, preto=premium, azul=frescor
-
-### REGRAS VISUAIS GERAIS
-- Máximo 2 linhas de texto visível por bloco principal
-- NUNCA começar com logo ou nome da marca — hook visual primeiro
-- Uma única mensagem por slide/peça
-- SEMPRE usar Google Fonts expressivas (NUNCA system fonts genéricas como Arial/Helvetica)
-- Evitar emojis como elemento principal de design — usar com moderação
-- Gradientes sutis são preferíveis a cores sólidas para backgrounds
-
-## PARA CARROSSEL
-- Card 1: gancho forte, PARA O SCROLL — visual forte + texto que cria lacuna. NUNCA título de relatório. Deve funcionar ISOLADO.
-- Slides do meio: 1 ponto por slide, máx 3 linhas de texto. Visual consistente (mesma paleta, mesma tipografia).
-- Último slide: CTA único e claro com botão visual.
-- Continuidade visual entre cards: bordas que "sangram", narrativa progressiva.
-- Todos os slides devem ter EXATAMENTE as mesmas dimensões e a mesma estrutura de padding/safe-zone.
-- O usuário deve entender a proposta lendo apenas slide 1 e o último.
-
-## 10 PROIBIÇÕES ABSOLUTAS (invalida o criativo)
-1. Texto ilegível por tamanho, contraste ou sobreposição
-2. Mais de 2 famílias tipográficas sem justificativa conceitual
-3. Logo cortado, distorcido ou em resolução baixa
-4. Mais de 1 CTA principal competindo por atenção
-5. Fotos pixeladas, escuras demais ou sem foco no produto
-6. Hierarquia visual ausente (tudo com mesmo peso visual)
-7. Elementos importantes fora da zona segura
-8. Copy genérico sem benefício ou proposta de valor clara
-9. Composição com 4 ou mais "focos visuais" simultâneos
-10. Uso de imagens de terceiros sem direitos confirmados
-
-## CHECKLIST FINAL ANTES DE GERAR
-- [ ] Especificações técnicas respeitadas (resolução, proporção, zona segura)
-- [ ] Hierarquia visual clara em 3 níveis ou menos
-- [ ] Headline legível em thumbnail (visualização reduzida)
-- [ ] CTA único, claro e com verbo de ação
-- [ ] Contraste texto/fundo ≥ 4.5:1
-- [ ] Elementos críticos dentro da zona segura
-- [ ] Google Fonts importadas via <link>
-- [ ] Técnicas CSS avançadas aplicadas (text-shadow, gradients, depth)
-
-## TEMPLATE HTML OBRIGATÓRIO
-Sempre inicie o HTML com esta estrutura base (escolha um par tipográfico adequado):
+### TEMPLATE BASE
 \`\`\`
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<div style="width: {W}px; height: {H}px; box-sizing: border-box; padding: {PADDING}; background: linear-gradient(135deg, {BG1} 0%, {BG2} 100%); display: flex; flex-direction: column; justify-content: center; font-family: 'DM Sans', sans-serif; overflow: hidden; position: relative;">
-  <!-- Elemento decorativo sutil -->
-  <div style="position:absolute;top:-50px;right:-50px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle, rgba(ACCENT,0.08) 0%, transparent 70%);pointer-events:none"></div>
-  <!-- conteúdo aqui com font-family: 'Space Grotesk' para headlines -->
+<div style="width:{W}px;height:{H}px;box-sizing:border-box;padding:{PADDING};background:linear-gradient(135deg,{BG1} 0%,{BG2} 100%);display:flex;flex-direction:column;justify-content:center;font-family:'DM Sans',sans-serif;overflow:hidden;position:relative">
+  <!-- conteúdo -->
 </div>
 \`\`\`
-IMPORTANTE: O \`<link>\` do Google Fonts DEVE estar presente no HTML final. Escolha o par tipográfico que melhor se adequa ao tom do briefing.
-
-## EXEMPLO DE HTML STUNNING — POST 4:5
-\`\`\`
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-<div style="width:1080px;height:1350px;box-sizing:border-box;padding:135px 80px;background:linear-gradient(145deg,#0a0a0a 0%,#1a1a2e 50%,#16213e 100%);display:flex;flex-direction:column;justify-content:center;font-family:'DM Sans',sans-serif;overflow:hidden;position:relative;color:#f5f5f0">
-  <div style="position:absolute;top:100px;right:-80px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(0,201,167,0.12) 0%,transparent 70%);pointer-events:none"></div>
-  <div style="position:absolute;bottom:200px;left:-60px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,0.08) 0%,transparent 70%);pointer-events:none"></div>
-  <div style="width:60px;height:3px;background:#00C9A7;border-radius:2px;margin-bottom:32px"></div>
-  <h1 style="font-family:'Space Grotesk',sans-serif;font-size:78px;font-weight:800;line-height:0.95;letter-spacing:-0.04em;margin:0 0 24px;text-shadow:0 2px 8px rgba(0,0,0,0.3)">Texto de<br><span style="color:#00C9A7">Impacto</span></h1>
-  <p style="font-size:32px;font-weight:400;line-height:1.4;margin:0 0 40px;max-width:700px;opacity:0.85">Subtexto com informação de suporte que complementa o headline.</p>
-  <div style="display:inline-flex;align-items:center;justify-content:center;padding:18px 52px;background:#00C9A7;border-radius:8px;font-size:28px;font-weight:700;color:#0a0a0a;box-shadow:0 4px 20px rgba(0,201,167,0.35);letter-spacing:0.01em;align-self:flex-start">Saiba mais →</div>
-</div>
-\`\`\`
-
-## REGRA CRÍTICA DE OUTPUT
-Retorne SOMENTE o código HTML. ZERO texto explicativo, ZERO markdown, ZERO comentários fora do HTML, ZERO análise ou justificativa. Apenas o HTML puro começando com <link> ou <div> e terminando com </div>.
 
 ${CONTEXT_BRASIL_INSTAGRAM}
 `;
