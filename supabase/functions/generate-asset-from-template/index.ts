@@ -572,7 +572,7 @@ Fontes extraídas dos documentos do briefing: ${briefFileFonts.join(", ")}
       for (let i = 0; i < maxSlides; i++) {
         const filledPrompt = fillTemplate(template.image_prompt_template || "", { ...context, slide_content: slideParts[i] });
         const optimizedPrompt = await generateImagePrompt(
-          filledPrompt, useClaude, anthropicKey, lovableKey,
+          filledPrompt, useClaude, anthropicKey, lovableKey, dbImageRules,
         );
         const imageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
         await saveRender(i, { image_url: imageUrl });
@@ -584,7 +584,7 @@ Fontes extraídas dos documentos do briefing: ${briefFileFonts.join(", ")}
     } else if (template.generation_type === "html_and_image") {
       const filledPrompt2 = fillTemplate(template.image_prompt_template || "", context);
       const optimizedPrompt = await generateImagePrompt(
-        filledPrompt2, useClaude, anthropicKey, lovableKey,
+        filledPrompt2, useClaude, anthropicKey, lovableKey, dbImageRules,
       );
       const bgImageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
 
