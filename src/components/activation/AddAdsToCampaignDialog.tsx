@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Check, ImageIcon, Plus, X, ChevronRight } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { buildAdName } from "@/lib/adNaming";
 
 interface AddAdsDialogProps {
   open: boolean;
@@ -229,7 +230,8 @@ export const AddAdsToCampaignDialog = ({
     setAssetResults({});
     let successCount = 0;
 
-    for (const asset of selectedAssets) {
+    for (let i = 0; i < selectedAssets.length; i++) {
+      const asset = selectedAssets[i];
       const imageUrls = sortRenders(asset.renders)
         .map(r => r.png_url)
         .filter((url): url is string => Boolean(url));
@@ -240,13 +242,15 @@ export const AddAdsToCampaignDialog = ({
         continue;
       }
 
+      const adName = buildAdName(asset.name?.includes("CRS") ? "carousel" : "static", i, 1);
+
       try {
         const { data: adRes, error: adErr } = await supabase.functions.invoke("meta-ads", {
           body: {
             action: "create_ad",
             ad_account_id: campaign.ad_account_id || metaAccount.ad_account_id,
             adset_id: selectedAdsetId,
-            name: asset.name || `Ad ${successCount + 1}`,
+            name: adName,
             image_url: imageUrls[0],
             image_urls: imageUrls,
             caption: asset.copy?.full_copy || asset.copy?.hook || "",
