@@ -521,55 +521,42 @@ Deno.serve(async (req) => {
       ...config,
     };
 
-    const saveRender = async (slideIndex: number, fields: Record<string, any>) => {
-      await supabase.from("asset_template_renders").insert({
-        asset_id, slide_index: slideIndex, status: "ready", ...fields,
-      });
-    };
+    // ─── Shared helpers: build brand/social instructions ──────
+    function buildBrandInstructions(ctx: typeof context, renderCfg: Record<string, any>): string {
+      let instructions = "";
 
-    const splitCopyIntoSlides = (minSlides: number): string[] => {
-      const parts: string[] = [];
-      if (copy.hook) parts.push(copy.hook);
-      if (copy.body) {
-        const sentences = copy.body.split(/[.!?\n]+/).map((s: string) => s.trim()).filter(Boolean);
-        parts.push(...sentences);
+      // Check if render_config already has explicit hex colors from from_brief mapping
+      const hasExplicitBg = renderCfg.bg_color && /^#[0-9A-Fa-f]{6}$/i.test(renderCfg.bg_color);
+      const hasExplicitAccent = renderCfg.accent_color && /^#[0-9A-Fa-f]{6}$/i.test(renderCfg.accent_color);
+      const hasExplicitText = renderCfg.text_color && /^#[0-9A-Fa-f]{6}$/i.test(renderCfg.text_color);
+
+      if (hasExplicitBg || hasExplicitAccent || hasExplicitText) {
+        instructions += `\n\n## CORES DA MARCA (OBRIGATÓRIO — PRIORIDADE MÁXIMA)\nUse EXATAMENTE estas cores:`;
+        if (hasExplicitBg) instructions += `\n- Cor de fundo: ${renderCfg.bg_color}`;
+        if (hasExplicitAccent) instructions += `\n- Cor de acento/CTA: ${renderCfg.accent_color}`;
+        if (hasExplicitText) instructions += `\n- Cor do texto: ${renderCfg.text_color}`;
+        instructions += `\n- NÃO use cores genéricas. Use EXATAMENTE os hex acima.`;
+      } else if (ctx.brand_colors) {
+        instructions += `\n\n## CORES DA MARCA (OBRIGATÓRIO — PRIORIDADE MÁXIMA)\nA identidade visual do cliente define estas cores: ${ctx.brand_colors}\n- EXTRAIA os códigos hex desta descrição e aplique-os:\n  • Cor primária/dominante → fundo principal, seções, barras\n  • Cor secundária/suporte → textos, elementos de apoio\n  • Cor de acento/CTA → APENAS para botões e calls-to-action\n- NÃO use cores genéricas (#00C9A7, #FF6B6B, #0f0f23, etc.) quando as cores da marca estiverem definidas\n- NÃO invente cores. Use EXATAMENTE os hex fornecidos pelo cliente`;
       }
-      if (copy.cta) parts.push(copy.cta);
-      while (parts.length < minSlides) parts.push(copy.body || copy.hook || "");
-      return parts;
-    };
 
-    // Helper: get final image prompt (custom or auto-generated)
-    const getImagePrompt = async (templatePrompt: string, ctx: Record<string, any>): Promise<string> => {
-      // If user provided a custom prompt, optimize it but use it as base
-      if (custom_image_prompt && custom_image_prompt.trim()) {
-        return generateImagePrompt(custom_image_prompt.trim(), useClaude, anthropicKey, lovableKey);
+      if (ctx.typography) {
+        instructions += `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO)\nUse estas fontes conforme a identidade visual do cliente: ${ctx.typography}\nImporte via Google Fonts se disponível. Se a fonte não existir no Google Fonts, use a mais próxima visualmente.\n`;
       }
-      // Otherwise fill template and optimize
-      const filled = fillTemplate(templatePrompt, ctx);
-      return generateImagePrompt(filled, useClaude, anthropicKey, lovableKey);
-    };
+      if (ctx.visual_style) {
+        instructions += `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\nSiga este estilo visual: ${ctx.visual_style}\n`;
+      }
+      return instructions;
+    }
 
-    // ─── Branch by generation_type ────────────────────────────
-    if (template.generation_type === "html_only") {
-      const carouselInstruction = template.category === "carousel"
-        ? `\n\nDivida o copy em ${template.slides_count_min} a ${template.slides_count_max} slides.\nSlide 1: sempre o GANCHO — visual forte que para o scroll, NUNCA título de relatório.\nSlides do meio: 1 ponto por slide, máx 3 linhas de texto. Visual consistente.\nSlide final: sempre o CTA único e claro.\nO usuário deve entender a proposta lendo apenas slide 1 e o último.\nRetorne APENAS um array JSON: [{"slide_index": 0, "html": "..."}]. Zero markdown.`
-        : "";
-
-      // Social profile instruction
-      const socialProfileInstruction = (activationSocial as any)?.social_display_name || (activationSocial as any)?.social_handle
-        ? `\n\n## PERFIL SOCIAL (OBRIGATÓRIO nos templates que exibem perfil)\nNome: ${(activationSocial as any)?.social_display_name || ""}\nHandle: ${(activationSocial as any)?.social_handle || ""}\nFoto de perfil URL: ${(activationSocial as any)?.social_avatar_url || ""}\nQuando o template incluir avatar, nome de perfil ou @handle, use EXATAMENTE estes dados.\nNÃO invente nomes de perfil ou handles fictícios.${(activationSocial as any)?.social_avatar_url ? `\nPara avatar, use: <img src="${(activationSocial as any).social_avatar_url}" style="width:40px;height:40px;border-radius:50%;object-fit:cover" />` : ""}\n`
-        : "";
-
-      const brandColorInstruction = context.brand_colors
-        ? `\n\n## CORES DA MARCA (OBRIGATÓRIO — PRIORIDADE MÁXIMA)\nA identidade visual do cliente define estas cores: ${context.brand_colors}\n- EXTRAIA os códigos hex desta descrição e aplique-os:\n  • Cor primária/dominante → fundo principal, seções, barras\n  • Cor secundária/suporte → textos, elementos de apoio\n  • Cor de acento/CTA → APENAS para botões e calls-to-action\n- NÃO use cores genéricas (#00C9A7, #FF6B6B, #0f0f23, etc.) quando as cores da marca estiverem definidas\n- NÃO invente cores. Use EXATAMENTE os hex fornecidos pelo cliente\n- Se a descrição mencionar "dominante", "principal", "primária" → use como fundo\n- Se mencionar "acento", "destaque", "CTA" → use apenas em botões/destaques\n`
-        : "";
-      const typographyInstruction = context.typography
-        ? `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO)\nUse estas fontes conforme a identidade visual do cliente: ${context.typography}\nImporte via Google Fonts se disponível. Se a fonte não existir no Google Fonts, use a mais próxima visualmente.\n`
-        : "";
-      const visualStyleInstruction = context.visual_style
-        ? `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\nSiga este estilo visual: ${context.visual_style}\n`
-        : "";
+    function buildSocialInstruction(social: any): string {
+      if (!(social?.social_display_name || social?.social_handle)) return "";
+      let instr = `\n\n## PERFIL SOCIAL (OBRIGATÓRIO nos templates que exibem perfil)\nNome: ${social.social_display_name || ""}\nHandle: ${social.social_handle || ""}\nFoto de perfil URL: ${social.social_avatar_url || ""}\nQuando o template incluir avatar, nome de perfil ou @handle, use EXATAMENTE estes dados.\nNÃO invente nomes de perfil ou handles fictícios.`;
+      if (social.social_avatar_url) {
+        instr += `\nPara avatar, use: <img src="${social.social_avatar_url}" style="width:40px;height:40px;border-radius:50%;object-fit:cover" />`;
+      }
+      return instr;
+    }
       const systemWithRules = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction + brandColorInstruction + typographyInstruction + visualStyleInstruction + socialProfileInstruction + customPrompt;
 
       // Build rich brief context for user prompt
