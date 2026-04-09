@@ -89,12 +89,13 @@ const NewAsset = () => {
   useEffect(() => {
     if (!id) return;
     const fetchData = async () => {
-      const [copiesRes, templatesRes, actRes, briefRes, settingsRes] = await Promise.all([
+      const [copiesRes, templatesRes, actRes, briefRes, settingsRes, briefFilesRes] = await Promise.all([
         supabase.from("copies").select("*").eq("activation_id", id).eq("status", "approved").order("created_at", { ascending: false }),
         supabase.from("asset_templates").select("*").eq("active", true).order("category"),
         supabase.from("activations").select("*, clients(name, id)").eq("id", id).single(),
         supabase.from("briefs").select("*").eq("activation_id", id).maybeSingle(),
         supabase.from("client_template_settings").select("template_id, enabled"),
+        supabase.from("brief_files").select("extracted_fields").eq("activation_id", id).not("extracted_fields", "is", null),
       ]);
       setCopies(copiesRes.data || []);
 
@@ -117,6 +118,7 @@ const NewAsset = () => {
         setClientName((actRes.data as any).clients?.name || "");
       }
       setBrief(briefRes.data);
+      setBriefFiles(briefFilesRes.data || []);
       setLoading(false);
     };
     fetchData();
