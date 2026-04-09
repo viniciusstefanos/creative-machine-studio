@@ -455,9 +455,8 @@ Deno.serve(async (req) => {
 
     // ─── Helper: save render to asset_template_renders ─────────
     async function saveRender(slideIndex: number, data: Record<string, any>) {
-      const { error } = await supabase.from("asset_template_renders").upsert(
+      const { error } = await supabase.from("asset_template_renders").insert(
         { asset_id, slide_index: slideIndex, ...data, status: "done" },
-        { onConflict: "asset_id,slide_index" },
       );
       if (error) console.error("saveRender error:", error);
     }
