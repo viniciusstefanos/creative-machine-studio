@@ -61,10 +61,10 @@ function extractBriefColors(brief: any, briefFiles?: any[]): Record<string, stri
 }
 
 /** Build render_config from template's editable_fields + brief colors */
-function buildRenderConfig(template: any, brief: any): Record<string, any> {
+function buildRenderConfig(template: any, brief: any, briefFiles?: any[]): Record<string, any> {
   const fields = template?.editable_fields as Record<string, any> | null;
   if (!fields) return {};
-  const briefColors = extractBriefColors(brief);
+  const briefColors = extractBriefColors(brief, briefFiles);
   const fromBriefMap: Record<string, string | undefined> = {
     background: briefColors.primary, accent: briefColors.accent,
     text: briefColors.text || "#f5f5f0", primary: briefColors.primary, secondary: briefColors.secondary,
