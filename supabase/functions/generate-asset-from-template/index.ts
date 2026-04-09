@@ -636,9 +636,9 @@ Deno.serve(async (req) => {
       const maxSlides = Math.min(slideParts.length, template.slides_count_max || 5);
 
       for (let i = 0; i < maxSlides; i++) {
-        const optimizedPrompt = await getImagePrompt(
-          template.image_prompt_template || "",
-          { ...context, slide_content: slideParts[i] },
+        const filledPrompt = fillTemplate(template.image_prompt_template || "", { ...context, slide_content: slideParts[i] });
+        const optimizedPrompt = await generateImagePrompt(
+          filledPrompt, useClaude, anthropicKey, lovableKey,
         );
         const imageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
         await saveRender(i, { image_url: imageUrl });
@@ -648,9 +648,9 @@ Deno.serve(async (req) => {
       }
 
     } else if (template.generation_type === "html_and_image") {
-      const optimizedPrompt = await getImagePrompt(
-        template.image_prompt_template || "",
-        context,
+      const filledPrompt2 = fillTemplate(template.image_prompt_template || "", context);
+      const optimizedPrompt = await generateImagePrompt(
+        filledPrompt2, useClaude, anthropicKey, lovableKey,
       );
       const bgImageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
 
@@ -680,7 +680,11 @@ Deno.serve(async (req) => {
     const feedbackMsg = msg === "rate_limit" ? "Limite de requisições. Tente novamente." :
       msg === "credits" ? "Créditos insuficientes." : "Erro na geração. Tente novamente.";
 
-    await supabase.from("assets").update({ status: "rejected", feedback: feedbackMsg }).eq("id", asset_id).catch(console.error);
+    try {
+      await supabase.from("assets").update({ status: "rejected", feedback: feedbackMsg }).eq("id", asset_id);
+    } catch (cleanupErr) {
+      console.error("Cleanup failed:", cleanupErr);
+    }
 
     return new Response(JSON.stringify({ error: feedbackMsg }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
