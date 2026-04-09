@@ -116,6 +116,15 @@ const AssetDetail = () => {
     setLoading(false);
   }, [assetId]);
 
+  // Reset transient state when navigating between assets
+  useEffect(() => {
+    setJustApproved(false);
+    setShowFeedback(false);
+    setFeedback("");
+    setEditMode("none");
+    setCurrentSlide(0);
+  }, [assetId]);
+
   useEffect(() => { fetchAsset(); }, [fetchAsset]);
 
   // Keyboard shortcuts for approval flow
