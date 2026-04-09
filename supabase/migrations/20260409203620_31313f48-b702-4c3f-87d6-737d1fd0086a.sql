@@ -1,0 +1,1 @@
+UPDATE briefs SET system_prompt = 'Evite falar mal de agências de marketing. NUNCA mencione teste grátis, trial, preços específicos (ex: R$197) ou condições comerciais. Foque nos benefícios e na proposta de valor sem citar valores monetários.', updated_at = now() WHERE id = '4f4571eb-3210-4294-a41c-b23d9ee6df2a'
