@@ -171,7 +171,7 @@ const NewAsset = () => {
     });
     setRenderConfig(defaults);
     setBriefColorFields(filledFromBrief);
-  }, [selectedTemplate, brief]);
+  }, [selectedTemplate, brief, briefFiles]);
 
   // Build image prompt when entering the prompt review step
   const buildImagePrompt = () => {
