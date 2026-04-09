@@ -651,7 +651,7 @@ const AssetDetail = () => {
             )}
             {showImageRegen && (
               <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditMode("image")}>
-                <Image size={14} /> Regerar imagem
+                <Wand2 size={14} /> Refinar imagem
               </Button>
             )}
             {copy && (
