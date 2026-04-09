@@ -89,6 +89,7 @@ const BatchAssets = () => {
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [activation, setActivation] = useState<any>(null);
   const [brief, setBrief] = useState<any>(null);
+  const [briefFiles, setBriefFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [hoveredCol, setHoveredCol] = useState<string | null>(null);
@@ -97,16 +98,18 @@ const BatchAssets = () => {
   useEffect(() => {
     if (!id) return;
     const fetchData = async () => {
-      const [copiesRes, templatesRes, actRes, briefRes] = await Promise.all([
+      const [copiesRes, templatesRes, actRes, briefRes, briefFilesRes] = await Promise.all([
         supabase.from("copies").select("*").eq("activation_id", id).eq("status", "approved").order("created_at", { ascending: false }),
         supabase.from("asset_templates").select("*").eq("active", true).order("name"),
         supabase.from("activations").select("*, clients(name)").eq("id", id).single(),
         supabase.from("briefs").select("*").eq("activation_id", id).maybeSingle(),
+        supabase.from("brief_files").select("extracted_fields").eq("activation_id", id).not("extracted_fields", "is", null),
       ]);
       setCopies(copiesRes.data || []);
       setTemplates(templatesRes.data || []);
       setActivation(actRes.data);
       setBrief(briefRes.data);
+      setBriefFiles(briefFilesRes.data || []);
       setLoading(false);
     };
     fetchData();
