@@ -579,10 +579,10 @@ Deno.serve(async (req) => {
       const bgImageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
 
       const brandColorInstruction2 = context.brand_colors
-        ? `\n\n## CORES DA MARCA (OBRIGATÓRIO)\nUse EXCLUSIVAMENTE estas cores: ${context.brand_colors}\n- Cor primária para elementos dominantes\n- Cor de acento para CTA/botões\n`
+        ? `\n\n## CORES DA MARCA (OBRIGATÓRIO — PRIORIDADE MÁXIMA)\nA identidade visual do cliente define estas cores: ${context.brand_colors}\n- EXTRAIA os códigos hex e aplique-os: primária→fundo, acento→CTA/botões\n- NÃO use cores genéricas. Use EXATAMENTE os hex do cliente.\n`
         : "";
       const typographyInstruction2 = context.typography
-        ? `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO)\n${context.typography}\n`
+        ? `\n\n## TIPOGRAFIA DA MARCA (OBRIGATÓRIO)\n${context.typography}\nImporte via Google Fonts se disponível.\n`
         : "";
       const visualStyleInstruction2 = context.visual_style
         ? `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\n${context.visual_style}\n`
