@@ -22,7 +22,19 @@ const TEMPLATE_DESIGN_RULES = `
 - Corpo: mín 28px
 - CTA (botão): mín 32px, font-weight 700
 - Número destaque: mín 100px, ideal 120-160px
+- line-height: 1.1 para títulos (tight!), 1.4 para corpo
+- letter-spacing: -0.03em a -0.04em para títulos grandes
 - Máximo 2 famílias tipográficas (1 display + 1 corpo)
+
+### PARES TIPOGRÁFICOS RECOMENDADOS (Google Fonts)
+Escolha UM par por template:
+- Playfair Display + DM Sans — editorial, lifestyle, premium
+- Space Grotesk + Inter — tech, startup, SaaS
+- Syne + DM Sans — bold, criativo, agência
+- Bebas Neue + Inter — esporte, varejo, promoção
+- Outfit + DM Sans — minimalista, elegante
+- Nunito + DM Sans — amigável, educação, saúde
+NUNCA use apenas system fonts (Arial, Helvetica). SEMPRE Google Fonts.
 
 ### HIERARQUIA VISUAL — 3 NÍVEIS
 1. Elemento âncora (maior, mais contrastante): headline ou imagem
@@ -36,15 +48,28 @@ const TEMPLATE_DESIGN_RULES = `
 - Contraste obrigatório texto/fundo: ratio mín 4.5:1
 - NUNCA branco puro (#fff) — usar off-white mín (#f5f5f0)
 
+### TÉCNICAS CSS AVANÇADAS — OBRIGATÓRIO NO SCAFFOLD
+O scaffold deve demonstrar qualidade de design profissional:
+- **text-shadow**: 0 2px 4px rgba(0,0,0,0.3) em headlines para profundidade
+- **letter-spacing**: -0.03em + line-height: 0.95 em headlines
+- **Gradientes**: background com linear-gradient de 2-3 stops (nunca cor flat)
+- **Elementos decorativos**: linhas de acento (width:60px;height:3px;background:{{accent_color}})
+- **Círculos radiais**: position:absolute + radial-gradient com opacity baixa para luz focal
+- **Box-shadow layered**: 0 8px 32px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2)
+- **Botões com glow**: box-shadow: 0 4px 14px rgba(accent, 0.35)
+
 ### BACKGROUND
 - Gradientes sutis são preferíveis a cores sólidas
+- Use linear-gradient(135deg, {{bg_color}} 0%, darkerShade 100%)
 - Se usar imagem de fundo, aplicar overlay com opacity para legibilidade
 
 ### BOTÕES / CTA
 - display: inline-flex; align-items: center; justify-content: center
-- padding mínimo: 16px 40px
+- padding mínimo: 16px 48px
 - border-radius: 8px
 - Cor de fundo: {{accent_color}}
+- box-shadow: 0 4px 14px rgba(accent, 0.35)
+- font-weight: 700; letter-spacing: 0.01em
 
 ### REGRA DOS 20%
 - Texto NÃO deve cobrir mais de 20% da área total
@@ -52,8 +77,20 @@ const TEMPLATE_DESIGN_RULES = `
 
 ### FONTES
 - Use Google Fonts via <link href="https://fonts.googleapis.com/css2?family=..."> no HTML
-- Recomendadas: Inter, Montserrat, Poppins, Playfair Display, Space Grotesk, DM Sans
+- Recomendadas: Space Grotesk, Syne, Playfair Display, DM Sans, Inter, Outfit, Bebas Neue
 - NUNCA use apenas system fonts genéricas como Arial/Helvetica
+
+### EXEMPLO DE SCAFFOLD STUNNING
+\`\`\`
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<div style="width:1080px;height:1350px;box-sizing:border-box;padding:135px 80px;background:linear-gradient(145deg,{{bg_color}} 0%,#1a1a2e 100%);display:flex;flex-direction:column;justify-content:center;font-family:'DM Sans',sans-serif;overflow:hidden;position:relative;color:{{text_color}}">
+  <div style="position:absolute;top:100px;right:-80px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(0,201,167,0.1) 0%,transparent 70%);pointer-events:none"></div>
+  <div style="width:60px;height:3px;background:{{accent_color}};border-radius:2px;margin-bottom:32px"></div>
+  <h1 style="font-family:'Space Grotesk',sans-serif;font-size:78px;font-weight:800;line-height:0.95;letter-spacing:-0.04em;margin:0 0 24px;text-shadow:0 2px 8px rgba(0,0,0,0.3)">{{hook}}</h1>
+  <p style="font-size:32px;font-weight:400;line-height:1.4;margin:0 0 40px;max-width:700px;opacity:0.85">{{body}}</p>
+  <div style="display:inline-flex;padding:18px 52px;background:{{accent_color}};border-radius:8px;font-size:28px;font-weight:700;color:#0a0a0a;box-shadow:0 4px 20px rgba(0,201,167,0.35);align-self:flex-start">{{cta}}</div>
+</div>
+\`\`\`
 `;
 
 Deno.serve(async (req) => {
