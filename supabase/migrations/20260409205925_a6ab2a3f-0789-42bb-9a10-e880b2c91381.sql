@@ -1,0 +1,1 @@
+UPDATE prompt_templates SET content = rtrim(content, E'\n- TESTE EDIT OK') WHERE slug = 'copy_ads' AND content LIKE '%TESTE EDIT OK';
