@@ -43,6 +43,7 @@ const SettingsTemplates = () => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [filterFunnel, setFilterFunnel] = useState<string | "">("");
+  const [showInactive, setShowInactive] = useState(false);
 
   const fetchData = async () => {
     const [tplRes, clientsRes] = await Promise.all([
