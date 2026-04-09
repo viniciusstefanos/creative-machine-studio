@@ -220,11 +220,11 @@ async function callTextAI(systemPrompt: string, userPrompt: string, useClaude: b
 }
 
 // ─── Generate optimized image prompt ─────────────────────────
-async function generateImagePrompt(basePrompt: string, useClaude: boolean, anthropicKey: string, lovableKey: string): Promise<string> {
+async function generateImagePrompt(basePrompt: string, useClaude: boolean, anthropicKey: string, lovableKey: string, imageRules: string): Promise<string> {
   const res = await callTextAI(
     `Você é um especialista em prompts para geração de imagem para Instagram Brasil.
 
-${IMAGE_CREATIVE_RULES}
+${imageRules}
 
 Receba um rascunho de prompt e otimize-o para gerar a melhor imagem possível, mantendo o contexto brasileiro e a estética Instagram BR.
 Retorne APENAS o prompt otimizado em inglês, sem explicação.`,
