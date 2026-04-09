@@ -587,7 +587,10 @@ Deno.serve(async (req) => {
       const visualStyleInstruction2 = context.visual_style
         ? `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\n${context.visual_style}\n`
         : "";
-      const overlaySystem = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + brandColorInstruction2 + typographyInstruction2 + visualStyleInstruction2 + customPrompt;
+      const socialProfileInstruction2 = (activationSocial as any)?.social_display_name || (activationSocial as any)?.social_handle
+        ? `\n\n## PERFIL SOCIAL (OBRIGATÓRIO)\nNome: ${(activationSocial as any)?.social_display_name || ""}\nHandle: ${(activationSocial as any)?.social_handle || ""}\nFoto URL: ${(activationSocial as any)?.social_avatar_url || ""}\nUse EXATAMENTE estes dados. NÃO invente handles fictícios.\n`
+        : "";
+      const overlaySystem = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + brandColorInstruction2 + typographyInstruction2 + visualStyleInstruction2 + socialProfileInstruction2 + customPrompt;
       const briefContextBlock2 = consolidatedStr
         ? `\n\n## BRIEFING DO CLIENTE\n${consolidatedStr}`
         : "";
