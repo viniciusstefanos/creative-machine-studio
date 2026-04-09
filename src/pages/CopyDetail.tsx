@@ -129,7 +129,7 @@ const CopyDetail = () => {
     try {
       const { data: briefData } = await supabase
         .from("briefs")
-        .select("tone_of_voice, target_audience, objectives")
+        .select("tone_of_voice, target_audience, objectives, extra_context")
         .eq("activation_id", activationId!)
         .single();
 
@@ -148,6 +148,8 @@ const CopyDetail = () => {
           channel: copy?.channel,
           funnel_stage: copy?.funnel_stage,
           purpose: copy?.purpose || "organic",
+          tone_of_voice: briefData?.tone_of_voice || "",
+          extra_context: briefData?.extra_context || "",
         },
       });
 
