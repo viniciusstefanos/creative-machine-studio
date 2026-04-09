@@ -1,53 +1,37 @@
 
 
-# Cadastro de Perfil Social por Ativação
+# Adicionar Sigla da Ativação na Nomenclatura — Campanha / Conjunto / Ad
 
-## Problema
-Templates que exibem foto de perfil, nome e @handle usam dados genéricos ou vazios. Não há cadastro para essas informações, e a Edge Function de geração não as injeta no prompt.
+## Estado Atual
 
-## Solução
+O wizard já busca `activationSlug` e monta `${activationSlug} — ${campaignName}`. Mas usa `—` como separador e não segue o padrão padronizado com `-`.
 
-### 1. Migration — Novos campos na tabela `activations`
+## Mudanças
 
-Adicionar 3 colunas à tabela `activations`:
-- `social_display_name` (text, nullable) — nome de exibição no perfil
-- `social_handle` (text, nullable) — @handle (ex: `@meucliente`)
-- `social_avatar_url` (text, nullable) — URL da foto de perfil
+### 1. Novo `src/lib/adNaming.ts`
 
-### 2. UI — Formulário de criação/edição de ativação
+Funções utilitárias:
 
-No `NewActivation.tsx`, adicionar seção "Perfil Social" com 3 campos:
-- Nome de exibição (text input)
-- @Handle (text input com placeholder `@perfil`)
-- Foto de perfil (upload ou URL) — upload para bucket `assets` (já público)
+- **`sanitize(str)`** — remove acentos, espaços→`-`, uppercase, strip caracteres especiais
+- **`buildCampaignName(slug, campaignName, objective)`** — `{SLUG}-{NOME}-{OBJ}` (ex: `BF26-BLACK-FRIDAY-TRAFFIC`)
+- **`buildAdsetName(campaignName, segment)`** — `{CAMPAIGN}-{SEGMENT}` (ex: `BF26-BLACK-FRIDAY-TRAFFIC-BROAD`)
+- **`buildAdName(category, copyIndex, creativeIndex)`** — `{FMT}-{A}-{V1}` (ex: `CRS-A-V1`)
 
-Auto-preencher com dados do `client_meta_accounts` (se existir `instagram_username`), mas permitir edição.
+Mapa de objetivo: `OUTCOME_TRAFFIC→TRAF`, `OUTCOME_SALES→SALES`, etc.
 
-### 3. Edge Function — Injetar dados no prompt
+### 2. `CreateCampaignWizard.tsx`
 
-No `generate-asset-from-template/index.ts`:
-- Buscar `social_display_name`, `social_handle`, `social_avatar_url` da ativação (já temos o `activation_id`)
-- Adicionar instrução ao prompt:
+- Auto-popular `campaignName` com `buildCampaignName(activationSlug, userInput, objective)` no preview/revisão
+- `fullCampaignName` usa a função em vez de concatenação manual
+- Adset: `buildAdsetName(fullCampaignName, "BROAD")`
+- Ads: `buildAdName(template.category, index, 1)`
 
-```
-## PERFIL SOCIAL (OBRIGATÓRIO nos templates que exibem perfil)
-Nome: {social_display_name}
-Handle: {social_handle}
-Foto de perfil URL: {social_avatar_url}
-Quando o template incluir avatar, nome de perfil ou @handle, use EXATAMENTE estes dados.
-NÃO invente nomes de perfil ou handles fictícios.
-```
+### 3. `AddAdsToCampaignDialog.tsx`
 
-- Se `social_avatar_url` existir, instruir o HTML a usar `<img src="{url}">` em vez de placeholder
+- Importar `buildAdName` e usar no `handleSubmit` em vez de `asset.name || "Ad N"`
 
-### 4. Edição posterior
-
-Na página da ativação (`ActivationHub`), permitir editar os dados de perfil social na aba de Brief ou em uma seção dedicada.
-
-## Arquivos modificados
-
-- **Migration SQL** — 3 colunas em `activations`
-- **`src/pages/NewActivation.tsx`** — campos de perfil social no formulário, auto-fill do client_meta_accounts
-- **`supabase/functions/generate-asset-from-template/index.ts`** — buscar dados de perfil e injetar no prompt
-- **`src/pages/ActivationHub.tsx`** ou **`src/components/activation/BriefTab.tsx`** — edição dos dados de perfil social
+### Arquivos modificados
+- **`src/lib/adNaming.ts`** — novo
+- **`src/components/activation/CreateCampaignWizard.tsx`** — usar funções de nomenclatura
+- **`src/components/activation/AddAdsToCampaignDialog.tsx`** — usar `buildAdName`
 
