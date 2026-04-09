@@ -3,6 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { SectionLabel } from "@/components/ui/SectionLabel";
+import { Upload, User } from "lucide-react";
 
 const NewActivation = () => {
   const { id: clientId } = useParams<{ id: string }>();
@@ -11,6 +13,7 @@ const NewActivation = () => {
   const [clientName, setClientName] = useState("");
   const [loading, setLoading] = useState(false);
   const [tagInput, setTagInput] = useState("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [form, setForm] = useState({
     name: "",
     slug: "",
@@ -20,12 +23,26 @@ const NewActivation = () => {
     budget: "",
     landing_page_url: "",
     tags: [] as string[],
+    social_display_name: "",
+    social_handle: "",
+    social_avatar_url: "",
   });
 
   useEffect(() => {
     if (!clientId) return;
-    supabase.from("clients").select("name").eq("id", clientId).single().then(({ data }) => {
-      if (data) setClientName(data.name);
+    // Fetch client name + auto-fill social from client_meta_accounts
+    Promise.all([
+      supabase.from("clients").select("name").eq("id", clientId).single(),
+      supabase.from("client_meta_accounts").select("instagram_username, ad_account_name").eq("client_id", clientId).maybeSingle(),
+    ]).then(([clientRes, metaRes]) => {
+      if (clientRes.data) setClientName(clientRes.data.name);
+      if (metaRes.data) {
+        setForm((prev) => ({
+          ...prev,
+          social_handle: prev.social_handle || (metaRes.data.instagram_username ? `@${metaRes.data.instagram_username.replace(/^@/, "")}` : ""),
+          social_display_name: prev.social_display_name || metaRes.data.ad_account_name || "",
+        }));
+      }
     });
   }, [clientId]);
 
@@ -39,6 +56,20 @@ const NewActivation = () => {
 
   const handleRemoveTag = (idx: number) => {
     setForm({ ...form, tags: form.tags.filter((_, i) => i !== idx) });
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    const ext = file.name.split(".").pop();
+    const path = `social-avatars/${clientId}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("assets").upload(path, file, { upsert: true });
+    if (!error) {
+      const { data } = supabase.storage.from("assets").getPublicUrl(path);
+      setForm((prev) => ({ ...prev, social_avatar_url: data.publicUrl }));
+    }
+    setUploadingAvatar(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,7 +88,10 @@ const NewActivation = () => {
       landing_page_url: form.landing_page_url || null,
       tags: form.tags.length > 0 ? form.tags : null,
       created_by: user.id,
-    }]);
+      social_display_name: form.social_display_name || null,
+      social_handle: form.social_handle || null,
+      social_avatar_url: form.social_avatar_url || null,
+    } as any]);
 
     if (!error) {
       navigate(`/clients/${clientId}`);
@@ -197,6 +231,60 @@ const NewActivation = () => {
               className="field-input"
               placeholder="Digite e pressione Enter"
             />
+          </div>
+
+          {/* ═══ PERFIL SOCIAL ═══ */}
+          <div className="pt-6 mt-2" style={{ borderTop: "1px solid hsl(var(--border-subtle))" }}>
+            <SectionLabel>Perfil Social</SectionLabel>
+            <p className="text-[10px] mt-1 mb-4" style={{ color: "hsl(var(--text-muted))", fontFamily: "'DM Sans'" }}>
+              Dados exibidos nos templates que mostram perfil (avatar, nome, @handle).
+            </p>
+
+            <div className="flex items-start gap-4 mb-4">
+              {/* Avatar preview */}
+              <div className="shrink-0">
+                <label className="cursor-pointer block">
+                  <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+                  <div
+                    className="w-14 h-14 rounded-full flex items-center justify-center overflow-hidden"
+                    style={{
+                      background: form.social_avatar_url ? "transparent" : "hsl(var(--bg-surface3))",
+                      border: "2px dashed hsl(var(--border-strong))",
+                    }}
+                  >
+                    {form.social_avatar_url ? (
+                      <img src={form.social_avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : uploadingAvatar ? (
+                      <span className="text-[9px]" style={{ color: "hsl(var(--text-muted))" }}>...</span>
+                    ) : (
+                      <User size={20} style={{ color: "hsl(var(--text-muted))" }} />
+                    )}
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex-1 space-y-3">
+                <div>
+                  <label className="field-label">Nome de exibição</label>
+                  <input
+                    value={form.social_display_name}
+                    onChange={(e) => setForm({ ...form, social_display_name: e.target.value })}
+                    className="field-input"
+                    placeholder="Ex: Café & Brasa"
+                  />
+                </div>
+                <div>
+                  <label className="field-label">@Handle</label>
+                  <input
+                    value={form.social_handle}
+                    onChange={(e) => setForm({ ...form, social_handle: e.target.value })}
+                    className="field-input"
+                    placeholder="@perfil"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

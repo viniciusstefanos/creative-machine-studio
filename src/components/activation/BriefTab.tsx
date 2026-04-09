@@ -3,6 +3,7 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 import { BriefVisualIdentity } from "@/components/activation/BriefVisualIdentity";
 import { BriefFilesSection } from "@/components/activation/BriefFilesSection";
 import { BriefFileViewer } from "@/components/activation/BriefFileViewer";
+import { SocialProfileSection } from "@/components/activation/SocialProfileSection";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Sparkles } from "lucide-react";
@@ -329,6 +330,9 @@ export const BriefTab = ({ activationId }: BriefTabProps) => {
           placeholder="Cole a URL e pressione Enter"
         />
       </div>
+
+      {/* ═══ PERFIL SOCIAL ═══ */}
+      <SocialProfileSection activationId={activationId} />
 
       {/* System Prompt */}
       <div className="pt-6 mt-2" style={{ borderTop: "1px solid hsl(var(--border-subtle))" }}>

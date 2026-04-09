@@ -400,17 +400,19 @@ Deno.serve(async (req) => {
 
   try {
     await supabase.from("asset_template_renders").delete().eq("asset_id", asset_id);
-    const [templateRes, copyRes, briefRes, briefFilesRes] = await Promise.all([
+    const [templateRes, copyRes, briefRes, briefFilesRes, activationRes] = await Promise.all([
       supabase.from("asset_templates").select("*").eq("id", template_id).single(),
       supabase.from("copies").select("*").eq("id", copy_id).single(),
       supabase.from("briefs").select("*").eq("activation_id", activation_id).maybeSingle(),
       supabase.from("brief_files").select("category, raw_text, extracted_fields, file_name").eq("activation_id", activation_id).not("raw_text", "is", null),
+      supabase.from("activations").select("social_display_name, social_handle, social_avatar_url").eq("id", activation_id).single(),
     ]);
 
     const template = templateRes.data;
     const copy = copyRes.data;
     const brief = briefRes.data;
     const briefFiles = briefFilesRes.data || [];
+    const activationSocial = activationRes.data || {};
 
     if (!template || !copy) {
       await supabase.from("assets").update({ status: "rejected", feedback: "Template ou copy não encontrado." }).eq("id", asset_id);
@@ -502,6 +504,11 @@ Deno.serve(async (req) => {
         ? `\n\nDivida o copy em ${template.slides_count_min} a ${template.slides_count_max} slides.\nSlide 1: sempre o GANCHO — visual forte que para o scroll, NUNCA título de relatório.\nSlides do meio: 1 ponto por slide, máx 3 linhas de texto. Visual consistente.\nSlide final: sempre o CTA único e claro.\nO usuário deve entender a proposta lendo apenas slide 1 e o último.\nRetorne APENAS um array JSON: [{"slide_index": 0, "html": "..."}]. Zero markdown.`
         : "";
 
+      // Social profile instruction
+      const socialProfileInstruction = (activationSocial as any)?.social_display_name || (activationSocial as any)?.social_handle
+        ? `\n\n## PERFIL SOCIAL (OBRIGATÓRIO nos templates que exibem perfil)\nNome: ${(activationSocial as any)?.social_display_name || ""}\nHandle: ${(activationSocial as any)?.social_handle || ""}\nFoto de perfil URL: ${(activationSocial as any)?.social_avatar_url || ""}\nQuando o template incluir avatar, nome de perfil ou @handle, use EXATAMENTE estes dados.\nNÃO invente nomes de perfil ou handles fictícios.${(activationSocial as any)?.social_avatar_url ? `\nPara avatar, use: <img src="${(activationSocial as any).social_avatar_url}" style="width:40px;height:40px;border-radius:50%;object-fit:cover" />` : ""}\n`
+        : "";
+
       const brandColorInstruction = context.brand_colors
         ? `\n\n## CORES DA MARCA (OBRIGATÓRIO)\nUse EXCLUSIVAMENTE estas cores da identidade visual do cliente: ${context.brand_colors}\n- Cor primária para elementos dominantes (fundo, seções)\n- Cor de acento APENAS para CTA/botões\n- NÃO use cores genéricas quando as cores da marca estiverem definidas\n- Respeite os valores hex exatos fornecidos\n`
         : "";
@@ -511,7 +518,7 @@ Deno.serve(async (req) => {
       const visualStyleInstruction = context.visual_style
         ? `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\nSiga este estilo visual: ${context.visual_style}\n`
         : "";
-      const systemWithRules = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction + brandColorInstruction + typographyInstruction + visualStyleInstruction + customPrompt;
+      const systemWithRules = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction + brandColorInstruction + typographyInstruction + visualStyleInstruction + socialProfileInstruction + customPrompt;
 
       // Build rich brief context for user prompt
       const briefContextBlock = consolidatedStr
@@ -580,7 +587,10 @@ Deno.serve(async (req) => {
       const visualStyleInstruction2 = context.visual_style
         ? `\n\n## ESTILO VISUAL DA MARCA (OBRIGATÓRIO)\n${context.visual_style}\n`
         : "";
-      const overlaySystem = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + brandColorInstruction2 + typographyInstruction2 + visualStyleInstruction2 + customPrompt;
+      const socialProfileInstruction2 = (activationSocial as any)?.social_display_name || (activationSocial as any)?.social_handle
+        ? `\n\n## PERFIL SOCIAL (OBRIGATÓRIO)\nNome: ${(activationSocial as any)?.social_display_name || ""}\nHandle: ${(activationSocial as any)?.social_handle || ""}\nFoto URL: ${(activationSocial as any)?.social_avatar_url || ""}\nUse EXATAMENTE estes dados. NÃO invente handles fictícios.\n`
+        : "";
+      const overlaySystem = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + brandColorInstruction2 + typographyInstruction2 + visualStyleInstruction2 + socialProfileInstruction2 + customPrompt;
       const briefContextBlock2 = consolidatedStr
         ? `\n\n## BRIEFING DO CLIENTE\n${consolidatedStr}`
         : "";
