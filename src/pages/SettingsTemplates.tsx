@@ -43,6 +43,7 @@ const SettingsTemplates = () => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [filterFunnel, setFilterFunnel] = useState<string | "">("");
+  const [showInactive, setShowInactive] = useState(false);
 
   const fetchData = async () => {
     const [tplRes, clientsRes] = await Promise.all([
@@ -103,9 +104,10 @@ const SettingsTemplates = () => {
     setEditorOpen(true);
   };
 
+  const afterActive = showInactive ? templates : templates.filter((t) => t.active);
   const filtered = filterFunnel
-    ? templates.filter((t) => t.funnel_stage === filterFunnel)
-    : templates;
+    ? afterActive.filter((t) => t.funnel_stage === filterFunnel)
+    : afterActive;
 
   const categories = [...new Set(filtered.map((t) => t.category))];
 
@@ -118,21 +120,33 @@ const SettingsTemplates = () => {
         </Button>
       </div>
 
-      {/* Funnel filter */}
-      <div className="flex gap-2 mb-6">
-        {["", "top", "middle", "bottom"].map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilterFunnel(f)}
-            className={`px-3 py-1.5 rounded-md text-mono text-xs transition-colors ${
-              filterFunnel === f
-                ? "bg-[hsl(var(--accent))] text-[hsl(var(--bg-base))]"
-                : "bg-[hsl(var(--bg-surface2))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-secondary))]"
-            }`}
-          >
-            {f === "" ? "Todos" : funnelLabel(f)}
-          </button>
-        ))}
+      {/* Filters */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="flex gap-2">
+          {["", "top", "middle", "bottom"].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilterFunnel(f)}
+              className={`px-3 py-1.5 rounded-md text-mono text-xs transition-colors ${
+                filterFunnel === f
+                  ? "bg-[hsl(var(--accent))] text-[hsl(var(--bg-base))]"
+                  : "bg-[hsl(var(--bg-surface2))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-secondary))]"
+              }`}
+            >
+              {f === "" ? "Todos" : funnelLabel(f)}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => setShowInactive(!showInactive)}
+          className={`px-3 py-1.5 rounded-md text-mono text-xs transition-colors ${
+            showInactive
+              ? "bg-[hsl(var(--bg-surface3))] text-[hsl(var(--text-secondary))]"
+              : "bg-[hsl(var(--bg-surface2))] text-[hsl(var(--text-muted))]"
+          }`}
+        >
+          {showInactive ? "Ocultar inativos" : "Mostrar inativos"}
+        </button>
       </div>
 
       {loading ? (
