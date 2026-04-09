@@ -76,6 +76,7 @@ const NewAsset = () => {
   // Image prompt review state
   const [imagePrompt, setImagePrompt] = useState("");
   const [brief, setBrief] = useState<any>(null);
+  const [briefFiles, setBriefFiles] = useState<any[]>([]);
 
   const templateUsesImage = selectedTemplate?.generation_type === "image_only" || selectedTemplate?.generation_type === "html_and_image";
 
