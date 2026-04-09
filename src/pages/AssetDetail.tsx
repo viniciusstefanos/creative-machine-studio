@@ -195,6 +195,9 @@ const AssetDetail = () => {
     const pendingRenders = renderRows.filter(r => !r.png_url && r.html_content);
     if (pendingRenders.length === 0) return;
 
+    // Save current status to restore after rendering
+    const previousStatus = asset?.status || "review";
+
     // Set status to rendering
     await supabase.from("assets").update({ status: "rendering" }).eq("id", assetId);
     setAsset((prev: any) => ({ ...prev, status: "rendering" }));
@@ -216,10 +219,10 @@ const AssetDetail = () => {
       }
     }
 
-    // Set back to approved
-    await supabase.from("assets").update({ status: "approved" }).eq("id", assetId);
-    setAsset((prev: any) => ({ ...prev, status: "approved" }));
-  }, [assetId, template]);
+    // Restore previous status (NOT auto-approve)
+    await supabase.from("assets").update({ status: previousStatus }).eq("id", assetId);
+    setAsset((prev: any) => ({ ...prev, status: previousStatus }));
+  }, [assetId, template, asset?.status]);
 
   // Count review assets for progress
   const reviewStats = useMemo(() => {
