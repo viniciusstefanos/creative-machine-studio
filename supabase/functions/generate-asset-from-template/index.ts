@@ -558,6 +558,12 @@ Deno.serve(async (req) => {
       return instr;
     }
 
+    // ─── Branch by generation_type ────────────────────────────
+    if (template.generation_type === "html_only") {
+      const carouselInstruction = template.category === "carousel"
+        ? `\n\nDivida o copy em ${template.slides_count_min} a ${template.slides_count_max} slides.\nSlide 1: sempre o GANCHO — visual forte que para o scroll, NUNCA título de relatório.\nSlides do meio: 1 ponto por slide, máx 3 linhas de texto. Visual consistente.\nSlide final: sempre o CTA único e claro.\nO usuário deve entender a proposta lendo apenas slide 1 e o último.\nRetorne APENAS um array JSON: [{"slide_index": 0, "html": "..."}]. Zero markdown.`
+        : "";
+
       const brandInstructions = buildBrandInstructions(context, config);
       const socialInstruction = buildSocialInstruction(activationSocial);
       const systemWithRules = BRIEF_SYSTEM_PROMPT + "\n" + (template.system_prompt || "") + "\n" + HTML_CREATIVE_RULES + carouselInstruction + brandInstructions + socialInstruction + customPrompt;
