@@ -32,9 +32,9 @@ function extractBriefColors(brief: any): Record<string, string | undefined> {
   return {
     primary: colors[0],
     secondary: colors[1],
-    accent: colors[2] || colors[0],
+    accent: colors[1] || colors[0],
     background: colors[0],
-    text: colors[1] ? undefined : "#f5f5f0", // default light text if no secondary
+    text: colors[2] || "#f5f5f0",
   };
 }
 
