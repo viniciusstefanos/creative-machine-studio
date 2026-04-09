@@ -44,8 +44,8 @@ function extractBriefColors(brief: any): Record<string, string | undefined> {
   const consolidated = (brief?.consolidated_context as any)?.visual_guidelines?.colors_hex || [];
   colors.push(...consolidated.filter((c: string) => !colors.includes(c)));
   return {
-    primary: colors[0], secondary: colors[1], accent: colors[2] || colors[0],
-    background: colors[0], text: undefined,
+    primary: colors[0], secondary: colors[1], accent: colors[1] || colors[0],
+    background: colors[0], text: colors[2] || "#f5f5f0",
   };
 }
 
