@@ -301,6 +301,85 @@ Deno.serve(async (req) => {
 
       await saveRender(0, { html_content: v.html, image_url: bgImageUrl, generation_warnings: v.warnings.length ? v.warnings : null });
       await supabase.from("assets").update({ html_content: v.html, image_url: bgImageUrl }).eq("id", asset_id);
+    } else if (template.generation_type === "designed_image") {
+      // ─── designed_image: full design rendered in the image itself ──
+      const DESIGNED_IMAGE_RULES = `
+## REGRAS PARA DESIGN COMPLETO NA IMAGEM
+
+Você está criando uma ARTE FINAL para Instagram. O design, texto, layout e identidade visual devem estar TODOS renderizados na imagem.
+
+### DIMENSÕES
+- Gere a imagem nas dimensões EXATAS especificadas
+- Respeite safe zones: padding mínimo de 80px em todos os lados
+
+### TIPOGRAFIA NA IMAGEM
+- Headline: fonte bold/black, tamanho grande e dominante, máx 8 palavras
+- Body: fonte regular, legível, hierarquia clara abaixo da headline
+- CTA: destaque visual (botão, cor contrastante, sublinhado)
+- Renderize o texto EXATAMENTE como fornecido — sem alterar palavras
+
+### HIERARQUIA VISUAL (3 níveis)
+1. Âncora: headline/elemento principal — maior, mais bold
+2. Suporte: body text/benefício — tamanho médio
+3. Ação: CTA — cor de destaque, posição inferior
+
+### CORES E CONTRASTE
+- Use as cores da marca fornecidas
+- Contraste mínimo 4.5:1 entre texto e fundo
+- Máximo 3 cores principais (dominante + suporte + acento)
+
+### ESTILO
+- Design profissional de agência
+- Composição equilibrada com espaço negativo adequado
+- Sem elementos genéricos de banco de imagem
+- Estética contemporânea Instagram BR 2026
+
+### PROIBIÇÕES
+- NÃO adicione textos que não foram solicitados
+- NÃO adicione logos fictícios
+- NÃO use fontes system/default genéricas na composição visual
+- NÃO coloque texto fora das safe zones
+`;
+
+      const designContext = {
+        hook: copy.hook || "",
+        body: copy.body || "",
+        cta: copy.cta || "",
+        full_copy: context.full_copy,
+        objectives: brief?.objectives || "",
+        target_audience: brief?.target_audience || "",
+        tone_of_voice: brief?.tone_of_voice || "",
+        brand_colors: identity.brandColors,
+        visual_style: identity.visualStyle,
+        width: String(template.width_px),
+        height: String(template.height_px),
+        ...config,
+      };
+
+      const filledPrompt = fillTemplate(template.image_prompt_template || "", designContext);
+
+      const designPromptParts: string[] = [
+        DESIGNED_IMAGE_RULES,
+        `\n## ESPECIFICAÇÕES`,
+        `Dimensões: ${template.width_px}x${template.height_px}px (${template.aspect_ratio})`,
+        `\n## TEXTOS EXATOS A RENDERIZAR`,
+        `Headline: "${copy.hook || ""}"`,
+        copy.body ? `Body: "${copy.body}"` : "",
+        `CTA: "${copy.cta || ""}"`,
+      ];
+      if (identity.brandColors) designPromptParts.push(`\n## CORES DA MARCA\n${identity.brandColors}`);
+      if (identity.visualStyle) designPromptParts.push(`\n## ESTILO VISUAL\n${identity.visualStyle}`);
+      if (brief?.objectives) designPromptParts.push(`\n## OBJETIVO\n${brief.objectives}`);
+      if (brief?.target_audience) designPromptParts.push(`\n## PÚBLICO-ALVO\n${brief.target_audience}`);
+      designPromptParts.push(`\n## INSTRUÇÃO DE DESIGN\n${filledPrompt}`);
+
+      const fullDesignPrompt = designPromptParts.filter(Boolean).join("\n");
+
+      const imageUrl = await generateImage(fullDesignPrompt, lovableKey, supabase, asset_id);
+      await saveRender(0, { image_url: imageUrl });
+      if (imageUrl) {
+        await supabase.from("assets").update({ image_url: imageUrl }).eq("id", asset_id);
+      }
     }
 
     await supabase.from("assets").update({ status: "review" }).eq("id", asset_id);
