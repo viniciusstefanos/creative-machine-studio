@@ -8,8 +8,5 @@ Lovable Cloud enabled. Google OAuth via lovable cloud-auth-js.
 
 ## Memories
 - [Design system](mem://design/tokens) — Full CSS variable palette, fonts, component rules
-- [Design guide](mem://design/guide) — Full visual design guide with typography scale, component patterns
-- [Brief system](mem://features/brief-system) — BRIEF_SYSTEM_PROMPT, deep extraction, consolidated_context
-- [Creative agent](mem://features/creative-agent) — HTML/image generation rules, Instagram BR context
-- [Shared helpers](mem://features/shared-helpers) — Edge function _shared/ modules: cors, call-ai, extract-html, generate-image, build-brief-context
-- [NewAsset components](mem://features/new-asset-wizard) — 5-step wizard componentized into SelectCopy, SelectTemplate, ConfigureTemplate, ReviewImagePrompt, ConfirmGenerate
+- [Designed image type](mem://features/designed-image) — generation_type designed_image: full design with text in image, no HTML
+- [Shared helpers](mem://features/shared-helpers) — _shared/ modules for cors, call-ai, extract-html, validate-html, generate-image, build-brief-context
