@@ -303,42 +303,79 @@ Deno.serve(async (req) => {
       await supabase.from("assets").update({ html_content: v.html, image_url: bgImageUrl }).eq("id", asset_id);
     } else if (template.generation_type === "designed_image") {
       // ─── designed_image: full design rendered in the image itself ──
+      const safeZonesByRatio: Record<string, string> = {
+        "9:16": "Topo: 250px, Base: 300px, Laterais: 96px",
+        "4:5": "Todos os lados: 80px, Laterais: 14px zona segura mínima",
+        "1:1": "Todos os lados: 80px",
+      };
+      const safeZone = safeZonesByRatio[template.aspect_ratio || "4:5"] || safeZonesByRatio["4:5"];
+
       const DESIGNED_IMAGE_RULES = `
-## REGRAS PARA DESIGN COMPLETO NA IMAGEM
+## REGRAS PROFISSIONAIS PARA DESIGN COMPLETO NA IMAGEM
 
-Você está criando uma ARTE FINAL para Instagram. O design, texto, layout e identidade visual devem estar TODOS renderizados na imagem.
+Você está criando uma ARTE FINAL profissional para Instagram/Meta Ads. O design, texto, layout e identidade visual devem estar TODOS renderizados na imagem. Parar o scroll é a função primária (<1.5s para capturar atenção). Mobile-first sem exceção.
 
-### DIMENSÕES
-- Gere a imagem nas dimensões EXATAS especificadas
-- Respeite safe zones: padding mínimo de 80px em todos os lados
+### DIMENSÕES E SAFE ZONES
+- Gere a imagem nas dimensões EXATAS: ${template.width_px}x${template.height_px}px (${template.aspect_ratio})
+- Safe zones: ${safeZone}
+- NENHUM elemento importante fora da zona segura
+
+### COMPOSIÇÃO VISUAL
+- Hierarquia 3 níveis OBRIGATÓRIA: Âncora (headline/produto) > Suporte (body/benefício) > CTA (ação)
+- 4º nível = composição quebrada. PROIBIDO.
+- Regra dos terços para posicionar o elemento âncora
+- Espaço negativo mínimo 30% da área total (20% em promoções)
+- Profundidade 3 planos: fundo + plano médio + primeiro plano
+- Máx 3 focos visuais simultâneos
 
 ### TIPOGRAFIA NA IMAGEM
-- Headline: fonte bold/black, tamanho grande e dominante, máx 8 palavras
-- Body: fonte regular, legível, hierarquia clara abaixo da headline
-- CTA: destaque visual (botão, cor contrastante, sublinhado)
+- Headline: mín 60px, weight bold/black, máx 8 palavras, dominante visualmente
+- Subheadline: mín 36px
+- Corpo/Body: mín 28px, legível, hierarquia clara abaixo da headline
+- CTA botão: mín 32px, weight bold, destaque visual (cor contrastante, fundo sólido)
+- Disclaimers: mín 20px
+- Máx 2 famílias tipográficas. NUNCA 3+.
+- Contraste texto/fundo mín 4.5:1 (WCAG AA)
+- Texto ≤ 20% da área total da imagem
 - Renderize o texto EXATAMENTE como fornecido — sem alterar palavras
 
-### HIERARQUIA VISUAL (3 níveis)
-1. Âncora: headline/elemento principal — maior, mais bold
-2. Suporte: body text/benefício — tamanho médio
-3. Ação: CTA — cor de destaque, posição inferior
-
-### CORES E CONTRASTE
-- Use as cores da marca fornecidas
+### CORES
+- Paleta: 1 dominante + 1 suporte + 1 acento/CTA
+- Cor de acento SOMENTE no elemento de ação (CTA)
+- Nunca #fff puro como fundo → usar tons off-white se necessário
 - Contraste mínimo 4.5:1 entre texto e fundo
-- Máximo 3 cores principais (dominante + suporte + acento)
+
+### FOTOGRAFIA E ELEMENTOS VISUAIS
+- Hero shot ou lifestyle shot — nunca banco de imagem genérico
+- Foco seletivo no produto/elemento principal
+- Produto = ponto mais luminoso da composição
+- Temperatura de cor consistente, saturação moderada
+- Rostos aumentam taxa de parada (+35% conversão), olhar direto = conexão
+
+### CTA
+- Destaque visual claro: botão com fundo sólido contrastante
+- Posição inferior da composição
+- Texto curto e direto (ex: "Peça agora", "Ver cardápio", "Compre já")
+- NUNCA "Clique aqui" ou "Saiba mais" sem contexto
+- APENAS 1 CTA por peça. NUNCA 2+.
 
 ### ESTILO
-- Design profissional de agência
-- Composição equilibrada com espaço negativo adequado
+- Design profissional de agência, estética contemporânea Instagram BR 2026
+- UGC-style supera produções excessivamente polidas em conversão
 - Sem elementos genéricos de banco de imagem
-- Estética contemporânea Instagram BR 2026
+- Identidade reconhecível sem logo
 
-### PROIBIÇÕES
-- NÃO adicione textos que não foram solicitados
-- NÃO adicione logos fictícios
-- NÃO use fontes system/default genéricas na composição visual
-- NÃO coloque texto fora das safe zones
+### 10 PROIBIÇÕES ABSOLUTAS
+1. Texto ilegível (contraste insuficiente ou fonte pequena demais)
+2. 3+ famílias tipográficas
+3. Logo cortado ou distorcido
+4. 2+ CTAs competindo
+5. Fotos pixeladas ou escuras
+6. Sem hierarquia visual (tudo mesmo peso)
+7. Elementos fora da zona segura
+8. Copy genérico sem benefício claro
+9. 4+ focos visuais simultâneos
+10. NÃO adicione textos, logos ou marcas que não foram solicitados
 `;
 
       const designContext = {
@@ -362,6 +399,7 @@ Você está criando uma ARTE FINAL para Instagram. O design, texto, layout e ide
         DESIGNED_IMAGE_RULES,
         `\n## ESPECIFICAÇÕES`,
         `Dimensões: ${template.width_px}x${template.height_px}px (${template.aspect_ratio})`,
+        `Safe zones: ${safeZone}`,
         `\n## TEXTOS EXATOS A RENDERIZAR`,
         `Headline: "${copy.hook || ""}"`,
         copy.body ? `Body: "${copy.body}"` : "",
