@@ -1,75 +1,29 @@
 
 
-# Novo tipo de geração: `designed_image` (imagem com texto integrado)
+# Injetar Regras de Design & Boas Práticas no `designed_image`
 
-## Conceito
+## O que mudar
 
-Hoje existem 3 tipos: `html_only`, `image_only`, `html_and_image`. O novo tipo `designed_image` envia um prompt completo para o modelo de imagem (Nano Banana 2) pedindo a **arte final com texto, layout e design** — tudo renderizado na própria imagem. Zero HTML.
+O `DESIGNED_IMAGE_RULES` atual (linhas 306-342) tem regras genéricas. Precisa incorporar as regras detalhadas do documento de boas práticas (composição, tipografia com tamanhos mínimos, cores, fotografia, proibições absolutas, safe zones por formato, etc.).
 
-Vantagem: o design fica mais orgânico, sem as limitações de CSS/HTML. O Nano Banana 2 já renderiza texto com boa qualidade.
+## Mudança
 
-## Fluxo
+**Arquivo:** `supabase/functions/generate-asset-from-template/index.ts`
 
-```text
-copy + brief + brand colors + template config
-        ↓
-  prompt de design completo (composição + texto + cores + CTA)
-        ↓
-  Nano Banana 2 (gemini-3.1-flash-image-preview)
-        ↓
-  imagem PNG final (texto já integrado)
-        ↓
-  salva em asset_template_renders + assets
-```
+Substituir o `DESIGNED_IMAGE_RULES` atual pelo conteúdo completo das regras de design, incluindo:
 
-## Mudanças
+- **Especificações por formato**: Feed 4:5 safe zones (14px lateral), Stories 9:16 safe zones (topo 250px, base 300px, lateral 96px) — aplicar dinamicamente baseado no `aspect_ratio`
+- **Composição visual**: hierarquia 3 níveis, regra dos terços, espaço negativo mín 30%, profundidade 3 planos
+- **Tipografia com tamanhos mínimos**: headline ≥60px, subheadline ≥36px, corpo ≥28px, CTA ≥32px, disclaimers ≥20px. Máx 2 famílias. Contraste 4.5:1. Texto ≤20% da área. Headlines máx 8 palavras.
+- **Cores**: paleta 1 dominante + 1 suporte + 1 acento/CTA. Acento só no CTA.
+- **Fotografia**: foco seletivo, produto = ponto mais luminoso, saturação moderada
+- **10 proibições absolutas**: texto ilegível, 3+ famílias, logo cortado, 2+ CTAs, fotos pixeladas, sem hierarquia, fora da zona segura, copy genérico, 4+ focos visuais, imagens sem direitos
 
-### 1. Edge function `generate-asset-from-template/index.ts`
+Além disso, tornar as safe zones dinâmicas baseadas no `aspect_ratio` do template (9:16 tem safe zones maiores no topo/base).
 
-Adicionar branch `designed_image` após o `html_and_image`:
+## Impacto
 
-- Monta prompt detalhado com: dimensões exatas, copy (hook/body/CTA), cores da marca, estilo visual, instruções de layout (hierarquia, safe zones, tipografia)
-- Inclui regras de design (contraste, alinhamento, CTA destacado) diretamente no prompt de imagem
-- Chama `generateImage()` com modelo `google/gemini-3.1-flash-image-preview`
-- Salva render com `image_url` (sem `html_content`)
-- Suporta carrossel (múltiplos slides como imagens independentes)
-
-### 2. Prompt de design para imagem
-
-O prompt precisa ser mais detalhado que o `image_only` atual, incluindo:
-- Dimensões exatas (ex: "1080x1350px, aspect ratio 4:5")
-- Texto exato a renderizar (hook como headline grande, CTA como botão)
-- Paleta de cores da marca
-- Hierarquia visual (3 níveis)
-- Safe zones e padding
-- Estilo (dark, gradient, glassmorphism, etc.)
-
-### 3. Frontend `AssetDetail.tsx`
-
-- Na preview: se `generation_type === "designed_image"`, renderizar como imagem (igual `image_only`)
-- Nos botões de edição: mostrar apenas "Refinar imagem" e "Editar textos" (sem "Editar design HTML")
-- Regenerar imagem funciona igual ao `image_only`
-
-### 4. Seed de template
-
-Criar 1-2 templates base com `generation_type: "designed_image"` via migration SQL para teste:
-- "Post Design Completo" (1080×1350, 4:5, single)
-- "Story Design Completo" (1080×1920, 9:16, single)
-
-### 5. `NewAsset.tsx` / `SelectTemplate.tsx`
-
-Já funciona — templates aparecem na lista normalmente, o `generation_type` é transparente para o usuário.
-
-## Arquivos
-
-| Arquivo | Ação |
-|---|---|
-| `supabase/functions/generate-asset-from-template/index.ts` | Adicionar branch `designed_image` |
-| `src/pages/AssetDetail.tsx` | Ajustar preview e botões de edição para `designed_image` |
-| `supabase/functions/edit-asset-render/index.ts` | Suportar refinamento de `designed_image` (regenera imagem com novo prompt) |
-| Migration SQL | Seed de 2 templates `designed_image` |
-
-## Risco
-
-O texto gerado por IA de imagem pode ter erros ortográficos ou de layout. Mitigação: o prompt será muito explícito sobre o texto exato, e o usuário pode regenerar facilmente.
+- Imagens `designed_image` seguirão as mesmas regras profissionais de design
+- Safe zones corretas por formato
+- Zero mudança na UI
 
