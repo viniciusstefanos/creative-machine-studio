@@ -38,6 +38,7 @@ const GEN_TYPES = [
   { value: "html_only", label: "HTML only" },
   { value: "image_only", label: "Image only" },
   { value: "html_and_image", label: "HTML + Image" },
+  { value: "designed_image", label: "Design na imagem" },
 ];
 const VISIBILITIES = [
   { value: "global", label: "Global" },
