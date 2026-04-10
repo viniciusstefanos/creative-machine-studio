@@ -1,0 +1,1 @@
+ALTER TABLE public.asset_template_renders ADD COLUMN IF NOT EXISTS generation_warnings text[];

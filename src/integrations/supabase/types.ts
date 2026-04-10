@@ -275,6 +275,7 @@ export type Database = {
         Row: {
           asset_id: string
           created_at: string | null
+          generation_warnings: string[] | null
           html_content: string | null
           id: string
           image_url: string | null
@@ -285,6 +286,7 @@ export type Database = {
         Insert: {
           asset_id: string
           created_at?: string | null
+          generation_warnings?: string[] | null
           html_content?: string | null
           id?: string
           image_url?: string | null
@@ -295,6 +297,7 @@ export type Database = {
         Update: {
           asset_id?: string
           created_at?: string | null
+          generation_warnings?: string[] | null
           html_content?: string | null
           id?: string
           image_url?: string | null
