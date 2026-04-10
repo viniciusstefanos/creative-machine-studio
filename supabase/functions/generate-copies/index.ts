@@ -2,12 +2,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { BRIEF_SYSTEM_PROMPT } from "../_shared/brief-system-prompt.ts";
 import { getPrompt } from "../_shared/get-prompt.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders } from "../_shared/cors.ts";
+import { callTextAI } from "../_shared/call-ai.ts";
 
 const BASE_SYSTEM_PROMPT = `${BRIEF_SYSTEM_PROMPT}
 
@@ -24,158 +20,60 @@ Você é um agente especialista em criação de conteúdo para redes sociais e a
 ## REGRAS NÃO NEGOCIÁVEIS
 
 ### Hook primeiro, sempre
-Nunca comece com: nome da marca, logo, saudação genérica ou contexto de apresentação.
-Sempre comece com: conflito, dado surpreendente, pergunta que cria lacuna, afirmação contrarian ou cena de alto contraste.
+Nunca comece com: nome da marca, logo, saudação genérica.
+Sempre comece com: conflito, dado surpreendente, pergunta, afirmação contrarian.
 
 **6 tipos de hook validados:**
-1. Curiosidade: "Por que [resultado inesperado] acontece com quem faz X?"
-2. Contrarian: "Tudo que você aprendeu sobre X está errado."
-3. Prova social: Número específico + resultado
-4. Problema direto: Nomeia a dor antes de qualquer solução
-5. Antes/depois: Contraste imediato (visual ou verbal)
-6. Urgência real: Escassez verdadeira com especificidade
+1. Curiosidade 2. Contrarian 3. Prova social 4. Problema direto 5. Antes/depois 6. Urgência real
 
-### Headlines
-- Máximo 8 palavras para impacto
-- Fórmulas eficazes: benefício direto, urgência+escassez, prova social, pergunta-problema, novidade
-
+### Headlines — Máximo 8 palavras
 ### Uma mensagem por peça
-Cada copy tem um único objetivo. Uma única promessa. Um único CTA.
-
 ### Especificidade > generalidade
-"Melhor hambúrguer da cidade" não comunica nada.
-"200g de blend angus, queijo derretido na chapa, servido em 8 minutos" comunica muito.
-
 ### CTA fecha o loop do hook
-Se o hook criou uma lacuna de curiosidade, o CTA fecha essa lacuna com uma ação concreta.
-
-### CTAs — Regras Obrigatórias
-- Todo criativo deve ter exatamente 1 CTA principal.
-- CTAs PROIBIDOS: "Clique aqui", "Saiba mais" sem contexto.
-
-### Prova social
-Inclua ao menos um dos seguintes quando aplicável:
-- Avaliação média + número de reviews
-- Quantidade de clientes/pedidos/anos de operação
-- Premiações, certificações, selos
-- Trecho de depoimento real (máx 15 palavras)
-⚠ Nunca invente dados — use apenas informações do brief.
+### CTAs PROIBIDOS: "Clique aqui", "Saiba mais" sem contexto.
+### Prova social — use apenas informações do brief.
 
 ## ANTI-PATTERNS (NUNCA FAZER)
-- CTA genérico tipo "Saiba mais" sem contexto
-- Copy que serve para qualquer marca (sem especificidade)
-- Começar com nome da marca
-- Comprimir múltiplas mensagens em uma peça
-- Texto genérico sem detalhes sensoriais
-- Inventar dados de prova social
+- CTA genérico, copy genérico, começar com marca, múltiplas mensagens, inventar dados
 
 Responda APENAS com um JSON array válido, sem markdown, sem explicação.`;
 
 const ORGANIC_RULES = `
 ## REGRAS ESPECÍFICAS — ORGÂNICO
-- Caption longo é bem-vindo (até 2200 caracteres no Instagram).
-- Inclua hashtags relevantes (5-10) no final do body.
-- CTA de engajamento: "Salve este post", "Marque alguém que precisa ver isso", "Comente sua experiência", "Compartilhe nos stories".
-- Tom conversacional e próximo. Use perguntas abertas.
-- Storytelling é mais eficaz que venda direta.
-- Explore formatos: carrossel educativo, reels com hook forte, stories interativos.
-- Priorize valor e conexão emocional sobre conversão direta.
+- Caption longo (até 2200 chars). Hashtags (5-10) no final.
+- CTA de engajamento: "Salve", "Marque alguém", "Comente", "Compartilhe".
+- Tom conversacional. Storytelling > venda direta.
 
 ## REGRAS POR FASE DE FUNIL (ORGÂNICO)
-- **Topo**: Entretenimento, curiosidade, awareness. Conteúdo viral, memes contextualizados, dados surpreendentes.
-- **Meio**: Educação, engajamento. Enquetes, perguntas, behind-the-scenes, dicas práticas.
-- **Fundo**: Prova social, depoimentos, resultados. CTA suave para DM ou link na bio.`;
+- **Topo**: Entretenimento, curiosidade, awareness.
+- **Meio**: Educação, engajamento. Enquetes, dicas práticas.
+- **Fundo**: Prova social, depoimentos, resultados.`;
 
 const ADS_RULES = `
 ## REGRAS ESPECÍFICAS — ADS (TRÁFEGO PAGO)
-- Texto CURTO e direto. Primary text: máx 125 caracteres visíveis (antes do "ver mais").
+- Texto CURTO e direto. Primary text: máx 125 caracteres visíveis.
 - Hook nos primeiros 3 segundos / primeiras 2 linhas.
-- CTA de CONVERSÃO: "Compre agora", "Peça pelo WhatsApp", "Agende sua consulta", "Garanta sua vaga", "Aproveite a oferta".
-- NUNCA use CTAs passivos como "Salve" ou "Compartilhe" — isso é orgânico.
-- Headline (hook): máx 40 caracteres para não cortar no feed.
-- Foque em benefício direto + urgência/escassez quando aplicável.
-- Cada copy deve funcionar independente — o usuário não conhece a marca.
-- Inclua prova social numérica sempre que possível.
+- CTA de CONVERSÃO: "Compre agora", "Peça pelo WhatsApp", etc.
+- NUNCA CTAs passivos como "Salve" ou "Compartilhe".
+- Headline (hook): máx 40 caracteres.
 
 ## REGRAS POR FASE DE FUNIL (ADS)
-- **Topo**: Problema/dor + curiosidade. Awareness com volume. Hook emocional ou contrarian.
-- **Meio**: Retargeting. Prova social, comparativo, oferta de conteúdo gratuito (isca).
-- **Fundo**: Oferta direta, urgência real, escassez. CTA forte de compra/agendamento.`;
-
-// ─── AI call via Lovable AI Gateway (default) or Claude (fallback) ───
-async function callAI(systemPrompt: string, userPrompt: string, lovableKey: string, anthropicKey: string, useClaude: boolean): Promise<string> {
-  if (useClaude && anthropicKey) {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
-        temperature: 0.8,
-      }),
-    });
-    if (!res.ok) {
-      const status = res.status;
-      if (status === 429) throw new Error("rate_limit");
-      if (status === 402 || status === 400) throw new Error("credits");
-      throw new Error("ai_failed");
-    }
-    const data = await res.json();
-    return data.content?.[0]?.text || "";
-  }
-
-  // Default: Lovable AI Gateway
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${lovableKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-pro",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.8,
-    }),
-  });
-  if (!res.ok) {
-    const status = res.status;
-    if (status === 429) throw new Error("rate_limit");
-    if (status === 402) throw new Error("credits");
-    throw new Error("ai_failed");
-  }
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || "";
-}
+- **Topo**: Problema/dor + curiosidade.
+- **Meio**: Retargeting. Prova social, comparativo.
+- **Fundo**: Oferta direta, urgência, CTA forte.`;
 
 async function getNextBatchLabel(supabase: any, activationId: string): Promise<string> {
   const { data: distinctBatches } = await supabase
-    .from("copies")
-    .select("batch_label")
-    .eq("activation_id", activationId)
-    .not("batch_label", "is", null);
-
+    .from("copies").select("batch_label").eq("activation_id", activationId).not("batch_label", "is", null);
   const uniqueLabels = new Set((distinctBatches || []).map((r: any) => r.batch_label));
-  const nextNum = uniqueLabels.size + 1;
-  return `Lote #${nextNum}`;
+  return `Lote #${uniqueLabels.size + 1}`;
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
     const { activation_id, brief, activation_name, channels, funnel_stages, purpose = "both", quantity = 6, topic, use_claude } = await req.json();
-
     const safeQuantity = Math.min(Math.max(Number(quantity) || 6, 1), 20);
 
     if (!activation_id || !brief) {
@@ -200,24 +98,14 @@ Deno.serve(async (req) => {
 
     const batchLabel = await getNextBatchLabel(supabase, activation_id);
 
-    // Fetch brief files and consolidated context
     const [briefFilesRes, fullBriefRes] = await Promise.all([
-      supabase
-        .from("brief_files")
-        .select("category, raw_text, extracted_fields, file_name")
-        .eq("activation_id", activation_id)
-        .not("raw_text", "is", null),
-      supabase
-        .from("briefs")
-        .select("consolidated_context")
-        .eq("activation_id", activation_id)
-        .maybeSingle(),
+      supabase.from("brief_files").select("category, raw_text, extracted_fields, file_name").eq("activation_id", activation_id).not("raw_text", "is", null),
+      supabase.from("briefs").select("consolidated_context").eq("activation_id", activation_id).maybeSingle(),
     ]);
 
     const briefFiles = briefFilesRes.data || [];
     const consolidatedContext = (fullBriefRes.data as any)?.consolidated_context || {};
 
-    // Build context from extracted_fields + raw_text
     const filesContext = briefFiles.length
       ? "\n\n## DOCUMENTOS DE REFERÊNCIA COMPLETOS\n" +
         briefFiles.map((f: any) => {
@@ -226,14 +114,11 @@ Deno.serve(async (req) => {
         }).join("\n\n---\n\n")
       : "";
 
-    // Build consolidated context block
     const consolidatedBlock = Object.keys(consolidatedContext).length > 0
       ? `\n\n## CONTEXTO CONSOLIDADO DO BRIEFING\n${JSON.stringify(consolidatedContext, null, 2)}`
       : "";
 
-    const topicBlock = topic
-      ? `\nASSUNTO/DOR ESPECÍFICA: ${topic}. Todas as copies DEVEM abordar esse tema/dor como eixo central.\n`
-      : "";
+    const topicBlock = topic ? `\nASSUNTO/DOR ESPECÍFICA: ${topic}. Todas as copies DEVEM abordar esse tema/dor como eixo central.\n` : "";
 
     const briefBlock = `BRIEF DA ATIVAÇÃO: "${activation_name}"
 - Objetivos: ${brief.objectives || "Não especificado"}
@@ -249,46 +134,27 @@ ${topicBlock}
 CANAIS: ${(channels || ["instagram"]).join(", ")}
 ETAPAS DO FUNIL: ${(funnel_stages || ["top", "mid", "bottom"]).join(", ")}`;
 
-    const purposesToGenerate: string[] =
-      purpose === "both" ? ["organic", "ads"] : [purpose];
-
+    const purposesToGenerate: string[] = purpose === "both" ? ["organic", "ads"] : [purpose];
     let allCopies: any[] = [];
 
     for (const p of purposesToGenerate) {
       const [briefSystemContent, copyBaseContent, purposeContent] = await Promise.all([
         getPrompt(supabase, "brief_system", BRIEF_SYSTEM_PROMPT),
         getPrompt(supabase, "copy_base", BASE_SYSTEM_PROMPT),
-        p === "organic"
-          ? getPrompt(supabase, "copy_organic", ORGANIC_RULES)
-          : getPrompt(supabase, "copy_ads", ADS_RULES),
+        p === "organic" ? getPrompt(supabase, "copy_organic", ORGANIC_RULES) : getPrompt(supabase, "copy_ads", ADS_RULES),
       ]);
       const customPrompt = brief.system_prompt ? `\n\n## INSTRUÇÕES CUSTOMIZADAS DA ATIVAÇÃO\n${brief.system_prompt}` : "";
       const systemPrompt = briefSystemContent + "\n" + copyBaseContent + "\n" + purposeContent + customPrompt;
 
       const purposeInstruction = p === "organic"
-        ? `FINALIDADE: ORGÂNICO — gere copies para publicação orgânica. Caption longo, hashtags, CTA de engajamento.`
-        : `FINALIDADE: ADS (TRÁFEGO PAGO) — gere copies para anúncios pagos. Texto curto, direto, CTA de conversão.`;
+        ? `FINALIDADE: ORGÂNICO — gere copies para publicação orgânica.`
+        : `FINALIDADE: ADS (TRÁFEGO PAGO) — gere copies para anúncios pagos.`;
 
       const quantityForPurpose = purpose === "both" ? Math.ceil(safeQuantity / 2) : safeQuantity;
 
-      const userPrompt = `${briefBlock}
+      const userPrompt = `${briefBlock}\n\n${purposeInstruction}\n\nGere exatamente ${quantityForPurpose} copies variados.\nResponda APENAS com um JSON array válido. Exemplo:\n[{"hook":"...","body":"...","cta":"...","type":"${p === "organic" ? "post" : "ad"}","channel":"instagram","funnel_stage":"top"}]`;
 
-${purposeInstruction}
-
-Para cada combinação de canal + etapa do funil, gere um copy com:
-- hook: frase curta que captura atenção (máx 8 palavras)
-- body: desenvolvimento do argumento com detalhes específicos${p === "organic" ? ". Inclua hashtags relevantes no final." : ". Máx 125 caracteres visíveis."}
-- cta: chamada para ação${p === "organic" ? " de engajamento (salvar, comentar, compartilhar)" : " de conversão (comprar, agendar, pedir)"}
-- type: "post" ou "ad"
-- channel: o canal
-- funnel_stage: "top", "mid" ou "bottom"
-
-Gere exatamente ${quantityForPurpose} copies variados.
-
-Responda APENAS com um JSON array válido. Exemplo:
-[{"hook":"...","body":"...","cta":"...","type":"${p === "organic" ? "post" : "ad"}","channel":"instagram","funnel_stage":"top"}]`;
-
-      const content = await callAI(systemPrompt, userPrompt, lovableKey, anthropicKey, useClaude);
+      const content = await callTextAI(systemPrompt, userPrompt, useClaude, anthropicKey, lovableKey, { temperature: 0.8 });
 
       let jsonStr = content;
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -299,32 +165,19 @@ Responda APENAS com um JSON array válido. Exemplo:
       }
 
       let copies;
-      try {
-        copies = JSON.parse(jsonStr);
-      } catch {
-        console.error("Failed to parse AI response for purpose:", p, content);
-        continue;
-      }
+      try { copies = JSON.parse(jsonStr); } catch { console.error("Failed to parse AI response:", p); continue; }
 
       const inserts = copies.map((c: any) => ({
         activation_id,
-        hook: c.hook || "",
-        body: c.body || "",
-        cta: c.cta || "",
+        hook: c.hook || "", body: c.body || "", cta: c.cta || "",
         full_copy: `${c.hook || ""}\n\n${c.body || ""}\n\n${c.cta || ""}`,
         type: c.type || (p === "organic" ? "post" : "ad"),
-        channel: c.channel || "",
-        funnel_stage: c.funnel_stage || "top",
-        status: "draft",
-        purpose: p,
-        batch_label: batchLabel,
+        channel: c.channel || "", funnel_stage: c.funnel_stage || "top",
+        status: "draft", purpose: p, batch_label: batchLabel,
       }));
 
       const { data, error } = await supabase.from("copies").insert(inserts).select();
-      if (error) {
-        console.error("Insert error for purpose:", p, error);
-        continue;
-      }
+      if (error) { console.error("Insert error:", p, error); continue; }
       allCopies = allCopies.concat(data || []);
     }
 
@@ -341,7 +194,7 @@ Responda APENAS com um JSON array válido. Exemplo:
     console.error("Unexpected error:", err);
     const msg = err instanceof Error ? err.message : "Unknown error";
     const status = msg === "rate_limit" ? 429 : msg === "credits" ? 402 : 500;
-    return new Response(JSON.stringify({ error: msg === "rate_limit" ? "Limite de requisições. Tente novamente." : msg === "credits" ? "Créditos insuficientes." : "Erro interno" }), {
+    return new Response(JSON.stringify({ error: msg === "rate_limit" ? "Limite de requisições." : msg === "credits" ? "Créditos insuficientes." : "Erro interno" }), {
       status, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
