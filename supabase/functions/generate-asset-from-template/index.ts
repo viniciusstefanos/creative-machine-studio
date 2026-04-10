@@ -117,7 +117,7 @@ const IMAGE_CREATIVE_RULES = `
 // ─── Generate optimized image prompt ─────────────────────────
 async function generateImagePrompt(basePrompt: string, useClaude: boolean, anthropicKey: string, lovableKey: string, imageRules: string): Promise<string> {
   const res = await callTextAI(
-    `Você é um especialista em prompts para geração de imagem para Instagram Brasil.\n\n${imageRules}\n\nReceba um rascunho de prompt e otimize-o. Retorne APENAS o prompt otimizado em inglês, sem explicação.`,
+    `Você é um especialista em prompts para geração de imagem para Instagram Brasil.\n\n${imageRules}\n\nREGRAS OBRIGATÓRIAS:\n- NUNCA inclua nomes de marca, logos, texto escrito, tipografia ou palavras na imagem\n- A imagem é APENAS cenário/composição visual — texto vai no overlay HTML separadamente\n- Remova qualquer referência a nome de empresa, produto ou marca do prompt\n- Foco EXCLUSIVO: composição, iluminação, cores, cenário, pessoas, objetos, texturas\n- Se o rascunho mencionar uma marca, substitua por descrição visual genérica do contexto\n\nReceba um rascunho de prompt e otimize-o. Retorne APENAS o prompt otimizado em inglês, sem explicação.`,
     `Rascunho de prompt: "${basePrompt}"\n\nOtimize este prompt para geração de imagem:`,
     useClaude, anthropicKey, lovableKey,
   );
@@ -261,11 +261,17 @@ Deno.serve(async (req) => {
       }
 
     } else if (template.generation_type === "image_only") {
+      const imageContext = {
+        hook: copy.hook || "", body: copy.body || "", cta: copy.cta || "",
+        full_copy: context.full_copy, objectives: brief?.objectives || "",
+        target_audience: brief?.target_audience || "", tone_of_voice: brief?.tone_of_voice || "",
+        ...config,
+      };
       const slideParts = splitCopyIntoSlides(template.slides_count_min || 1);
       const maxSlides = Math.min(slideParts.length, template.slides_count_max || 5);
 
       for (let i = 0; i < maxSlides; i++) {
-        const filledPrompt = fillTemplate(template.image_prompt_template || "", { ...context, slide_content: slideParts[i] });
+        const filledPrompt = fillTemplate(template.image_prompt_template || "", { ...imageContext, slide_content: slideParts[i] });
         const optimizedPrompt = await generateImagePrompt(filledPrompt, useClaude, anthropicKey, lovableKey, dbImageRules);
         const imageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
         await saveRender(i, { image_url: imageUrl });
@@ -275,7 +281,13 @@ Deno.serve(async (req) => {
       }
 
     } else if (template.generation_type === "html_and_image") {
-      const filledPrompt2 = fillTemplate(template.image_prompt_template || "", context);
+      const imageContext2 = {
+        hook: copy.hook || "", body: copy.body || "", cta: copy.cta || "",
+        full_copy: context.full_copy, objectives: brief?.objectives || "",
+        target_audience: brief?.target_audience || "", tone_of_voice: brief?.tone_of_voice || "",
+        ...config,
+      };
+      const filledPrompt2 = fillTemplate(template.image_prompt_template || "", imageContext2);
       const optimizedPrompt = await generateImagePrompt(filledPrompt2, useClaude, anthropicKey, lovableKey, dbImageRules);
       const bgImageUrl = await generateImage(optimizedPrompt, lovableKey, supabase, asset_id);
 
