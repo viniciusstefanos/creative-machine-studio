@@ -444,8 +444,15 @@ const AssetDetail = () => {
         } else {
           // For HTML renders, inject the new image into the HTML as well
           if (currentRender.html_content) {
-            const updatedHtml = currentRender.html_content.replace(
+            let updatedHtml = currentRender.html_content;
+            // Replace <img src="...">
+            updatedHtml = updatedHtml.replace(
               /(<img[^>]*src=["'])[^"']+/i,
+              `$1${data.image_url}`
+            );
+            // Replace background-image:url(...)
+            updatedHtml = updatedHtml.replace(
+              /(background-image\s*:\s*url\(\s*['"]?)[^'")]+/gi,
               `$1${data.image_url}`
             );
             setRenders(prev => prev.map((r, i) => i === currentSlide
