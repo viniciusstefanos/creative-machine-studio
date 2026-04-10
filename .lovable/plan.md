@@ -1,64 +1,56 @@
 
 
-# Prevenção de Erros de Design — Validação Pós-Geração
+# Fix: Brand Name Leaking into Image Generation Prompts
 
-## O Problema
+## Diagnóstico
 
-Hoje o fluxo é: **prompt → IA gera HTML → salva direto no banco**. Não existe nenhuma etapa de validação entre a geração e o salvamento. Se a IA ignora uma regra (texto sem contraste, botão desalinhado, fonte não carregada), o erro vai direto pro usuário.
+O `context` passado para `fillTemplate` no branch de imagem contém campos como `brand_colors`, `typography`, `visual_style` e `brief_files_context` — todos podem conter o nome da marca. Quando o `image_prompt_template` usa placeholders como `{{visual_style}}` ou `{{brief_files_context}}`, o nome da marca vaza para o prompt de imagem, e a IA de imagem renderiza logos/texto da marca na cena.
 
-Prompts melhores ajudam, mas IAs são probabilísticas — sempre haverá falhas. A solução robusta é adicionar uma **camada de validação automática** no HTML gerado.
+Além disso, o `generateImagePrompt` não tem instrução explícita para remover nomes de marca, logos ou texto do prompt.
 
-## Solução: HTML Validator + Auto-fix
+## Solução
 
-### 1. Criar `_shared/validate-html.ts`
+### 1. Criar contexto separado para imagem (sem brand identity textual)
 
-Uma função que recebe o HTML gerado e verifica regras básicas de design antes de salvar:
+No `generate-asset-from-template/index.ts`, criar um `imageContext` que exclui `brand_colors`, `typography`, `visual_style` e `brief_files_context`:
 
-| Verificação | O que faz | Auto-fix |
-|---|---|---|
-| **Gradient overlay** | Se `background-image` existe, exige `linear-gradient` overlay | Injeta div overlay automaticamente |
-| **Text-shadow** | Todo texto sobre imagem precisa `text-shadow` | Adiciona `text-shadow: 0 2px 8px rgba(0,0,0,0.8)` |
-| **CTA centralizado** | Botão com `display:flex;align-items:center;justify-content:center` | Injeta estilos de centralização |
-| **Dimensões fixas** | Container raiz tem `width` e `height` em px (não %, vw, vh) | Substitui por valores do template |
-| **Google Fonts** | Verifica se há `<link>` do Google Fonts (não system fonts) | Warning apenas |
-| **Contraste mínimo** | Cores de texto vs fundo com ratio ≥ 3:1 | Warning apenas |
-| **Overflow** | Texto não excede container (heurística: font-size vs height) | Warning apenas |
-
-### 2. Integrar no fluxo de geração
-
-Em `generate-asset-from-template/index.ts`, após cada `extractHtml()`:
-
-```
-const rawHtml = extractHtml(rawContent);
-const { html, warnings } = validateAndFixHtml(rawHtml, {
-  width: template.width_px,
-  height: template.height_px,
-  generationType: template.generation_type,
-});
+```typescript
+const imageContext = {
+  hook: copy.hook || "",
+  body: copy.body || "",
+  cta: copy.cta || "",
+  full_copy: context.full_copy,
+  objectives: brief?.objectives || "",
+  target_audience: brief?.target_audience || "",
+  tone_of_voice: brief?.tone_of_voice || "",
+  // NO brand_colors, typography, visual_style, brief_files_context
+  ...config,
+};
 ```
 
-Warnings ficam logados no console para debugging. Fixes automáticos são aplicados silenciosamente.
+Usar `imageContext` em vez de `context` nos `fillTemplate` de imagem (linhas 268 e 278).
 
-### 3. Mesma validação no `edit-asset-render`
+### 2. Adicionar guarda no `generateImagePrompt`
 
-Para que refinamentos também passem pela validação.
+Acrescentar no system prompt do otimizador de imagem:
 
-### 4. Salvar warnings no banco (opcional mas útil)
+```
+REGRAS OBRIGATÓRIAS:
+- NUNCA inclua nomes de marca, logos, texto ou tipografia na imagem
+- A imagem é APENAS cenário/composição visual — texto vai no overlay HTML
+- Remova qualquer referência a nome de empresa/produto do prompt
+- Foco: composição, iluminação, cores, cenário, pessoas, objetos
+```
 
-Adicionar coluna `generation_warnings text[]` na tabela `asset_template_renders` para rastrear quais peças precisaram de auto-fix — isso ajuda a melhorar os prompts ao longo do tempo.
+## Arquivos a modificar
 
-## Arquivos
-
-| Arquivo | Ação |
+| Arquivo | Mudança |
 |---|---|
-| `supabase/functions/_shared/validate-html.ts` | Criar — validador + auto-fix |
-| `supabase/functions/generate-asset-from-template/index.ts` | Integrar validação após cada `extractHtml()` |
-| `supabase/functions/edit-asset-render/index.ts` | Integrar validação |
-| Migration SQL | Adicionar coluna `generation_warnings` em `asset_template_renders` |
+| `supabase/functions/generate-asset-from-template/index.ts` | Criar `imageContext` sem brand fields + atualizar guarda no `generateImagePrompt` |
 
 ## Impacto
 
-- Peças com erros básicos são corrigidas automaticamente antes de chegar ao usuário
-- Warnings registrados permitem identificar padrões de falha e melhorar prompts
-- Zero mudança na UI — puramente backend
+- Imagens geradas não terão mais a marca renderizada na cena
+- Brand identity continua sendo aplicada corretamente no HTML overlay
+- Zero mudança na UI
 
