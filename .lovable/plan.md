@@ -1,112 +1,89 @@
 
 
-# Engenharia de Prompts — Painel de Controle
+# Refatoração em 3 Ondas — Templates & Peças
 
-## Diagnóstico: 10 prompts hardcoded em 5 edge functions
+## Resumo
 
-| Prompt | Arquivo | Função |
-|--------|---------|--------|
-| `BRIEF_SYSTEM_PROMPT` | `_shared/brief-system-prompt.ts` | Regras invioláveis de briefing (base de todos) |
-| `DEEP_EXTRACTION_SCHEMA` | `_shared/brief-system-prompt.ts` | Schema JSON para extração de dados do brief |
-| `BASE_SYSTEM_PROMPT` (copy) | `generate-copies/index.ts` | Prompt do diretor criativo para copies |
-| `ORGANIC_RULES` | `generate-copies/index.ts` | Regras específicas para copy orgânico |
-| `ADS_RULES` | `generate-copies/index.ts` | Regras específicas para copy de ads |
-| `HTML_CREATIVE_RULES` | `generate-asset-from-template/index.ts` | Regras visuais para geração de peças HTML |
-| `IMAGE_CREATIVE_RULES` | `generate-asset-from-template/index.ts` | Diretrizes de imagem/fotografia |
-| `TEMPLATE_DESIGN_RULES` | `generate-template/index.ts` | Regras para criação de scaffolds de templates |
-| `EXTRACTION_SYSTEM` | `extract-brief/index.ts` | Prompt de extração de dados do brief |
-| `REGEN_COPY_PROMPT` | `regenerate-copy-block/index.ts` | Prompt de regeneração de bloco individual de copy |
+Extrair código duplicado das edge functions para helpers compartilhados, unificar a lógica de cores do briefing, e componentizar `NewAsset.tsx` (637 linhas → ~5 componentes menores).
 
 ---
 
-## Arquitetura
+## Onda 1 — Helpers compartilhados (`_shared/`)
 
-### 1. Tabela `prompt_templates`
+Lógica duplicada entre `generate-asset-from-template`, `generate-copies`, `edit-asset-render` e `generate-template`.
 
-```sql
-CREATE TABLE prompt_templates (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  slug text UNIQUE NOT NULL,        -- ex: "brief_system", "copy_base", "ads_rules"
-  name text NOT NULL,                -- ex: "Regras de Briefing"
-  category text NOT NULL,            -- "briefing" | "copy" | "peças" | "templates"
-  description text,                  -- explicação do que faz
-  content text NOT NULL,             -- o prompt em si
-  is_system boolean DEFAULT true,    -- prompts do sistema vs custom
-  updated_at timestamptz DEFAULT now(),
-  updated_by uuid
-);
-```
+| Helper a criar | O que move | De onde vem |
+|---|---|---|
+| `_shared/call-ai.ts` | `callClaude`, `callLovableAI`, `callTextAI` | generate-asset (162-220), generate-copies (106-157) |
+| `_shared/generate-image.ts` | `generateImage`, `generateImagePrompt`, `extractBase64FromResponse` | generate-asset (237-315), edit-asset-render (94-128) |
+| `_shared/extract-html.ts` | `extractHtml` | generate-asset (8-20), edit-asset-render (7-18) — idênticas |
+| `_shared/cors.ts` | `corsHeaders` | Todos os 5 functions — mesmo objeto |
+| `_shared/build-brief-context.ts` | `buildBrandInstructions`, `buildSocialInstruction`, `fillTemplate`, contexto de brief files | generate-asset (469-521, 317-319, 398-466) |
 
-Seed com os 10 prompts atuais. RLS: leitura para authenticated, escrita para admins.
-
-### 2. Edge functions leem do banco
-
-Cada function faz um `SELECT content FROM prompt_templates WHERE slug = 'xxx'` no início, com fallback para o valor hardcoded atual (segurança se o banco falhar).
-
-```text
-Request → Edge Function
-            ├── SELECT prompt FROM prompt_templates WHERE slug = '...'
-            ├── fallback → constante hardcoded original
-            └── usa prompt do banco
-```
-
-### 3. Página `/settings/prompts`
-
-- Sidebar: ícone engrenagem → "Prompts IA"
-- Lista agrupada por categoria (Briefing, Copies, Peças, Templates)
-- Cada prompt: card expansível com nome, descrição, textarea editável
-- Botão "Salvar" + "Restaurar padrão" por prompt
-- Badge "Editado" quando difere do original
-- Preview do prompt final montado (com variáveis expandidas)
-
-```text
-┌─────────────────────────────────────────────┐
-│ ⚙ Engenharia de Prompts                    │
-├─────────────────────────────────────────────┤
-│ ▸ Briefing                                  │
-│   ├ Regras de Briefing (base)        [edit] │
-│   ├ Extração de Dados                [edit] │
-│   └ Schema de Extração              [view]  │
-│ ▸ Copies                                    │
-│   ├ Diretor Criativo (base)          [edit] │
-│   ├ Regras Orgânico                  [edit] │
-│   ├ Regras Ads                       [edit] │
-│   └ Regeneração de Bloco             [edit] │
-│ ▸ Peças                                     │
-│   ├ Regras Criativas HTML            [edit] │
-│   └ Diretrizes de Imagem             [edit] │
-│ ▸ Templates                                 │
-│   └ Regras de Design                 [edit] │
-└─────────────────────────────────────────────┘
-```
+**Resultado**: `generate-asset-from-template` cai de 627 → ~250 linhas, `generate-copies` de 348 → ~250. Cada function importa helpers em vez de redefinir.
 
 ---
 
-## Arquivos a criar/modificar
+## Onda 2 — Unificar extração de cores
+
+Hoje a mesma lógica de "pegar hex do briefing" existe em **3 lugares**:
+1. `NewAsset.tsx` (26-54) — `extractBriefColors()` no frontend
+2. `generate-asset-from-template` (418-451, 469-512) — `buildBrandInstructions()` no backend
+3. `edit-asset-render` (34-73) — `buildImageContext()` no backend
+
+**Ação**:
+- Criar `_shared/resolve-brand-identity.ts` com função `resolveBrandIdentity(brief, briefFiles, consolidated)` que retorna `{ colors: string[], fonts: string[], visualStyle: string }`.
+- Usada por `generate-asset`, `edit-asset-render`, e `generate-template`.
+- No frontend, criar hook `src/hooks/useBriefColors.ts` que faz a mesma extração (ou simplesmente chama o campo `consolidated_context` que já tem as cores resolvidas) — eliminar a função `extractBriefColors` inline do `NewAsset.tsx`.
+
+---
+
+## Onda 3 — Componentizar `NewAsset.tsx`
+
+637 linhas com 5 steps misturados em um único componente.
+
+| Componente | Responsabilidade | Linhas atuais |
+|---|---|---|
+| `NewAssetWizard.tsx` | Orchestrador: stepper, navegação, estado global | ~80 linhas |
+| `steps/SelectCopy.tsx` | Step 1: lista de copies aprovados | 319-348 |
+| `steps/SelectTemplate.tsx` | Step 2: grid de templates com filtros | 352-412 |
+| `steps/ConfigureTemplate.tsx` | Step 3: editable_fields (cores, selects, sliders) | 416-504 |
+| `steps/ReviewImagePrompt.tsx` | Step 4: editor de prompt de imagem | 508-566 |
+| `steps/ConfirmGenerate.tsx` | Step 5: resumo + botão gerar | 570-631 |
+
+**Shared state via props**: `selectedCopy`, `selectedTemplate`, `renderConfig`, `imagePrompt`, `onNext/onBack`.
+
+Hook `useBriefColors` (da Onda 2) alimenta `ConfigureTemplate` automaticamente.
+
+---
+
+## Arquivos finais
 
 | Arquivo | Ação |
-|---------|------|
-| **Migration SQL** | Criar tabela `prompt_templates` + seed 10 prompts + RLS |
-| **`src/pages/SettingsPrompts.tsx`** | Nova página com editor de prompts |
-| **`src/App.tsx`** | Adicionar rota `/settings/prompts` |
-| **`src/components/layout/Sidebar.tsx`** | Adicionar link "Prompts IA" no menu |
-| **`supabase/functions/_shared/brief-system-prompt.ts`** | Manter como fallback, exportar também slugs |
-| **`supabase/functions/generate-copies/index.ts`** | Ler prompts do banco com fallback |
-| **`supabase/functions/generate-asset-from-template/index.ts`** | Ler prompts do banco com fallback |
-| **`supabase/functions/generate-template/index.ts`** | Ler prompts do banco com fallback |
-| **`supabase/functions/extract-brief/index.ts`** | Ler prompts do banco com fallback |
-| **`supabase/functions/regenerate-copy-block/index.ts`** | Ler prompts do banco com fallback |
+|---|---|
+| `supabase/functions/_shared/call-ai.ts` | Criar |
+| `supabase/functions/_shared/generate-image.ts` | Criar |
+| `supabase/functions/_shared/extract-html.ts` | Criar |
+| `supabase/functions/_shared/cors.ts` | Criar |
+| `supabase/functions/_shared/build-brief-context.ts` | Criar |
+| `supabase/functions/_shared/resolve-brand-identity.ts` | Criar |
+| `supabase/functions/generate-asset-from-template/index.ts` | Refatorar (627→~250 linhas) |
+| `supabase/functions/generate-copies/index.ts` | Refatorar (348→~250 linhas) |
+| `supabase/functions/edit-asset-render/index.ts` | Refatorar (346→~200 linhas) |
+| `supabase/functions/generate-template/index.ts` | Refatorar menor |
+| `src/hooks/useBriefColors.ts` | Criar |
+| `src/pages/NewAsset.tsx` | Manter como wrapper fino |
+| `src/components/new-asset/SelectCopy.tsx` | Criar |
+| `src/components/new-asset/SelectTemplate.tsx` | Criar |
+| `src/components/new-asset/ConfigureTemplate.tsx` | Criar |
+| `src/components/new-asset/ReviewImagePrompt.tsx` | Criar |
+| `src/components/new-asset/ConfirmGenerate.tsx` | Criar |
 
-### Padrão de leitura nas edge functions
+## Ordem de execução
 
-```typescript
-async function getPrompt(supabase, slug: string, fallback: string): Promise<string> {
-  const { data } = await supabase
-    .from("prompt_templates")
-    .select("content")
-    .eq("slug", slug)
-    .single();
-  return data?.content || fallback;
-}
-```
+1. **Onda 1 primeiro** — zero impacto visual, só mover código. Teste: gerar peça e copy normalmente.
+2. **Onda 2** — unificar cores. Teste: cores do briefing aparecem nos campos configuráveis.
+3. **Onda 3** — componentizar frontend. Teste: fluxo completo de criação de peça funciona igual.
+
+Cada onda é independente e pode ser aprovada/testada antes de prosseguir.
 
