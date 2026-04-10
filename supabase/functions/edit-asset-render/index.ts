@@ -3,6 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { decodeBase64 } from "jsr:@std/encoding@1/base64";
 import { corsHeaders } from "../_shared/cors.ts";
 import { extractHtml } from "../_shared/extract-html.ts";
+import { validateAndFixHtml } from "../_shared/validate-html.ts";
 import { extractBase64FromResponse } from "../_shared/generate-image.ts";
 import { resolveBrandIdentity } from "../_shared/build-brief-context.ts";
 
@@ -156,8 +157,19 @@ Deno.serve(async (req) => {
         result = data.choices?.[0]?.message?.content || "";
       }
 
-      const cleanHtml = extractHtml(result);
-      await supabase.from("asset_template_renders").update({ html_content: cleanHtml, png_url: null }).eq("id", render_id);
+      const cleanHtmlRaw = extractHtml(result);
+      // Fetch template dimensions for validation
+      let valWidth = 1080, valHeight = 1350, genType = "html_only";
+      if (asset_id) {
+        const { data: assetData } = await supabase.from("assets").select("template_id").eq("id", asset_id).single();
+        if (assetData?.template_id) {
+          const { data: tpl } = await supabase.from("asset_templates").select("width_px, height_px, generation_type").eq("id", assetData.template_id).single();
+          if (tpl) { valWidth = tpl.width_px; valHeight = tpl.height_px; genType = tpl.generation_type; }
+        }
+      }
+      const v = validateAndFixHtml(cleanHtmlRaw, { width: valWidth, height: valHeight, generationType: genType });
+      const cleanHtml = v.html;
+      await supabase.from("asset_template_renders").update({ html_content: cleanHtml, png_url: null, generation_warnings: v.warnings.length ? v.warnings : null }).eq("id", render_id);
       if (asset_id) {
         const { data: renders } = await supabase.from("asset_template_renders").select("id").eq("asset_id", asset_id);
         if (renders && renders.length === 1) {
