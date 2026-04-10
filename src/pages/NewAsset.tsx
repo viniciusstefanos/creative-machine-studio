@@ -1,59 +1,28 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { SectionLabel } from "@/components/ui/SectionLabel";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Check, ChevronRight, Loader2, Sparkles, Eye, Pencil } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 import { buildAssetName } from "@/lib/assetNaming";
-import { TemplatePreview } from "@/components/ui/TemplatePreview";
+import { useBriefColors } from "@/hooks/useBriefColors";
+
+import { SelectCopy } from "@/components/new-asset/SelectCopy";
+import { SelectTemplate } from "@/components/new-asset/SelectTemplate";
+import { ConfigureTemplate } from "@/components/new-asset/ConfigureTemplate";
+import { ReviewImagePrompt } from "@/components/new-asset/ReviewImagePrompt";
+import { ConfirmGenerate } from "@/components/new-asset/ConfirmGenerate";
 
 interface EditableField {
   label: string;
   type: "color" | "select" | "slider" | "text";
   default: string | number;
   options?: string[];
-  min?: number;
-  max?: number;
   locked?: boolean;
   from_brief?: string;
 }
 
-/** Extract hex colors from brief's brand_colors text, consolidated_context, and brief_files */
-function extractBriefColors(brief: any, briefFiles?: any[]): Record<string, string | undefined> {
-  const colors: string[] = [];
-  // 1. Direct brief.brand_colors text
-  const hexMatches = (brief?.brand_colors || "").match(/#[0-9A-Fa-f]{6}/g) || [];
-  colors.push(...hexMatches);
-  // 2. Consolidated context
-  const consolidated = (brief?.consolidated_context as any)?.visual_guidelines?.colors_hex || [];
-  colors.push(...consolidated.filter((c: string) => !colors.includes(c)));
-  // 3. Fallback: brief_files extracted_fields
-  if (colors.length === 0 && briefFiles?.length) {
-    for (const f of briefFiles) {
-      const ef = f.extracted_fields;
-      if (ef?.visual_guidelines?.colors_hex) {
-        const fileColors = ef.visual_guidelines.colors_hex as string[];
-        for (const c of fileColors) {
-          const hex = c.match(/#[0-9A-Fa-f]{6}/)?.[0];
-          if (hex && !colors.includes(hex)) colors.push(hex);
-        }
-      }
-    }
-  }
-  return {
-    primary: colors[0],
-    secondary: colors[1],
-    accent: colors[1] || colors[0],
-    background: colors[0],
-    text: colors[2] || "#f5f5f0",
-  };
-}
-
-/** Fill {{key}} placeholders in a template string */
 const fillTemplate = (tpl: string, ctx: Record<string, any>): string =>
   tpl.replace(/\{\{(\w+)\}\}/g, (_, key) => ctx[key] || "");
 
@@ -70,17 +39,14 @@ const NewAsset = () => {
   const [generating, setGenerating] = useState(false);
   const [activation, setActivation] = useState<any>(null);
   const [clientName, setClientName] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [useClaude, setUseClaude] = useState(false);
-
-  // Image prompt review state
   const [imagePrompt, setImagePrompt] = useState("");
   const [brief, setBrief] = useState<any>(null);
   const [briefFiles, setBriefFiles] = useState<any[]>([]);
+  const [briefColorFields, setBriefColorFields] = useState<Set<string>>(new Set());
 
+  const briefColors = useBriefColors(brief, briefFiles);
   const templateUsesImage = selectedTemplate?.generation_type === "image_only" || selectedTemplate?.generation_type === "html_and_image";
-
-  // Total steps: 5 if template uses image (includes prompt review), otherwise 4
   const totalSteps = templateUsesImage ? 5 : 4;
   const stepLabels = templateUsesImage
     ? ["Selecionar Copy", "Selecionar Template", "Configurar", "Prompt de Imagem", "Gerar"]
@@ -99,16 +65,12 @@ const NewAsset = () => {
       ]);
       setCopies(copiesRes.data || []);
 
-      // Filter templates by client visibility
       const allTemplates = templatesRes.data || [];
       const clientId = (actRes.data as any)?.clients?.id || (actRes.data as any)?.client_id;
       const settings = settingsRes.data || [];
       const disabledIds = new Set(settings.filter((s: any) => !s.enabled).map((s: any) => s.template_id));
-
       const filtered = allTemplates.filter((t: any) => {
-        // Client-exclusive templates: only show for matching client
         if (t.visibility === "client_only" && t.client_id && t.client_id !== clientId) return false;
-        // Global templates: hide if explicitly disabled for this client
         if (t.visibility === "global" && disabledIds.has(t.id)) return false;
         return true;
       });
@@ -124,9 +86,7 @@ const NewAsset = () => {
     fetchData();
   }, [id]);
 
-  // Track which color fields were auto-filled from brief
-  const [briefColorFields, setBriefColorFields] = useState<Set<string>>(new Set());
-
+  // Auto-fill editable fields from brief colors
   useEffect(() => {
     if (!selectedTemplate?.editable_fields) {
       setRenderConfig({});
@@ -135,10 +95,8 @@ const NewAsset = () => {
     }
     const defaults: Record<string, any> = {};
     const fields = selectedTemplate.editable_fields as Record<string, EditableField>;
-    const briefColors = extractBriefColors(brief, briefFiles);
     const filledFromBrief = new Set<string>();
 
-    // Dynamic color mapping via from_brief property
     const fromBriefMap: Record<string, string | undefined> = {
       background: briefColors.primary,
       accent: briefColors.accent,
@@ -146,8 +104,6 @@ const NewAsset = () => {
       primary: briefColors.primary,
       secondary: briefColors.secondary,
     };
-
-    // Legacy fallback by field name
     const legacyColorMap: Record<string, string | undefined> = {
       brand_color: briefColors.primary,
       accent_color: briefColors.accent,
@@ -161,7 +117,6 @@ const NewAsset = () => {
     Object.entries(fields).forEach(([key, field]) => {
       defaults[key] = field.default;
       if (field.type === "color" && !field.locked) {
-        // Prefer from_brief mapping, fallback to legacy name-based mapping
         const briefValue = field.from_brief ? fromBriefMap[field.from_brief] : legacyColorMap[key];
         if (briefValue) {
           defaults[key] = briefValue;
@@ -171,42 +126,32 @@ const NewAsset = () => {
     });
     setRenderConfig(defaults);
     setBriefColorFields(filledFromBrief);
-  }, [selectedTemplate, brief, briefFiles]);
+  }, [selectedTemplate, briefColors]);
 
-  // Build image prompt when entering the prompt review step
-  const buildImagePrompt = () => {
+  const buildImagePromptText = () => {
     if (!selectedTemplate || !selectedCopy) return "";
     const copy = copies.find((c) => c.id === selectedCopy);
     if (!copy) return "";
     const context: Record<string, any> = {
-      hook: copy.hook || "",
-      body: copy.body || "",
-      cta: copy.cta || "",
+      hook: copy.hook || "", body: copy.body || "", cta: copy.cta || "",
       full_copy: copy.full_copy || `${copy.hook || ""}\n${copy.body || ""}\n${copy.cta || ""}`,
-      objectives: brief?.objectives || "",
-      target_audience: brief?.target_audience || "",
-      tone_of_voice: brief?.tone_of_voice || "",
-      ...renderConfig,
+      objectives: brief?.objectives || "", target_audience: brief?.target_audience || "",
+      tone_of_voice: brief?.tone_of_voice || "", ...renderConfig,
     };
-    const tpl = selectedTemplate.image_prompt_template || "";
-    return fillTemplate(tpl, context);
+    return fillTemplate(selectedTemplate.image_prompt_template || "", context);
   };
 
-  // When moving to prompt review step, pre-fill the prompt
   const goToPromptStep = () => {
-    setImagePrompt(buildImagePrompt());
-    setStep(4); // prompt review is always step 4 when image is used
+    setImagePrompt(buildImagePromptText());
+    setStep(4);
   };
 
   const handleGenerate = async () => {
     if (!selectedCopy || !selectedTemplate || !id) return;
     setGenerating(true);
 
-    // Build asset name
     const { count: existingCount } = await supabase
-      .from("assets")
-      .select("id", { count: "exact", head: true })
-      .eq("activation_id", id);
+      .from("assets").select("id", { count: "exact", head: true }).eq("activation_id", id);
     const seq = (existingCount || 0) + 1;
     const copy = copies.find((c) => c.id === selectedCopy);
     const assetName = buildAssetName(seq, selectedTemplate.category, copy?.hook);
@@ -214,16 +159,10 @@ const NewAsset = () => {
     const { data: asset, error: insertError } = await supabase
       .from("assets")
       .insert({
-        activation_id: id,
-        copy_id: selectedCopy,
-        template_id: selectedTemplate.id,
-        status: "generating",
-        category: selectedTemplate.category,
-        render_config: renderConfig,
-        name: assetName,
+        activation_id: id, copy_id: selectedCopy, template_id: selectedTemplate.id,
+        status: "generating", category: selectedTemplate.category, render_config: renderConfig, name: assetName,
       })
-      .select()
-      .single();
+      .select().single();
 
     if (insertError || !asset) {
       toast({ title: "Erro", description: "Falha ao criar peça", variant: "destructive" });
@@ -234,12 +173,8 @@ const NewAsset = () => {
     supabase.functions
       .invoke("generate-asset-from-template", {
         body: {
-          asset_id: asset.id,
-          activation_id: id,
-          copy_id: selectedCopy,
-          template_id: selectedTemplate.id,
-          render_config: renderConfig,
-          use_claude: useClaude,
+          asset_id: asset.id, activation_id: id, copy_id: selectedCopy,
+          template_id: selectedTemplate.id, render_config: renderConfig, use_claude: useClaude,
           ...(templateUsesImage && imagePrompt ? { custom_image_prompt: imagePrompt } : {}),
         },
       })
@@ -256,14 +191,8 @@ const NewAsset = () => {
     );
   }
 
-  const categories = [...new Set(templates.map((t) => t.category))];
-  const filteredTemplates = categoryFilter
-    ? templates.filter((t) => t.category === categoryFilter)
-    : templates;
-
-  // Determine which step content to show
-  const confirmStep = totalSteps; // last step is always confirm
-  const promptStep = templateUsesImage ? 4 : -1; // -1 = doesn't exist
+  const confirmStep = totalSteps;
+  const promptStep = templateUsesImage ? 4 : -1;
 
   return (
     <AppLayout
@@ -291,344 +220,62 @@ const NewAsset = () => {
                 disabled={!isDone}
                 style={{ cursor: isDone ? "pointer" : "default" }}
               >
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-mono flex-shrink-0 ${
-                    isDone
-                      ? "bg-accent text-txt-inverse"
-                      : isActive
-                      ? "bg-accent-dim text-txt-inverse border border-accent"
-                      : "bg-surface-2 text-txt-muted"
-                  }`}
-                >
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-mono flex-shrink-0 ${
+                  isDone ? "bg-accent text-txt-inverse" : isActive ? "bg-accent-dim text-txt-inverse border border-accent" : "bg-surface-2 text-txt-muted"
+                }`}>
                   {isDone ? <Check size={14} /> : stepNum}
                 </div>
-                <span className={`text-label hidden sm:inline ${isActive ? "text-txt-primary" : "text-txt-muted"}`}>
-                  {label}
-                </span>
+                <span className={`text-label hidden sm:inline ${isActive ? "text-txt-primary" : "text-txt-muted"}`}>{label}</span>
               </button>
             </div>
           );
         })}
-        {/* Mobile: step indicator */}
-        <span className="text-mono sm:hidden ml-auto">
-          {step} / {totalSteps}
-        </span>
+        <span className="text-mono sm:hidden ml-auto">{step} / {totalSteps}</span>
       </div>
 
-      {/* Step 1: Select Copy */}
       {step === 1 && (
-        <div>
-          <div className="section-label--ruled mb-4">
-            <SectionLabel>Copies Aprovados</SectionLabel>
-          </div>
-          {copies.length === 0 ? (
-            <div className="empty-state card-base">
-              <p className="empty-state__title">Nenhum copy aprovado</p>
-              <p className="empty-state__desc">Aprove um copy antes de criar uma peça.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-3">
-              {copies.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => { setSelectedCopy(c.id); setStep(2); }}
-                  className={`card-base card-interactive text-left transition-all duration-100 ${
-                    selectedCopy === c.id ? "!border-accent !bg-accent-surface" : ""
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-mono-label">{c.type} · {c.channel} · v{c.version}</span>
-                    <StatusBadge status={c.status} />
-                  </div>
-                  <p className="text-body line-clamp-2">{c.hook || c.body || "Sem conteúdo"}</p>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <SelectCopy copies={copies} selectedCopy={selectedCopy} onSelect={(id) => { setSelectedCopy(id); setStep(2); }} />
       )}
 
-      {/* Step 2: Select Template */}
       {step === 2 && (
-        <div>
-          <div className="section-label--ruled mb-4">
-            <SectionLabel>Templates Disponíveis</SectionLabel>
-          </div>
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setCategoryFilter(null)}
-              className={`text-mono px-3 py-1.5 rounded-md transition-all border ${
-                !categoryFilter
-                  ? "bg-accent-dim text-accent border-accent"
-                  : "bg-surface-2 text-txt-muted border-line"
-              }`}
-            >
-              Todos
-            </button>
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategoryFilter(cat)}
-                className={`text-mono px-3 py-1.5 rounded-md transition-all border ${
-                  categoryFilter === cat
-                    ? "bg-accent-dim text-accent border-accent"
-                    : "bg-surface-2 text-txt-muted border-line"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredTemplates.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => { setSelectedTemplate(t); setStep(3); }}
-                className={`card-base card-interactive text-left transition-all duration-100 overflow-hidden ${
-                  selectedTemplate?.id === t.id ? "!border-accent !bg-accent-surface" : ""
-                }`}
-                style={{ padding: 0 }}
-              >
-                <div className="bg-surface-2 border-b border-line-subtle flex items-center justify-center" style={{ minHeight: 120 }}>
-                  <TemplatePreview template={t} />
-                </div>
-                <div className="p-3">
-                  <p className="text-body font-medium mb-2">{t.name}</p>
-                  <div className="flex flex-wrap gap-1">
-                    <span className={`text-mono px-1.5 py-0.5 rounded ${t.is_base ? "bg-surface-3 text-txt-muted" : "bg-accent-surface text-accent"}`}>
-                      {t.is_base ? "BASE" : "CUSTOM"}
-                    </span>
-                    <span className="text-mono px-1.5 py-0.5 rounded bg-surface-3 text-txt-muted">{t.category}</span>
-                    <span className="text-mono px-1.5 py-0.5 rounded bg-surface-3 text-txt-muted">{t.width_px}×{t.height_px}</span>
-                  </div>
-                  {t.description && (
-                    <p className="text-caption mt-2 line-clamp-2">{t.description}</p>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
-          <Button variant="ghost" className="mt-4" onClick={() => setStep(1)}>← Voltar</Button>
-        </div>
+        <SelectTemplate templates={templates} selectedTemplate={selectedTemplate} onSelect={(t) => { setSelectedTemplate(t); setStep(3); }} onBack={() => setStep(1)} />
       )}
 
-      {/* Step 3: Configure editable fields */}
       {step === 3 && selectedTemplate && (
-        <div>
-          <div className="section-label--ruled mb-4">
-            <SectionLabel>Configurar Template</SectionLabel>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="card-base">
-              <p className="text-heading mb-1">{selectedTemplate.name}</p>
-              <p className="text-caption mb-3">{selectedTemplate.description}</p>
-              <div className="flex gap-4">
-                <div>
-                  <span className="text-mono-label">Dimensões</span>
-                  <p className="text-mono-lg mt-1">{selectedTemplate.width_px}×{selectedTemplate.height_px}px</p>
-                </div>
-                <div>
-                  <span className="text-mono-label">Tipo</span>
-                  <p className="text-mono-lg mt-1">{selectedTemplate.generation_type.replace(/_/g, " ")}</p>
-                </div>
-                {selectedTemplate.category === "carousel" && (
-                  <div>
-                    <span className="text-mono-label">Slides</span>
-                    <p className="text-mono-lg mt-1">{selectedTemplate.slides_count_min}–{selectedTemplate.slides_count_max}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-            {selectedTemplate.editable_fields && Object.keys(selectedTemplate.editable_fields).length > 0 && (
-              <div className="card-base space-y-4">
-                <span className="text-mono-label">Personalização</span>
-                {Object.entries(selectedTemplate.editable_fields as Record<string, EditableField>).map(([key, field]) => (
-                  <div key={key}>
-                    <label className="field-label">{field.label}</label>
-                    {field.type === "color" && (
-                      <div className="flex items-center gap-2 field-input !p-1 !pr-3">
-                        <input
-                          type="color"
-                          value={renderConfig[key] || field.default}
-                          onChange={(e) => setRenderConfig((prev) => ({ ...prev, [key]: e.target.value }))}
-                          className="w-8 h-8 rounded border-none cursor-pointer bg-transparent p-0"
-                        />
-                        <span className="text-mono">{renderConfig[key] || field.default}</span>
-                        {briefColorFields.has(key) && (
-                          <span className="text-mono px-1.5 py-0.5 rounded bg-accent-surface text-accent text-[10px]">
-                            🎨 Do briefing
-                          </span>
-                        )}
-                        {field.locked && (
-                          <span className="text-mono px-1.5 py-0.5 rounded bg-surface-3 text-txt-ghost text-[10px]">
-                            🔒 Fixo
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {field.type === "select" && (
-                      <select
-                        value={renderConfig[key] || field.default}
-                        onChange={(e) => setRenderConfig((prev) => ({ ...prev, [key]: e.target.value }))}
-                        className="field-input"
-                      >
-                        {field.options?.map((opt) => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                    )}
-                    {field.type === "slider" && (
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="range"
-                          min={field.min || 0}
-                          max={field.max || 100}
-                          value={renderConfig[key] || field.default}
-                          onChange={(e) => setRenderConfig((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
-                          className="flex-1 accent-accent"
-                        />
-                        <span className="text-mono w-8 text-right">{renderConfig[key] || field.default}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="flex gap-3 mt-6">
-            <Button variant="ghost" onClick={() => setStep(2)}>← Voltar</Button>
-            <Button onClick={() => templateUsesImage ? goToPromptStep() : setStep(4)}>
-              Continuar <ChevronRight size={14} className="ml-1" />
-            </Button>
-          </div>
-        </div>
+        <ConfigureTemplate
+          template={selectedTemplate}
+          renderConfig={renderConfig}
+          setRenderConfig={setRenderConfig}
+          briefColorFields={briefColorFields}
+          onNext={() => templateUsesImage ? goToPromptStep() : setStep(4)}
+          onBack={() => setStep(2)}
+        />
       )}
 
-      {/* Step 4 (conditional): Image Prompt Review */}
       {step === promptStep && templateUsesImage && (
-        <div>
-          <div className="section-label--ruled mb-4">
-            <SectionLabel>Prompt de Imagem</SectionLabel>
-          </div>
-          <div className="card-base space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-heading mb-1">Validar prompt de geração</p>
-                <p className="text-caption">
-                  Este prompt será enviado à IA para gerar a imagem. Edite livremente antes de confirmar.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Eye size={16} className="text-txt-ghost" />
-                <Pencil size={16} className="text-txt-ghost" />
-              </div>
-            </div>
-
-            <div>
-              <label className="field-label">Prompt base (do template)</label>
-              <p className="text-caption mb-2 text-txt-ghost">
-                {selectedTemplate?.image_prompt_template || "Sem template definido"}
-              </p>
-            </div>
-
-            <div>
-              <label className="field-label">Prompt preenchido (editável)</label>
-              <Textarea
-                value={imagePrompt}
-                onChange={(e) => setImagePrompt(e.target.value)}
-                rows={8}
-                className="bg-surface-1 border-line text-body font-mono text-sm"
-                placeholder="Descreva a imagem que deseja gerar..."
-              />
-              <p className="text-caption mt-2">
-                💡 A IA vai otimizar este prompt antes de gerar a imagem. Foque na intenção visual — contexto brasileiro, estética Instagram, autenticidade.
-              </p>
-            </div>
-
-            <div className="card-base !bg-surface-2 !border-line-subtle">
-              <p className="text-mono-label mb-2">Dicas para bons prompts</p>
-              <ul className="text-caption space-y-1 list-disc list-inside">
-                <li>Descreva o cenário e a pessoa (se houver) em contexto real brasileiro</li>
-                <li>Prefira estilo UGC/autêntico em vez de estúdio polido</li>
-                <li>Mencione iluminação (ex: "luz natural dourada", "tungsten warm")</li>
-                <li>Indique enquadramento: close, meio corpo, plano aberto</li>
-                <li>Use referências sensoriais: texturas, cores, atmosfera</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="flex gap-3 mt-6">
-            <Button variant="ghost" onClick={() => setStep(3)}>← Voltar</Button>
-            <Button onClick={() => setStep(confirmStep)}>
-              Continuar <ChevronRight size={14} className="ml-1" />
-            </Button>
-          </div>
-        </div>
+        <ReviewImagePrompt
+          template={selectedTemplate}
+          imagePrompt={imagePrompt}
+          setImagePrompt={setImagePrompt}
+          onNext={() => setStep(confirmStep)}
+          onBack={() => setStep(3)}
+        />
       )}
 
-      {/* Final Step: Confirm & Generate */}
       {step === confirmStep && (
-        <div>
-          <div className="section-label--ruled mb-4">
-            <SectionLabel>Confirmar e Gerar</SectionLabel>
-          </div>
-          <div className="card-base">
-            <div className="space-y-4">
-              <div>
-                <span className="text-mono-label">Copy selecionado</span>
-                <p className="text-body mt-1 line-clamp-2">
-                  {copies.find((c) => c.id === selectedCopy)?.hook || "—"}
-                </p>
-              </div>
-              <div>
-                <span className="text-mono-label">Template</span>
-                <p className="text-body mt-1">
-                  {selectedTemplate?.name} ({selectedTemplate?.width_px}×{selectedTemplate?.height_px}px)
-                </p>
-              </div>
-              {templateUsesImage && imagePrompt && (
-                <div>
-                  <span className="text-mono-label">Prompt de imagem</span>
-                  <p className="text-caption mt-1 line-clamp-3 font-mono">{imagePrompt}</p>
-                </div>
-              )}
-              {Object.keys(renderConfig).length > 0 && (
-                <div>
-                  <span className="text-mono-label">Configurações</span>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {Object.entries(renderConfig).map(([key, val]) => (
-                      <span key={key} className="text-mono px-2 py-1 rounded bg-surface-2 text-txt-secondary">
-                        {key}: {String(val)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-3 mt-6 items-center pt-4 border-t border-line-subtle">
-              <Button variant="ghost" onClick={() => setStep(templateUsesImage ? promptStep : 3)}>← Voltar</Button>
-
-              {/* Claude toggle */}
-              <button
-                onClick={() => setUseClaude(!useClaude)}
-                className={`flex items-center gap-2 text-mono px-3 py-2 rounded-md transition-all border ${
-                  useClaude
-                    ? "bg-accent-dim text-accent border-accent"
-                    : "bg-surface-2 text-txt-muted border-line"
-                }`}
-              >
-                <div className={`w-3 h-3 rounded-full ${useClaude ? "bg-accent" : "bg-line-strong"}`} />
-                Claude (Anthropic)
-              </button>
-
-              <Button onClick={handleGenerate} disabled={generating} className="gap-2 ml-auto">
-                {generating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                {generating ? "Gerando..." : "Gerar peça com IA"}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <ConfirmGenerate
+          copies={copies}
+          selectedCopy={selectedCopy}
+          selectedTemplate={selectedTemplate}
+          renderConfig={renderConfig}
+          imagePrompt={imagePrompt}
+          templateUsesImage={templateUsesImage}
+          useClaude={useClaude}
+          setUseClaude={setUseClaude}
+          generating={generating}
+          onGenerate={handleGenerate}
+          onBack={() => setStep(templateUsesImage ? promptStep : 3)}
+        />
       )}
     </AppLayout>
   );
