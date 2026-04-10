@@ -65,6 +65,15 @@ const HTML_CREATIVE_RULES = `
 ### CORES
 - 1 dominante + 1 suporte + 1 acento (CTA only). Contraste ≥4.5:1. Nunca #fff puro → #f5f5f0
 
+### SOBREPOSIÇÃO TEXTO + IMAGEM (OBRIGATÓRIO para html_and_image)
+- SEMPRE adicionar gradient overlay entre imagem de fundo e texto
+- Gradiente: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)
+- Mínimo: 40% da altura do container coberto pelo gradiente
+- Alternativa: faixa sólida semitransparente (rgba(0,0,0,0.7)) na zona de texto
+- text-shadow OBRIGATÓRIO em TODOS os textos sobre imagem: 0 2px 8px rgba(0,0,0,0.8)
+- Botão CTA: background sólido opaco, NUNCA transparente sobre imagem. Texto centralizado com text-align:center e display:flex;align-items:center;justify-content:center
+- Texto NUNCA diretamente sobre imagem sem proteção visual
+
 ### PROIBIÇÕES
 - Texto ilegível, >2 fontes, >1 CTA, hierarquia ausente, fora da safe zone, system fonts genéricas
 
