@@ -1,56 +1,75 @@
 
 
-# Fix: Brand Name Leaking into Image Generation Prompts
+# Novo tipo de geração: `designed_image` (imagem com texto integrado)
 
-## Diagnóstico
+## Conceito
 
-O `context` passado para `fillTemplate` no branch de imagem contém campos como `brand_colors`, `typography`, `visual_style` e `brief_files_context` — todos podem conter o nome da marca. Quando o `image_prompt_template` usa placeholders como `{{visual_style}}` ou `{{brief_files_context}}`, o nome da marca vaza para o prompt de imagem, e a IA de imagem renderiza logos/texto da marca na cena.
+Hoje existem 3 tipos: `html_only`, `image_only`, `html_and_image`. O novo tipo `designed_image` envia um prompt completo para o modelo de imagem (Nano Banana 2) pedindo a **arte final com texto, layout e design** — tudo renderizado na própria imagem. Zero HTML.
 
-Além disso, o `generateImagePrompt` não tem instrução explícita para remover nomes de marca, logos ou texto do prompt.
+Vantagem: o design fica mais orgânico, sem as limitações de CSS/HTML. O Nano Banana 2 já renderiza texto com boa qualidade.
 
-## Solução
+## Fluxo
 
-### 1. Criar contexto separado para imagem (sem brand identity textual)
-
-No `generate-asset-from-template/index.ts`, criar um `imageContext` que exclui `brand_colors`, `typography`, `visual_style` e `brief_files_context`:
-
-```typescript
-const imageContext = {
-  hook: copy.hook || "",
-  body: copy.body || "",
-  cta: copy.cta || "",
-  full_copy: context.full_copy,
-  objectives: brief?.objectives || "",
-  target_audience: brief?.target_audience || "",
-  tone_of_voice: brief?.tone_of_voice || "",
-  // NO brand_colors, typography, visual_style, brief_files_context
-  ...config,
-};
+```text
+copy + brief + brand colors + template config
+        ↓
+  prompt de design completo (composição + texto + cores + CTA)
+        ↓
+  Nano Banana 2 (gemini-3.1-flash-image-preview)
+        ↓
+  imagem PNG final (texto já integrado)
+        ↓
+  salva em asset_template_renders + assets
 ```
 
-Usar `imageContext` em vez de `context` nos `fillTemplate` de imagem (linhas 268 e 278).
+## Mudanças
 
-### 2. Adicionar guarda no `generateImagePrompt`
+### 1. Edge function `generate-asset-from-template/index.ts`
 
-Acrescentar no system prompt do otimizador de imagem:
+Adicionar branch `designed_image` após o `html_and_image`:
 
-```
-REGRAS OBRIGATÓRIAS:
-- NUNCA inclua nomes de marca, logos, texto ou tipografia na imagem
-- A imagem é APENAS cenário/composição visual — texto vai no overlay HTML
-- Remova qualquer referência a nome de empresa/produto do prompt
-- Foco: composição, iluminação, cores, cenário, pessoas, objetos
-```
+- Monta prompt detalhado com: dimensões exatas, copy (hook/body/CTA), cores da marca, estilo visual, instruções de layout (hierarquia, safe zones, tipografia)
+- Inclui regras de design (contraste, alinhamento, CTA destacado) diretamente no prompt de imagem
+- Chama `generateImage()` com modelo `google/gemini-3.1-flash-image-preview`
+- Salva render com `image_url` (sem `html_content`)
+- Suporta carrossel (múltiplos slides como imagens independentes)
 
-## Arquivos a modificar
+### 2. Prompt de design para imagem
 
-| Arquivo | Mudança |
+O prompt precisa ser mais detalhado que o `image_only` atual, incluindo:
+- Dimensões exatas (ex: "1080x1350px, aspect ratio 4:5")
+- Texto exato a renderizar (hook como headline grande, CTA como botão)
+- Paleta de cores da marca
+- Hierarquia visual (3 níveis)
+- Safe zones e padding
+- Estilo (dark, gradient, glassmorphism, etc.)
+
+### 3. Frontend `AssetDetail.tsx`
+
+- Na preview: se `generation_type === "designed_image"`, renderizar como imagem (igual `image_only`)
+- Nos botões de edição: mostrar apenas "Refinar imagem" e "Editar textos" (sem "Editar design HTML")
+- Regenerar imagem funciona igual ao `image_only`
+
+### 4. Seed de template
+
+Criar 1-2 templates base com `generation_type: "designed_image"` via migration SQL para teste:
+- "Post Design Completo" (1080×1350, 4:5, single)
+- "Story Design Completo" (1080×1920, 9:16, single)
+
+### 5. `NewAsset.tsx` / `SelectTemplate.tsx`
+
+Já funciona — templates aparecem na lista normalmente, o `generation_type` é transparente para o usuário.
+
+## Arquivos
+
+| Arquivo | Ação |
 |---|---|
-| `supabase/functions/generate-asset-from-template/index.ts` | Criar `imageContext` sem brand fields + atualizar guarda no `generateImagePrompt` |
+| `supabase/functions/generate-asset-from-template/index.ts` | Adicionar branch `designed_image` |
+| `src/pages/AssetDetail.tsx` | Ajustar preview e botões de edição para `designed_image` |
+| `supabase/functions/edit-asset-render/index.ts` | Suportar refinamento de `designed_image` (regenera imagem com novo prompt) |
+| Migration SQL | Seed de 2 templates `designed_image` |
 
-## Impacto
+## Risco
 
-- Imagens geradas não terão mais a marca renderizada na cena
-- Brand identity continua sendo aplicada corretamente no HTML overlay
-- Zero mudança na UI
+O texto gerado por IA de imagem pode ter erros ortográficos ou de layout. Mitigação: o prompt será muito explícito sobre o texto exato, e o usuário pode regenerar facilmente.
 
