@@ -1,12 +1,13 @@
 ---
 name: Shared Edge Function Helpers
-description: Extracted _shared/ modules for cors, call-ai, extract-html, generate-image, build-brief-context with resolveBrandIdentity
+description: Extracted _shared/ modules for cors, call-ai, extract-html, validate-html, generate-image, build-brief-context with resolveBrandIdentity
 type: feature
 ---
 
 ## Files
 - `_shared/cors.ts` — corsHeaders constant
 - `_shared/extract-html.ts` — extractHtml() strips markdown fences
+- `_shared/validate-html.ts` — validateAndFixHtml() auto-fixes overlay, text-shadow, CTA centering, dimensions
 - `_shared/call-ai.ts` — callClaude, callLovableAI, callTextAI (unified)
 - `_shared/generate-image.ts` — extractBase64FromResponse, generateImage (upload to storage)
 - `_shared/build-brief-context.ts` — fillTemplate, buildFilesContext, buildBrandInstructions, buildSocialInstruction, resolveBrandIdentity

@@ -4,6 +4,7 @@ import { BRIEF_SYSTEM_PROMPT } from "../_shared/brief-system-prompt.ts";
 import { getPrompt } from "../_shared/get-prompt.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { extractHtml } from "../_shared/extract-html.ts";
+import { validateAndFixHtml } from "../_shared/validate-html.ts";
 import { callTextAI } from "../_shared/call-ai.ts";
 import { generateImage } from "../_shared/generate-image.ts";
 import { fillTemplate, buildFilesContext, buildBrandInstructions, buildSocialInstruction, resolveBrandIdentity } from "../_shared/build-brief-context.ts";
@@ -244,14 +245,19 @@ Deno.serve(async (req) => {
         if (jsonStart !== -1 && jsonEnd > jsonStart) cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
         let slides: Array<{ slide_index: number; html: string }>;
         try { slides = JSON.parse(cleaned); } catch { slides = [{ slide_index: 0, html: extractHtml(cleaned) }]; }
+        const valOpts = { width: template.width_px, height: template.height_px, generationType: template.generation_type };
         for (const slide of slides) {
           slide.html = extractHtml(slide.html);
-          await saveRender(slide.slide_index, { html_content: slide.html });
+          const v = validateAndFixHtml(slide.html, valOpts);
+          slide.html = v.html;
+          await saveRender(slide.slide_index, { html_content: slide.html, generation_warnings: v.warnings.length ? v.warnings : null });
         }
       } else {
-        const html = extractHtml(rawContent);
-        await saveRender(0, { html_content: html });
-        await supabase.from("assets").update({ html_content: html }).eq("id", asset_id);
+        const rawHtmlOnly = extractHtml(rawContent);
+        const valOpts = { width: template.width_px, height: template.height_px, generationType: template.generation_type };
+        const v = validateAndFixHtml(rawHtmlOnly, valOpts);
+        await saveRender(0, { html_content: v.html, generation_warnings: v.warnings.length ? v.warnings : null });
+        await supabase.from("assets").update({ html_content: v.html }).eq("id", asset_id);
       }
 
     } else if (template.generation_type === "image_only") {
@@ -277,10 +283,12 @@ Deno.serve(async (req) => {
       const briefContextBlock2 = consolidatedStr ? `\n\n## BRIEFING DO CLIENTE\n${consolidatedStr}` : "";
       const overlayPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nImagem de fundo: ${bgImageUrl || "não disponível"}\nConfig: ${JSON.stringify(config)}${briefContextBlock2}\n\nIMPORTANTE: A imagem de fundo ocupa 100% do container via background-image.\nVocê DEVE adicionar um gradient overlay escuro para garantir legibilidade do texto.\nO texto DEVE ter text-shadow forte (0 2px 8px rgba(0,0,0,0.8)).\nO botão CTA DEVE ter fundo opaco sólido com texto centralizado (display:flex;align-items:center;justify-content:center).\nEstrutura obrigatória:\n<div style="width:${template.width_px}px;height:${template.height_px}px;background-image:url(${bgImageUrl || 'IMG'});background-size:cover;background-position:center;position:relative">\n  <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)"></div>\n  <div style="position:relative;z-index:1;..."><!-- conteúdo aqui --></div>\n</div>`;
       const rawHtml = await callTextAI(overlaySystem, overlayPrompt, useClaude, anthropicKey, lovableKey);
-      const html = extractHtml(rawHtml);
+      const htmlRaw = extractHtml(rawHtml);
+      const valOpts = { width: template.width_px, height: template.height_px, generationType: template.generation_type };
+      const v = validateAndFixHtml(htmlRaw, valOpts);
 
-      await saveRender(0, { html_content: html, image_url: bgImageUrl });
-      await supabase.from("assets").update({ html_content: html, image_url: bgImageUrl }).eq("id", asset_id);
+      await saveRender(0, { html_content: v.html, image_url: bgImageUrl, generation_warnings: v.warnings.length ? v.warnings : null });
+      await supabase.from("assets").update({ html_content: v.html, image_url: bgImageUrl }).eq("id", asset_id);
     }
 
     await supabase.from("assets").update({ status: "review" }).eq("id", asset_id);
