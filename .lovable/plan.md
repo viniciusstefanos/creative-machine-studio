@@ -1,89 +1,63 @@
 
 
-# Refatoração em 3 Ondas — Templates & Peças
+# Fix: Legibilidade de texto sobre imagem de fundo
 
-## Resumo
+## Diagnóstico
 
-Extrair código duplicado das edge functions para helpers compartilhados, unificar a lógica de cores do briefing, e componentizar `NewAsset.tsx` (637 linhas → ~5 componentes menores).
+O problema está no **prompt** das regras HTML (`HTML_CREATIVE_RULES` e na instrução do branch `html_and_image`). A IA gera o overlay HTML sem instruções explícitas para proteger o texto contra a imagem de fundo.
 
----
+Problemas visíveis na peça:
+- Texto se mistura com a imagem (sem gradient overlay)
+- Botão CTA com texto desalinhado
+- Sem text-shadow suficiente para contraste
 
-## Onda 1 — Helpers compartilhados (`_shared/`)
+## Solução
 
-Lógica duplicada entre `generate-asset-from-template`, `generate-copies`, `edit-asset-render` e `generate-template`.
+### 1. Adicionar regras de overlay obrigatório no prompt `asset_html_rules`
 
-| Helper a criar | O que move | De onde vem |
-|---|---|---|
-| `_shared/call-ai.ts` | `callClaude`, `callLovableAI`, `callTextAI` | generate-asset (162-220), generate-copies (106-157) |
-| `_shared/generate-image.ts` | `generateImage`, `generateImagePrompt`, `extractBase64FromResponse` | generate-asset (237-315), edit-asset-render (94-128) |
-| `_shared/extract-html.ts` | `extractHtml` | generate-asset (8-20), edit-asset-render (7-18) — idênticas |
-| `_shared/cors.ts` | `corsHeaders` | Todos os 5 functions — mesmo objeto |
-| `_shared/build-brief-context.ts` | `buildBrandInstructions`, `buildSocialInstruction`, `fillTemplate`, contexto de brief files | generate-asset (469-521, 317-319, 398-466) |
+Adicionar uma seção nova nas `HTML_CREATIVE_RULES` em `generate-asset-from-template/index.ts`:
 
-**Resultado**: `generate-asset-from-template` cai de 627 → ~250 linhas, `generate-copies` de 348 → ~250. Cada function importa helpers em vez de redefinir.
+```
+### SOBREPOSIÇÃO TEXTO + IMAGEM (OBRIGATÓRIO para html_and_image)
+- SEMPRE adicionar gradient overlay entre imagem de fundo e texto
+- Gradiente: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)
+- Mínimo: 40% da altura do container coberto pelo gradiente
+- Alternativa: faixa sólida semitransparente (rgba(0,0,0,0.7)) na zona de texto
+- text-shadow OBRIGATÓRIO em TODOS os textos sobre imagem: 0 2px 8px rgba(0,0,0,0.8)
+- Botão CTA: background sólido opaco, NUNCA transparente sobre imagem
+- Texto NUNCA diretamente sobre imagem sem proteção visual
+```
 
----
+### 2. Melhorar o prompt do branch `html_and_image` (linha 269)
 
-## Onda 2 — Unificar extração de cores
+Adicionar instrução explícita no `overlayPrompt`:
 
-Hoje a mesma lógica de "pegar hex do briefing" existe em **3 lugares**:
-1. `NewAsset.tsx` (26-54) — `extractBriefColors()` no frontend
-2. `generate-asset-from-template` (418-451, 469-512) — `buildBrandInstructions()` no backend
-3. `edit-asset-render` (34-73) — `buildImageContext()` no backend
+```
+IMPORTANTE: A imagem de fundo ocupa 100% do container. 
+Você DEVE adicionar um gradient overlay escuro (linear-gradient to top, 
+de rgba(0,0,0,0.85) até transparent) para garantir legibilidade.
+O texto DEVE ter text-shadow forte. O botão CTA DEVE ter fundo opaco sólido.
+Estrutura obrigatória:
+<div style="width:Wpx;height:Hpx;background-image:url(IMG);background-size:cover;position:relative">
+  <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)"></div>
+  <div style="position:relative;z-index:1;..."><!-- conteúdo --></div>
+</div>
+```
 
-**Ação**:
-- Criar `_shared/resolve-brand-identity.ts` com função `resolveBrandIdentity(brief, briefFiles, consolidated)` que retorna `{ colors: string[], fonts: string[], visualStyle: string }`.
-- Usada por `generate-asset`, `edit-asset-render`, e `generate-template`.
-- No frontend, criar hook `src/hooks/useBriefColors.ts` que faz a mesma extração (ou simplesmente chama o campo `consolidated_context` que já tem as cores resolvidas) — eliminar a função `extractBriefColors` inline do `NewAsset.tsx`.
+### 3. Atualizar o prompt no banco de dados
 
----
+Como os prompts agora vivem na tabela `prompt_templates`, também atualizar o registro `asset_html_rules` via migration para incluir as novas regras de overlay.
 
-## Onda 3 — Componentizar `NewAsset.tsx`
+## Arquivos a modificar
 
-637 linhas com 5 steps misturados em um único componente.
+| Arquivo | Mudança |
+|---------|---------|
+| `supabase/functions/generate-asset-from-template/index.ts` | Adicionar regras de overlay em `HTML_CREATIVE_RULES` + instrução explícita no branch `html_and_image` |
+| Migration SQL | Atualizar conteúdo do prompt `asset_html_rules` no banco |
 
-| Componente | Responsabilidade | Linhas atuais |
-|---|---|---|
-| `NewAssetWizard.tsx` | Orchestrador: stepper, navegação, estado global | ~80 linhas |
-| `steps/SelectCopy.tsx` | Step 1: lista de copies aprovados | 319-348 |
-| `steps/SelectTemplate.tsx` | Step 2: grid de templates com filtros | 352-412 |
-| `steps/ConfigureTemplate.tsx` | Step 3: editable_fields (cores, selects, sliders) | 416-504 |
-| `steps/ReviewImagePrompt.tsx` | Step 4: editor de prompt de imagem | 508-566 |
-| `steps/ConfirmGenerate.tsx` | Step 5: resumo + botão gerar | 570-631 |
+## Impacto
 
-**Shared state via props**: `selectedCopy`, `selectedTemplate`, `renderConfig`, `imagePrompt`, `onNext/onBack`.
-
-Hook `useBriefColors` (da Onda 2) alimenta `ConfigureTemplate` automaticamente.
-
----
-
-## Arquivos finais
-
-| Arquivo | Ação |
-|---|---|
-| `supabase/functions/_shared/call-ai.ts` | Criar |
-| `supabase/functions/_shared/generate-image.ts` | Criar |
-| `supabase/functions/_shared/extract-html.ts` | Criar |
-| `supabase/functions/_shared/cors.ts` | Criar |
-| `supabase/functions/_shared/build-brief-context.ts` | Criar |
-| `supabase/functions/_shared/resolve-brand-identity.ts` | Criar |
-| `supabase/functions/generate-asset-from-template/index.ts` | Refatorar (627→~250 linhas) |
-| `supabase/functions/generate-copies/index.ts` | Refatorar (348→~250 linhas) |
-| `supabase/functions/edit-asset-render/index.ts` | Refatorar (346→~200 linhas) |
-| `supabase/functions/generate-template/index.ts` | Refatorar menor |
-| `src/hooks/useBriefColors.ts` | Criar |
-| `src/pages/NewAsset.tsx` | Manter como wrapper fino |
-| `src/components/new-asset/SelectCopy.tsx` | Criar |
-| `src/components/new-asset/SelectTemplate.tsx` | Criar |
-| `src/components/new-asset/ConfigureTemplate.tsx` | Criar |
-| `src/components/new-asset/ReviewImagePrompt.tsx` | Criar |
-| `src/components/new-asset/ConfirmGenerate.tsx` | Criar |
-
-## Ordem de execução
-
-1. **Onda 1 primeiro** — zero impacto visual, só mover código. Teste: gerar peça e copy normalmente.
-2. **Onda 2** — unificar cores. Teste: cores do briefing aparecem nos campos configuráveis.
-3. **Onda 3** — componentizar frontend. Teste: fluxo completo de criação de peça funciona igual.
-
-Cada onda é independente e pode ser aprovada/testada antes de prosseguir.
+- Zero mudança visual na UI
+- Todas as futuras peças `html_and_image` terão gradient overlay automático
+- Peças existentes podem ser regeneradas para aplicar a correção
 
