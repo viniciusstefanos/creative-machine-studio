@@ -1,14 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { getPrompt } from "../_shared/get-prompt.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
-
-// ─── Subset of HTML_CREATIVE_RULES for template creation ─────
 const TEMPLATE_DESIGN_RULES = `
 ## REGRAS DE LAYOUT — O SCAFFOLD DEVE SEGUIR
 
@@ -16,89 +10,35 @@ const TEMPLATE_DESIGN_RULES = `
 - Para 4:5 (1080×1350): padding: 135px 80px
 - Para 9:16 (1080×1920): padding-top: 250px, padding-bottom: 340px, padding-left: 96px, padding-right: 96px
 - Para 1:1 (1080×1080): padding: 100px 80px
-- NENHUM texto ou elemento importante pode ficar fora dessas safe zones
 
 ### TIPOGRAFIA — TAMANHOS MÍNIMOS (canvas 1080px)
 - Headline: mín 60px, ideal 72-90px, font-weight 700-800
-- Subheadline: mín 36px, ideal 40-48px
-- Corpo: mín 28px
-- CTA (botão): mín 32px, font-weight 700
-- Número destaque: mín 100px, ideal 120-160px
-- line-height: 1.1 para títulos (tight!), 1.4 para corpo
-- letter-spacing: -0.03em a -0.04em para títulos grandes
-- Máximo 2 famílias tipográficas (1 display + 1 corpo)
+- Subheadline: mín 36px | Corpo: mín 28px | CTA (botão): mín 32px, font-weight 700
+- line-height: 1.1 para títulos, 1.4 para corpo
+- Máximo 2 famílias tipográficas
 
 ### PARES TIPOGRÁFICOS RECOMENDADOS (Google Fonts)
-Escolha UM par por template:
-- Playfair Display + DM Sans — editorial, lifestyle, premium
-- Space Grotesk + Inter — tech, startup, SaaS
-- Syne + DM Sans — bold, criativo, agência
-- Bebas Neue + Inter — esporte, varejo, promoção
-- Outfit + DM Sans — minimalista, elegante
-- Nunito + DM Sans — amigável, educação, saúde
-NUNCA use apenas system fonts (Arial, Helvetica). SEMPRE Google Fonts.
+- Playfair Display + DM Sans | Space Grotesk + Inter | Syne + DM Sans
+- Bebas Neue + Inter | Outfit + DM Sans | Nunito + DM Sans
+NUNCA use apenas system fonts.
 
 ### HIERARQUIA VISUAL — 3 NÍVEIS
-1. Elemento âncora (maior, mais contrastante): headline ou imagem
-2. Elemento de suporte: subheadline, benefício
-3. CTA ou detalhe: botão, logo
+1. Elemento âncora 2. Elemento de suporte 3. CTA ou detalhe
 
 ### CORES — VARIÁVEIS OBRIGATÓRIAS
-- Use {{bg_color}} para cor de fundo principal
-- Use {{accent_color}} para CTA, destaques, elementos de ação
-- Use {{text_color}} para cor de texto principal
-- Contraste obrigatório texto/fundo: ratio mín 4.5:1
-- NUNCA branco puro (#fff) — usar off-white mín (#f5f5f0)
+- {{bg_color}}, {{accent_color}}, {{text_color}}
+- Contraste mín 4.5:1. NUNCA branco puro (#fff) → #f5f5f0
 
-### TÉCNICAS CSS AVANÇADAS — OBRIGATÓRIO NO SCAFFOLD
-O scaffold deve demonstrar qualidade de design profissional:
-- **text-shadow**: 0 2px 4px rgba(0,0,0,0.3) em headlines para profundidade
-- **letter-spacing**: -0.03em + line-height: 0.95 em headlines
-- **Gradientes**: background com linear-gradient de 2-3 stops (nunca cor flat)
-- **Elementos decorativos**: linhas de acento (width:60px;height:3px;background:{{accent_color}})
-- **Círculos radiais**: position:absolute + radial-gradient com opacity baixa para luz focal
-- **Box-shadow layered**: 0 8px 32px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2)
-- **Botões com glow**: box-shadow: 0 4px 14px rgba(accent, 0.35)
-
-### BACKGROUND
-- Gradientes sutis são preferíveis a cores sólidas
-- Use linear-gradient(135deg, {{bg_color}} 0%, darkerShade 100%)
-- Se usar imagem de fundo, aplicar overlay com opacity para legibilidade
+### CSS AVANÇADO
+- text-shadow, gradientes 2-3 stops, elementos decorativos, botões com glow
 
 ### BOTÕES / CTA
-- display: inline-flex; align-items: center; justify-content: center
-- padding mínimo: 16px 48px
-- border-radius: 8px
-- Cor de fundo: {{accent_color}}
+- padding mínimo: 16px 48px, border-radius: 8px
 - box-shadow: 0 4px 14px rgba(accent, 0.35)
-- font-weight: 700; letter-spacing: 0.01em
-
-### REGRA DOS 20%
-- Texto NÃO deve cobrir mais de 20% da área total
-- Headlines: máximo 8 palavras
-
-### FONTES
-- Use Google Fonts via <link href="https://fonts.googleapis.com/css2?family=..."> no HTML
-- Recomendadas: Space Grotesk, Syne, Playfair Display, DM Sans, Inter, Outfit, Bebas Neue
-- NUNCA use apenas system fonts genéricas como Arial/Helvetica
-
-### EXEMPLO DE SCAFFOLD STUNNING
-\`\`\`
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-<div style="width:1080px;height:1350px;box-sizing:border-box;padding:135px 80px;background:linear-gradient(145deg,{{bg_color}} 0%,#1a1a2e 100%);display:flex;flex-direction:column;justify-content:center;font-family:'DM Sans',sans-serif;overflow:hidden;position:relative;color:{{text_color}}">
-  <div style="position:absolute;top:100px;right:-80px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(0,201,167,0.1) 0%,transparent 70%);pointer-events:none"></div>
-  <div style="width:60px;height:3px;background:{{accent_color}};border-radius:2px;margin-bottom:32px"></div>
-  <h1 style="font-family:'Space Grotesk',sans-serif;font-size:78px;font-weight:800;line-height:0.95;letter-spacing:-0.04em;margin:0 0 24px;text-shadow:0 2px 8px rgba(0,0,0,0.3)">{{hook}}</h1>
-  <p style="font-size:32px;font-weight:400;line-height:1.4;margin:0 0 40px;max-width:700px;opacity:0.85">{{body}}</p>
-  <div style="display:inline-flex;padding:18px 52px;background:{{accent_color}};border-radius:8px;font-size:28px;font-weight:700;color:#0a0a0a;box-shadow:0 4px 20px rgba(0,201,167,0.35);align-self:flex-start">{{cta}}</div>
-</div>
-\`\`\`
 `;
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { mode, description, image_url, category, aspect_ratio, generation_type } = await req.json();
@@ -119,81 +59,40 @@ Deno.serve(async (req) => {
     const dim = dimensions[aspect_ratio] || dimensions["4:5"];
 
     const systemPrompt = `Você é um especialista em design de templates HTML para peças de marketing digital.
-Você gera templates responsivos usando HTML+CSS inline, otimizados para renderização via screenshot.
+Use HTML + CSS inline, otimizados para renderização via screenshot.
 
-REGRAS FUNDAMENTAIS:
-- Use HTML + CSS inline (style="...").
-- O template deve ter exatamente ${dim.w}x${dim.h}px como container raiz.
-- Use Google Fonts via <link href="https://fonts.googleapis.com/css2?family=...&display=swap"> — NUNCA system fonts genéricas.
-- Use as variáveis de cor obrigatórias: {{bg_color}}, {{accent_color}}, {{text_color}} no CSS inline.
-- Outros placeholders disponíveis: {{hook}}, {{body}}, {{cta}}, {{image_url}}.
-- Retorne APENAS um JSON válido com os campos: html_scaffold, system_prompt, editable_fields, image_prompt_template.
-
-REGRAS PARA editable_fields:
-- DEVE ser um objeto onde cada chave é o nome do campo e o valor é {label, type, default, options?}.
-- OBRIGATORIAMENTE inclua estes 3 campos de cor:
-  - "bg_color": {"label": "Cor de fundo", "type": "color", "default": "#0a0a0a"}
-  - "accent_color": {"label": "Cor destaque", "type": "color", "default": "#00C9A7"}
-  - "text_color": {"label": "Cor do texto", "type": "color", "default": "#ffffff"}
-- Adicione outros campos editáveis conforme o design (ex: font_family, overlay_opacity, etc.)
-
-REGRAS PARA system_prompt:
-- O system_prompt gerado será usado pela IA que gera a peça final a partir deste template.
-- Deve incluir instruções explícitas para:
-  1. Usar as cores do briefing (bg_color, accent_color, text_color)
-  2. Respeitar safe zones e tipografia mínima
-  3. Seguir hierarquia visual de 3 níveis
-  4. Limitar texto a max 2 linhas visíveis por bloco
-  5. Usar Google Fonts via <link>
+REGRAS:
+- Container raiz: exatamente ${dim.w}x${dim.h}px.
+- Google Fonts via <link>. Use {{bg_color}}, {{accent_color}}, {{text_color}}.
+- Outros placeholders: {{hook}}, {{body}}, {{cta}}, {{image_url}}.
+- Retorne JSON com: html_scaffold, system_prompt, editable_fields, image_prompt_template.
+- editable_fields DEVE incluir bg_color, accent_color, text_color.
 
 ${dbTemplateDesign}
 
-${category === "carousel" ? "- Para carrossel, gere HTML com múltiplos slides separados por comentários <!-- SLIDE -->.\n- Slide 1 = gancho forte, nunca título de relatório.\n- Slides do meio = 1 ponto por slide, max 3 linhas.\n- Último slide = CTA claro." : ""}
-
-${category === "story" || category === "reels" ? "- Para stories/reels (9:16), respeite rigorosamente as safe zones: top 250px e bottom 340px livres de conteúdo." : ""}`;
+${category === "carousel" ? "Para carrossel: múltiplos slides separados por <!-- SLIDE -->." : ""}
+${category === "story" || category === "reels" ? "Para stories/reels (9:16): safe zones top 250px e bottom 340px." : ""}`;
 
     let userContent: any;
-
     if (mode === "from_image") {
       userContent = [
-        {
-          type: "text",
-          text: `Analise esta imagem de referência e crie um template HTML equivalente.
-Categoria: ${category}
-Aspect ratio: ${aspect_ratio} (${dim.w}x${dim.h}px)
-Tipo de geração: ${generation_type}
-
-Extraia: layout, cores, tipografia, espaçamento, e recrie como HTML com CSS inline.
-Use Google Fonts via <link> para tipografia (não system fonts).
-Use {{bg_color}}, {{accent_color}}, {{text_color}} como variáveis de cor no CSS.
-Retorne JSON com: html_scaffold, system_prompt, editable_fields (com bg_color, accent_color, text_color obrigatórios), image_prompt_template.`,
-        },
-        {
-          type: "image_url",
-          image_url: { url: image_url },
-        },
+        { type: "text", text: `Analise esta imagem e crie um template HTML equivalente.\nCategoria: ${category}\nAspect ratio: ${aspect_ratio} (${dim.w}x${dim.h}px)\nTipo: ${generation_type}\n\nRetorne JSON com: html_scaffold, system_prompt, editable_fields, image_prompt_template.` },
+        { type: "image_url", image_url: { url: image_url } },
       ];
     } else {
-      userContent = `Crie um template HTML para peças de marketing digital.
-
-Descrição: ${description}
-Categoria: ${category}
-Aspect ratio: ${aspect_ratio} (${dim.w}x${dim.h}px)
-Tipo de geração: ${generation_type}
-
-Use Google Fonts via <link> para tipografia (não system fonts).
-Use {{bg_color}}, {{accent_color}}, {{text_color}} como variáveis de cor no CSS.
-Retorne JSON com: html_scaffold, system_prompt, editable_fields (com bg_color, accent_color, text_color obrigatórios), image_prompt_template.`;
+      userContent = `Crie um template HTML.\nDescrição: ${description}\nCategoria: ${category}\nAspect ratio: ${aspect_ratio} (${dim.w}x${dim.h}px)\nTipo: ${generation_type}\n\nRetorne JSON com: html_scaffold, system_prompt, editable_fields, image_prompt_template.`;
     }
 
-    const payload: any = {
-      model: mode === "from_image" ? "google/gemini-2.5-pro" : "google/gemini-3-flash-preview",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userContent },
-      ],
-      tools: [
-        {
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: mode === "from_image" ? "google/gemini-2.5-pro" : "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent },
+        ],
+        tools: [{
           type: "function",
           function: {
             name: "create_template",
@@ -201,88 +100,44 @@ Retorne JSON com: html_scaffold, system_prompt, editable_fields (com bg_color, a
             parameters: {
               type: "object",
               properties: {
-                html_scaffold: { type: "string", description: "Complete HTML template with inline CSS and Google Fonts <link>" },
-                system_prompt: { type: "string", description: "System prompt for AI asset generation, including color/typography/safe-zone instructions" },
-                editable_fields: {
-                  type: "object",
-                  description: "Editable fields config. MUST include bg_color, accent_color, text_color",
-                  additionalProperties: {
-                    type: "object",
-                    properties: {
-                      label: { type: "string" },
-                      type: { type: "string", enum: ["color", "select", "slider", "text"] },
-                      default: {},
-                      options: { type: "array", items: { type: "string" } },
-                    },
-                    required: ["label", "type", "default"],
-                  },
-                },
-                image_prompt_template: { type: "string", description: "Image generation prompt template" },
+                html_scaffold: { type: "string" },
+                system_prompt: { type: "string" },
+                editable_fields: { type: "object", additionalProperties: { type: "object", properties: { label: { type: "string" }, type: { type: "string", enum: ["color", "select", "slider", "text"] }, default: {}, options: { type: "array", items: { type: "string" } } }, required: ["label", "type", "default"] } },
+                image_prompt_template: { type: "string" },
               },
               required: ["html_scaffold", "system_prompt", "editable_fields"],
               additionalProperties: false,
             },
           },
-        },
-      ],
-      tool_choice: { type: "function", function: { name: "create_template" } },
-    };
-
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+        }],
+        tool_choice: { type: "function", function: { name: "create_template" } },
+      }),
     });
 
     if (!aiRes.ok) {
       const errText = await aiRes.text();
-      console.error("AI gateway error:", aiRes.status, errText);
-      if (aiRes.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Tente novamente em alguns segundos." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiRes.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos insuficientes. Adicione créditos em Settings > Workspace > Usage." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      console.error("AI error:", aiRes.status, errText);
+      if (aiRes.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (aiRes.status === 402) return new Response(JSON.stringify({ error: "Créditos insuficientes." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       throw new Error(`AI error: ${aiRes.status}`);
     }
 
     const aiData = await aiRes.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-
-    if (!toolCall) {
-      throw new Error("AI did not return structured output");
-    }
+    if (!toolCall) throw new Error("AI did not return structured output");
 
     const result = JSON.parse(toolCall.function.arguments);
-
-    // Ensure required color fields exist in editable_fields
     if (result.editable_fields) {
-      if (!result.editable_fields.bg_color) {
-        result.editable_fields.bg_color = { label: "Cor de fundo", type: "color", default: "#0a0a0a" };
-      }
-      if (!result.editable_fields.accent_color) {
-        result.editable_fields.accent_color = { label: "Cor destaque", type: "color", default: "#00C9A7" };
-      }
-      if (!result.editable_fields.text_color) {
-        result.editable_fields.text_color = { label: "Cor do texto", type: "color", default: "#ffffff" };
-      }
+      if (!result.editable_fields.bg_color) result.editable_fields.bg_color = { label: "Cor de fundo", type: "color", default: "#0a0a0a" };
+      if (!result.editable_fields.accent_color) result.editable_fields.accent_color = { label: "Cor destaque", type: "color", default: "#00C9A7" };
+      if (!result.editable_fields.text_color) result.editable_fields.text_color = { label: "Cor do texto", type: "color", default: "#ffffff" };
     }
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("generate-template error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
