@@ -1,63 +1,64 @@
 
 
-# Fix: Legibilidade de texto sobre imagem de fundo
+# Prevenção de Erros de Design — Validação Pós-Geração
 
-## Diagnóstico
+## O Problema
 
-O problema está no **prompt** das regras HTML (`HTML_CREATIVE_RULES` e na instrução do branch `html_and_image`). A IA gera o overlay HTML sem instruções explícitas para proteger o texto contra a imagem de fundo.
+Hoje o fluxo é: **prompt → IA gera HTML → salva direto no banco**. Não existe nenhuma etapa de validação entre a geração e o salvamento. Se a IA ignora uma regra (texto sem contraste, botão desalinhado, fonte não carregada), o erro vai direto pro usuário.
 
-Problemas visíveis na peça:
-- Texto se mistura com a imagem (sem gradient overlay)
-- Botão CTA com texto desalinhado
-- Sem text-shadow suficiente para contraste
+Prompts melhores ajudam, mas IAs são probabilísticas — sempre haverá falhas. A solução robusta é adicionar uma **camada de validação automática** no HTML gerado.
 
-## Solução
+## Solução: HTML Validator + Auto-fix
 
-### 1. Adicionar regras de overlay obrigatório no prompt `asset_html_rules`
+### 1. Criar `_shared/validate-html.ts`
 
-Adicionar uma seção nova nas `HTML_CREATIVE_RULES` em `generate-asset-from-template/index.ts`:
+Uma função que recebe o HTML gerado e verifica regras básicas de design antes de salvar:
 
-```
-### SOBREPOSIÇÃO TEXTO + IMAGEM (OBRIGATÓRIO para html_and_image)
-- SEMPRE adicionar gradient overlay entre imagem de fundo e texto
-- Gradiente: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)
-- Mínimo: 40% da altura do container coberto pelo gradiente
-- Alternativa: faixa sólida semitransparente (rgba(0,0,0,0.7)) na zona de texto
-- text-shadow OBRIGATÓRIO em TODOS os textos sobre imagem: 0 2px 8px rgba(0,0,0,0.8)
-- Botão CTA: background sólido opaco, NUNCA transparente sobre imagem
-- Texto NUNCA diretamente sobre imagem sem proteção visual
-```
+| Verificação | O que faz | Auto-fix |
+|---|---|---|
+| **Gradient overlay** | Se `background-image` existe, exige `linear-gradient` overlay | Injeta div overlay automaticamente |
+| **Text-shadow** | Todo texto sobre imagem precisa `text-shadow` | Adiciona `text-shadow: 0 2px 8px rgba(0,0,0,0.8)` |
+| **CTA centralizado** | Botão com `display:flex;align-items:center;justify-content:center` | Injeta estilos de centralização |
+| **Dimensões fixas** | Container raiz tem `width` e `height` em px (não %, vw, vh) | Substitui por valores do template |
+| **Google Fonts** | Verifica se há `<link>` do Google Fonts (não system fonts) | Warning apenas |
+| **Contraste mínimo** | Cores de texto vs fundo com ratio ≥ 3:1 | Warning apenas |
+| **Overflow** | Texto não excede container (heurística: font-size vs height) | Warning apenas |
 
-### 2. Melhorar o prompt do branch `html_and_image` (linha 269)
+### 2. Integrar no fluxo de geração
 
-Adicionar instrução explícita no `overlayPrompt`:
+Em `generate-asset-from-template/index.ts`, após cada `extractHtml()`:
 
 ```
-IMPORTANTE: A imagem de fundo ocupa 100% do container. 
-Você DEVE adicionar um gradient overlay escuro (linear-gradient to top, 
-de rgba(0,0,0,0.85) até transparent) para garantir legibilidade.
-O texto DEVE ter text-shadow forte. O botão CTA DEVE ter fundo opaco sólido.
-Estrutura obrigatória:
-<div style="width:Wpx;height:Hpx;background-image:url(IMG);background-size:cover;position:relative">
-  <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)"></div>
-  <div style="position:relative;z-index:1;..."><!-- conteúdo --></div>
-</div>
+const rawHtml = extractHtml(rawContent);
+const { html, warnings } = validateAndFixHtml(rawHtml, {
+  width: template.width_px,
+  height: template.height_px,
+  generationType: template.generation_type,
+});
 ```
 
-### 3. Atualizar o prompt no banco de dados
+Warnings ficam logados no console para debugging. Fixes automáticos são aplicados silenciosamente.
 
-Como os prompts agora vivem na tabela `prompt_templates`, também atualizar o registro `asset_html_rules` via migration para incluir as novas regras de overlay.
+### 3. Mesma validação no `edit-asset-render`
 
-## Arquivos a modificar
+Para que refinamentos também passem pela validação.
 
-| Arquivo | Mudança |
-|---------|---------|
-| `supabase/functions/generate-asset-from-template/index.ts` | Adicionar regras de overlay em `HTML_CREATIVE_RULES` + instrução explícita no branch `html_and_image` |
-| Migration SQL | Atualizar conteúdo do prompt `asset_html_rules` no banco |
+### 4. Salvar warnings no banco (opcional mas útil)
+
+Adicionar coluna `generation_warnings text[]` na tabela `asset_template_renders` para rastrear quais peças precisaram de auto-fix — isso ajuda a melhorar os prompts ao longo do tempo.
+
+## Arquivos
+
+| Arquivo | Ação |
+|---|---|
+| `supabase/functions/_shared/validate-html.ts` | Criar — validador + auto-fix |
+| `supabase/functions/generate-asset-from-template/index.ts` | Integrar validação após cada `extractHtml()` |
+| `supabase/functions/edit-asset-render/index.ts` | Integrar validação |
+| Migration SQL | Adicionar coluna `generation_warnings` em `asset_template_renders` |
 
 ## Impacto
 
-- Zero mudança visual na UI
-- Todas as futuras peças `html_and_image` terão gradient overlay automático
-- Peças existentes podem ser regeneradas para aplicar a correção
+- Peças com erros básicos são corrigidas automaticamente antes de chegar ao usuário
+- Warnings registrados permitem identificar padrões de falha e melhorar prompts
+- Zero mudança na UI — puramente backend
 
