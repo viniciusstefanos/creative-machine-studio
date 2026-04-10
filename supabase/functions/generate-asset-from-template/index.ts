@@ -65,6 +65,15 @@ const HTML_CREATIVE_RULES = `
 ### CORES
 - 1 dominante + 1 suporte + 1 acento (CTA only). Contraste ≥4.5:1. Nunca #fff puro → #f5f5f0
 
+### SOBREPOSIÇÃO TEXTO + IMAGEM (OBRIGATÓRIO para html_and_image)
+- SEMPRE adicionar gradient overlay entre imagem de fundo e texto
+- Gradiente: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)
+- Mínimo: 40% da altura do container coberto pelo gradiente
+- Alternativa: faixa sólida semitransparente (rgba(0,0,0,0.7)) na zona de texto
+- text-shadow OBRIGATÓRIO em TODOS os textos sobre imagem: 0 2px 8px rgba(0,0,0,0.8)
+- Botão CTA: background sólido opaco, NUNCA transparente sobre imagem. Texto centralizado com text-align:center e display:flex;align-items:center;justify-content:center
+- Texto NUNCA diretamente sobre imagem sem proteção visual
+
 ### PROIBIÇÕES
 - Texto ilegível, >2 fontes, >1 CTA, hierarquia ausente, fora da safe zone, system fonts genéricas
 
@@ -266,7 +275,7 @@ Deno.serve(async (req) => {
 
       const overlaySystem = dbBriefSystem + "\n" + (template.system_prompt || "") + "\n" + dbHtmlRules + brandInstr + socialInstr + customPrompt;
       const briefContextBlock2 = consolidatedStr ? `\n\n## BRIEFING DO CLIENTE\n${consolidatedStr}` : "";
-      const overlayPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nImagem de fundo: ${bgImageUrl || "não disponível"}\nConfig: ${JSON.stringify(config)}${briefContextBlock2}`;
+      const overlayPrompt = `Copy:\n- Hook: ${context.hook}\n- Body: ${context.body}\n- CTA: ${context.cta}\n\nDimensões: ${template.width_px}x${template.height_px}px\nImagem de fundo: ${bgImageUrl || "não disponível"}\nConfig: ${JSON.stringify(config)}${briefContextBlock2}\n\nIMPORTANTE: A imagem de fundo ocupa 100% do container via background-image.\nVocê DEVE adicionar um gradient overlay escuro para garantir legibilidade do texto.\nO texto DEVE ter text-shadow forte (0 2px 8px rgba(0,0,0,0.8)).\nO botão CTA DEVE ter fundo opaco sólido com texto centralizado (display:flex;align-items:center;justify-content:center).\nEstrutura obrigatória:\n<div style="width:${template.width_px}px;height:${template.height_px}px;background-image:url(${bgImageUrl || 'IMG'});background-size:cover;background-position:center;position:relative">\n  <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)"></div>\n  <div style="position:relative;z-index:1;..."><!-- conteúdo aqui --></div>\n</div>`;
       const rawHtml = await callTextAI(overlaySystem, overlayPrompt, useClaude, anthropicKey, lovableKey);
       const html = extractHtml(rawHtml);
 
